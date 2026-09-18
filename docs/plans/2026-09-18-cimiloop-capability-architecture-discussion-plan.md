@@ -26,6 +26,8 @@
 
 讨论严格区分：能力架构、协议设计、实现设计、开源融合。上层未确认前，不用具体工具或实现反向定义 CimiLoop 架构。
 
+术语表达优先使用“中文（English）”形式。对用户可见的状态、动作和领域名词首次出现时必须同时给出中文解释与英文协议名，避免只使用英文缩写或枚举值。
+
 ## 3. 已确认基线
 
 - 产品名称为 **CimiLoop**，CLI 名称为 `cimi-loop`；
@@ -759,18 +761,207 @@ V1 同时定义两个通用协议构件：
 
 Conversation Summary 是可选记录；Attention Item、Timeline、Decision Inbox 和 Lifecycle Board 继续作为可重建的 Derived Read Model，不进入最小事实对象目录。
 
-### 6.8 阶段 C 后续议题
+### 6.8 第八轮：通用字段与 Schema 语义
 
-- 聚合之间的引用方向、生命周期依赖和删除/归档语义；
-- Change、Contract、Plan、Task 等对象的稳定身份与版本谱系；
-- Amendment、Supersede、Retry、Re-evaluation 等关系的一致语义；
-- Event、Command、Transition、Gate 与 Decision 的领域边界；
-- 核心协议对象分层与最小 V1 对象集合；
-- 上述语义确认后，再进入字段级 Schema 与协议载体设计。
+状态：**进行中**。
 
-## 7. 后续阶段
+已确认的内部身份语义：
 
-- **阶段 D**：Change 状态机、各节点输入/输出/Gate/产物及异常恢复规则；
+- 所有核心领域对象和不可变事实记录都使用全局稳定、不可变的 CimiLoop Internal ID；
+- Internal ID 在 Embedded Solo Mode、Shared Team Mode、Export/Import、项目迁移和 Store 更换后保持不变；
+- Internal ID 是不承载业务含义的机器身份，当前阶段不指定 UUID、ULID 等具体编码格式；
+- 项目内可读编号只作为 Display Key，例如 `CML-42`，可以按项目规则生成或调整，不能替代 Internal ID；
+- Git Commit、Issue ID、CI Run ID、Deployment ID 等外部系统身份使用 External Reference 表达，不能作为 CimiLoop 对象主身份；
+- 对象之间的协议引用使用 Internal ID，并按既有规则附带精确业务版本、Digest 或不可变记录 ID。
+
+已确认的 Common Metadata（通用元数据）语义：
+
+- 所有协议对象共同具备 Internal ID、Object Type、Schema Version、Project Scope、Created At 和 Source；
+- Aggregate Revision 只出现在需要乐观并发控制的可变聚合上；
+- Domain Version 只出现在 Contract、Plan 等正式业务版本对象上；
+- Digest 只出现在不可变内容、Manifest 或外部内容引用上；
+- Actor/Producer 只出现在行为、判断、观察或生成记录上；
+- Change ID 只出现在 Change 范围内对象上，项目级定义不强制携带；
+- 不要求每个对象同时拥有 Version、Revision 和 Digest，字段是否存在由对象语义决定。
+
+已确认的时间语义：
+
+- `created_at` 表示 CimiLoop 创建协议对象或记录的时间；
+- `occurred_at` 表示外部动作或领域事实实际发生的时间，允许早于 created_at；
+- `effective_at` 表示 Assignment、Policy、Decision 或 Exception 等授权从何时生效，按对象需要使用；
+- `expires_at` 表示授权、例外或其他有时效对象何时失效，按对象需要使用；
+- CimiLoop 内部时间统一保存为 UTC，交互界面按用户时区显示；
+- Event 的可靠顺序由 Event Sequence 确定，不能只按时间戳排序；
+- 缺少可信外部发生时间时，occurred_at 保持未知，不能使用 created_at 冒充。
+
+已确认的 Source（来源）语义：
+
+- Common Metadata 中的 Source 使用结构化 Source Descriptor，不使用自由文本作为唯一来源描述；
+- `origin` 表示事实最初来自哪个权威系统或渠道，例如 Git、Runtime、CI、DevOps、Human 或 CimiLoop；
+- `producer` 表示实际产生内容或行为的 Actor、Agent Run、Tool、CI Run 等主体；
+- `recorder` 表示将事实写入 CimiLoop 的 Kernel 或 Adapter；
+- origin、producer 和 recorder 可以相同，也可以分别指向不同主体；
+- 自由文本来源说明只作为补充，不能替代稳定对象引用、External Reference 或结构化来源类型。
+
+已确认的 External Reference 语义：
+
+- External Reference 的稳定身份由外部系统类型、外部系统实例、资源类型和外部 ID 共同确定；
+- Locator/URL 是可变定位信息，不作为外部事实的唯一身份；
+- External Reference 可以附带外部版本或 Revision、内容 Digest、最后核对时间和 Adapter ID；
+- 同一 CimiLoop 对象可以关联多个 External Reference，但既有引用不得被静默重映射到另一个外部资源；
+- External Reference 不得包含访问令牌、凭据、签名 URL 或其他秘密；
+- 外部资源移动或 URL 改变时只更新定位信息；暂时无法访问时标记 Unavailable，不声明原事实不存在。
+
+已确认的 Digest（内容摘要）语义：
+
+- Digest 使用结构化表达，至少包含摘要算法、摘要值和摘要所针对的 Subject；
+- 对 JSON、Manifest 等需要规范化的内容，Digest 同时声明 Canonicalization（规范化规则）；
+- 只有算法和规范化方式一致的 Digest 才能直接比较；
+- Git、Artifact Registry 等权威系统已有可信 Digest 时优先引用其结果；
+- CimiLoop 无法取得原始内容时，不得声称已经自行重新计算或验证 Digest；
+- 摘要算法允许演进，算法不能隐藏在字段名或默认约定中；
+- Digest 证明内容一致性，不等同于数字签名、身份认证或来源真实性证明。
+
+已确认的 Schema Version 作用域：
+
+- 每种序列化对象按 Object Type 独立维护自己的 Schema Version；
+- Export/Import Manifest 使用独立的 Manifest Schema Version 描述包结构；
+- 修改一种对象的结构不要求其他对象同步升级 Schema Version；
+- Schema Version 只描述数据结构，不表示 Contract、Plan 等业务内容版本；
+- 读取端根据 Object Type 与 Schema Version 选择兼容或迁移逻辑；
+- 不设置一个迫使全部协议对象同步升级的单一全局 Schema Version。
+
+已确认的 Schema 兼容与历史迁移语义：
+
+- 新增可选字段且旧读取端可以安全忽略时，可以作为兼容扩展；
+- 删除字段、改变字段含义、改变必填性或改变结构时，必须产生新的对象 Schema Version；
+- Event、Decision、Evidence、Agent Run、Gate Evaluation、Transition 等不可变历史记录保留原始 Payload 与原 Schema Version；
+- 读取时通过 Upcaster（向上转换器）将旧 Payload 映射为当前逻辑模型，不批量改写历史 Ledger；
+- 无法安全转换时返回 Unsupported Schema，不得猜测、静默丢字段或伪造默认值；
+- Current State 和 Derived Read Model 可以迁移或重建，但不能反向修改不可变历史；
+- Export/Import 保留对象原始 Schema 信息和必要转换来源，使迁移后的对象仍可追溯原记录。
+
+已确认的扩展字段语义：
+
+- 核心对象顶层字段使用严格 Schema，拼写错误或未知顶层字段必须报错；
+- Adapter、外部框架和项目自定义信息统一放入命名空间化的 `extensions`；
+- 扩展键必须带稳定命名空间，避免不同提供方发生字段冲突；
+- Kernel 不理解扩展内容时可以保留和转发，但不能依据未知扩展修改核心状态；
+- Extension 不能覆盖核心字段，也不能绕过 Policy、Gate、权限或版本规则；
+- 旧读取端可以保留未知扩展；不理解较新核心 Schema 的旧写入端不得重写对象并丢失未知核心字段。
+
+已确认的 Object Reference（对象引用）语义：
+
+- CimiLoop 内部对象引用统一使用 Typed Reference，至少包含 Object Type 与 Internal ID；
+- Contract、Plan 等版本化对象的引用必须附精确 Domain Version；
+- Artifact 等需要绑定具体内容的引用必须附 Digest；
+- 不可变事实记录使用 Object Type 与记录 ID 引用；
+- Aggregate Revision 不进入普通引用，只用于 Command 的并发前置条件；
+- Display Key、名称和标题不复制进引用，由 Read Model 在展示时解析；
+- CimiLoop Object Reference 与 External Reference 使用不同结构，不能混用。
+
+已确认的 Command Envelope 最小语义：
+
+- Command Envelope 包含 Command ID、Command Type、Schema Version、Project Scope、可选 Change Reference、Actor Reference、acting role、Target Reference、Expected Revision、Idempotency Key、Requested At、Source、Correlation ID、Causation ID 和业务 Payload；
+- Command Type 必须表达业务动作，例如 approve contract，禁止使用通用 set status；
+- Envelope 只表达请求，不包含动作已经成功的结论；
+- Actor 不能通过 Payload 自行声明权限，授权由 Assignment、Policy 和当前状态求值；
+- 相同作用域内重复 Idempotency Key 必须返回原处理结果，不重复产生副作用；
+- Expected Revision 过期时拒绝写入，并要求调用方重新读取和求值；
+- 每个 Command 只指定一个主要写入聚合，跨聚合后续动作由 Kernel 事务、Event 和 Outbox 协调。
+
+已确认的 Event Envelope 最小语义：
+
+- Event Envelope 包含 Event ID、Event Type、Schema Version、Project Scope、可选 Change Reference、Subject Reference、Aggregate Reference、提交后的 Aggregate Revision、Occurred At、Created At、Source、可选 Actor/Producer Reference、Command Reference、Correlation ID、Causation ID、Sequence 和业务 Payload；
+- Event Type 使用已经发生的事实语义，例如 contract approved，不能使用命令式名称；
+- Event 一经提交不可修改，并只声明一个主要 Subject/Aggregate；
+- Payload 不复制 Contract、Plan 或 Actor 的完整内容，只保存必要快照和 Typed Reference；
+- Event 不承载凭据、秘密、大型日志或二进制内容。
+
+### 6.9 阶段 C 后续议题
+
+- 通用对象元数据、来源、时间和 Digest 语义；
+- External Reference 与对象引用结构；
+- Contract、Plan、Task、Risk、Work Item 和 Run 的最小字段；
+- Claim、Evidence、Gate、Decision、Transition 与 Event 的最小字段；
+- Release、Deployment、Failure、Blocker、Feedback 和 Learning Candidate 的最小字段；
+- Schema Version 演进、兼容性和 Export/Import 引用完整性。
+
+## 7. 阶段 D：Change 端到端运行流程
+
+状态：**进行中**。
+
+阶段 D 定义 Change 从创建到关闭的完整状态迁移、各节点输入/输出、Gate、人工决策、异常与恢复规则。字段级 Schema 的剩余细节由已确认领域语义继续推导，不再逐字段阻塞流程讨论。
+
+### 7.1 第一轮：Change 创建与 N1 意图契约
+
+状态：**进行中**。
+
+已确认的 Change 创建边界：
+
+- 普通对话、头脑风暴和未确认建议不自动创建 Change；
+- 用户明确请求创建，或确认 Agent 提出的创建建议后，立即生成 Draft Change；
+- Draft 创建时生成稳定 Change ID、指定唯一 Human Change Owner，并保存原始诉求的摘要与来源引用；
+- Draft 允许 Contract、Risk、Profile 和 Owner 信息尚未完整，后续澄清在该 Change Room 内持续补齐；
+- Draft 阶段产生的 Feedback、Agent Run、Spike、Decision Request 和 Evidence 均归属该 Change；
+- Contract 获授权前，只允许澄清、只读分析和明确授权的受限 Spike，不允许进入正式实现。
+
+已确认的 Change Profile 确认时点：
+
+- Draft 创建时由 Agent 建议 Provisional Profile（暂定类型），用于选择澄清问题、风险维度和候选路径；
+- Agent 必须说明 Profile 建议依据，不能自行把高风险 Change 归类为低风险类型；
+- Draft 阶段 Human 可以调整 Provisional Profile，调整后重新计算澄清项和初步 Gate 要求；
+- Intent Decision 批准当前 Contract Version 时，由 Human 同时确认正式 Change Profile ID 与版本；
+- 正式 Profile 成为当前 Contract 授权边界的一部分；
+- Contract 批准后的 Profile 变化必须提交 Contract Amendment，并执行影响评估与相应授权。
+
+已确认的意图审核（Intent Review）结果：
+
+- 批准（approve）：将当前 Contract Candidate 固化为正式 Contract Version，同时确认正式 Profile；Kernel 基于最新条件重新执行 Gate，满足后执行 `Draft → IntentReady`；
+- 请求修改（request changes）：Change 保持 `Draft + Active`，关闭本次 Decision Request，生成结构化 Feedback，继续修改同一个 Contract Candidate，完成后重新发起审核；
+- 拒绝（reject）：不自动取消或删除 Change；Change 保持 Draft，但运行状况进入暂停（Paused）并记录拒绝理由；
+- 拒绝后由 Change Owner 明确选择修改意图并恢复，或提交取消 Change 的 Command；
+- 首个 Contract Candidate 只有在批准后才成为正式 Contract v1，审核中的修改不产生多个正式 Contract Version。
+
+已确认的意图就绪到规划启动：
+
+- Contract 获批准且 Gate 允许后，Change 进入意图就绪（IntentReady）；
+- 默认不等待用户再次点击，Kernel 自动创建规划工作项（Planning Work Item）；
+- 自动规划的前提是不存在阻塞项（Blocker）、暂停（Paused）、预算限制、Profile 路径限制或 Planner/Runtime 不可用；
+- Planner Agent 生成技术方案、任务图（Task DAG）、验证策略和影响分析后，提交执行计划审核（Plan Review）；
+- 自动规划不等于自动实现，V1 监督模式（A1）下必须由技术负责人（Technical Owner）批准计划后才能正式执行；
+- Project Policy 可以配置“契约批准后暂停”，但默认策略是满足条件时连续推进。
+
+已确认的计划细化策略：
+
+- Plan 采用“全局覆盖 + 滚动细化”，不要求在首次实现前把所有 Task 一次性细化到底；
+- 初始 Plan 必须覆盖整个 Change 的主要工作范围，形成完整高层 Task DAG，并说明关键依赖、风险、验证策略和恢复考虑；
+- 即将执行的 Task 必须细化到能够生成有明确目标、范围、权限、预算和停止条件的 Work Item；
+- 较远 Task 可以保持高层定义，在接近执行前补充细节；
+- 不改变 Task 边界、依赖、权限、风险和验证策略的内部细化可以直接记录；
+- 改变 Task 边界、DAG、权限、风险、预算或验证策略时，必须提交计划修订（Plan Amendment）。
+
+已确认的 Plan 授权与执行启动：
+
+- 技术负责人（Technical Owner）批准 Plan Version，即批准其中的 Task DAG、验证策略和声明的授权边界；
+- Kernel 基于最新条件重新执行关卡检查（Gate Evaluation），允许后执行 `IntentReady → Planned`；
+- 进入已规划（Planned）后，Kernel 自动识别依赖满足、范围已细化且权限明确的可执行任务（Ready Task）；
+- Kernel 为 Ready Task 创建 Work Item，随后 Change 进入执行中（Executing）；
+- Task 只有获得 Work Item 后才能执行，Agent 不能直接领取或执行裸 Task；
+- 普通 Task 不重复进行逐项人工审批；高风险、不可逆或 Policy 指定的 Task 可以增加单独人工关卡；
+- Plan 批准后出现范围、权限、风险或验证策略变化时，必须通过 Plan Amendment 或 Contract Amendment 重新授权。
+
+已确认的 Task 级循环与 Change 级状态：
+
+- Task、Work Item 和 Agent Run 维护各自执行、验证和失败状态，不用每次局部变化驱动 Change 生命周期迁移；
+- 只要当前 Plan 仍有实现任务推进，Change 通常保持执行中（Executing）；
+- Task 级测试或内部检查失败只更新对应 Task、Run 和 Failure，并在原授权范围内重试或修复；
+- 当当前 Plan 的阻塞 Task 全部完成，并形成完整 Artifact Candidate 与 Delivery Evidence 后，Change 才进入评价中（Evaluating）；
+- 独立 Evaluator 对完整候选交付进行 Change 级评价；
+- Change 级评价失败时执行 `Evaluating → Executing`，并创建关联失败 Evidence 的修复工作项（Repair Work Item）。
+
+### 7.2 后续阶段
+
 - **阶段 E**：角色模型、职责权限矩阵、人机与多 Agent 协作规则；
 - **阶段 F**：Context & Knowledge、能力装配、Verification & Evidence、DevOps、Workbench、存储与 Teams 演进；
 - **阶段 G**：开源能力 Build / Adopt / Adapt 矩阵、V1 范围、里程碑和验收计划。
@@ -887,12 +1078,33 @@ Conversation Summary 是可选记录；Attention Item、Timeline、Decision Inbo
 | D-093 | V1 执行与交付对象 | 已确认 | Work Item、Agent Run Record、Context Pack Manifest、Artifact、Release 和 Deployment 进入 V1 核心协议；运行协调与大对象留在各自权威系统。 |
 | D-094 | V1 信任、Gate 与授权对象 | 已确认 | Claim、Evidence、Gate/Requirement Set/Evaluation、Decision Request/Decision、Policy Exception 和 Transition Record 进入 V1 核心协议；Approval 统一为 Decision 类型。 |
 | D-095 | V1 协作、异常与审计对象 | 已确认 | Event、Failure、Blocker、Feedback、可选 Conversation Summary 和 Learning Candidate 进入核心协议；External Reference 与 Command Envelope 作为通用构件。 |
+| D-096 | 全局稳定内部 ID | 已确认 | 所有核心对象使用全局稳定、不可变且无业务含义的 CimiLoop Internal ID；Display Key 与 External Reference 分离，具体编码格式后续选择。 |
+| D-097 | Common Metadata | 已确认 | 所有对象共享精简通用元数据；Revision、Domain Version、Digest、Actor/Producer 和 Change ID 按对象语义选择性出现，不对所有对象一刀切。 |
+| D-098 | 时间语义 | 已确认 | 区分 created_at、occurred_at、effective_at 与 expires_at；内部统一 UTC，事件顺序使用 Event Sequence，未知外部发生时间不得伪造。 |
+| D-099 | Source Descriptor | 已确认 | Source 使用结构化描述并区分 origin、producer 与 recorder；自由文本只能补充，不能替代稳定引用和来源类型。 |
+| D-100 | External Reference 身份 | 已确认 | 外部引用以系统类型、系统实例、资源类型和外部 ID 作为稳定身份；URL 仅作可变定位且不得包含凭据。 |
+| D-101 | Digest 语义 | 已确认 | Digest 结构化记录算法、值、Subject 和必要规范化规则；只证明内容一致性，不等同于签名或来源真实性。 |
+| D-102 | Schema Version 作用域 | 已确认 | 每种 Object Type 独立维护 Schema Version，Export/Import Manifest 单独版本化；不使用迫使所有对象同步升级的全局 Schema Version。 |
+| D-103 | Schema 兼容与历史迁移 | 已确认 | 不可变历史保留原 Payload 与 Schema Version，通过 Upcaster 读取；Current State/Read Model 可迁移或重建，但不得反向改写 Ledger。 |
+| D-104 | Schema 扩展字段 | 已确认 | 核心顶层字段严格校验；外部扩展使用带命名空间的 extensions，未知扩展可保留转发但不能覆盖核心字段或控制状态。 |
+| D-105 | Typed Object Reference | 已确认 | 内部引用使用 Object Type + Internal ID；按对象语义附精确 Domain Version 或 Digest，普通引用不携带 Revision 或展示字段。 |
+| D-106 | Command Envelope | 已确认 | 所有写入使用统一 Envelope，承载身份、作用域、目标、并发、幂等和因果信息；业务参数进入 Payload，每个 Command 只有一个主要写入聚合。 |
+| D-107 | Event Envelope | 已确认 | 所有领域事件使用统一 Envelope，承载主体、聚合、版本、时间、来源、因果与顺序信息；Event Type 使用已发生事实语义且 Payload 不复制完整对象。 |
+| D-108 | Draft Change 创建边界 | 已确认 | 普通对话不自动创建 Change；用户明确创建或确认 Agent 建议后立即生成 Draft，后续澄清和受限分析归入其 Change Room，授权前不得正式实现。 |
+| D-109 | Change Profile 确认时点 | 已确认 | Draft 使用 Agent 建议的 Provisional Profile 引导澄清；Intent Decision 批准 Contract 时由 Human 正式确认，之后变化走 Contract Amendment。 |
+| D-110 | Intent Review 结果语义 | 已确认 | 批准生成正式 Contract Version 并经 Gate 进入 IntentReady；请求修改留在 Draft 继续完善；拒绝进入 Paused，由 Change Owner 明确修改恢复或取消。 |
+| D-111 | IntentReady 自动启动规划 | 已确认 | 契约批准且无阻塞、暂停或能力限制时，Kernel 默认自动创建 Planning Work Item；V1 计划完成后仍须 Technical Owner 批准才能实现。 |
+| D-112 | Plan 全局覆盖与滚动细化 | 已确认 | 初始 Plan 覆盖完整范围和高层 Task DAG，近期 Task 细化到可授权；后续滚动细化，结构性变化走 Plan Amendment。 |
+| D-113 | Plan 授权与 Task 调度 | 已确认 | Plan Version 获批后普通 Task 不逐项人工审批；Kernel 只为满足依赖、细化和权限条件的 Ready Task 创建 Work Item，高风险任务可由 Policy 加 Gate。 |
+| D-114 | Task 循环与 Change 宏观状态 | 已确认 | Task/Run 维护局部执行与验证状态；Change 在完整候选交付形成后才进入 Evaluating，Change 级评价失败再返回 Executing 并创建 Repair Work Item。 |
 
 ## 10. 当前进度
 
 - 阶段 A 产品边界与架构原则：已完成；
 - 阶段 B 整体能力架构：已完成；
 - 阶段 C 核心领域模型与 Cimi Change Protocol：进行中，领域语义、核心对象边界、引用与版本关系、协议分层及 V1 最小对象目录已确认；
+- 阶段 D Change 端到端运行流程：进行中，主状态机草案已形成，待典型场景和原型核对；
 - 正式架构文档：`docs/architecture/CimiLoop整体能力架构-v0.1.md`、`docs/architecture/CimiChangeProtocol核心领域模型-v0.1.md`；
-- 下一步：在正式领域模型约束下进入字段级 Schema 讨论；
-- 阶段 D–G：尚未开始。
+- 状态机草案：`docs/architecture/CimiLoopChange端到端状态机-v0.1.md`；
+- 下一步：用典型 Feature、Bugfix、Incident、测试修复和生产恢复场景验证状态机，再进入角色权限矩阵；
+- 阶段 E–G：尚未开始。

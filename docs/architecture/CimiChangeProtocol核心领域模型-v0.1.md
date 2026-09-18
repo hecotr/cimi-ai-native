@@ -267,7 +267,65 @@ CimiLoop 面向用户的主要业务版本只有：
 
 Artifact 使用不可变 Artifact ID 与 Digest，不使用可原地修改的 Artifact Version。Decision、Evidence、Gate Evaluation、Work Item、Agent Run、Deployment 和 Event 每次发生都创建独立记录 ID，不增加用户可见业务版本号。
 
-### 8.2 内部技术标识
+### 8.2 稳定内部身份
+
+- 所有核心领域对象和不可变事实记录使用全局稳定、不可变的 CimiLoop Internal ID；
+- Internal ID 在 Solo/Team、Export/Import、项目迁移和 Store 更换后保持不变；
+- Internal ID 不承载项目、对象类型、时间或顺序等业务含义；
+- `CML-42` 等可读编号是项目内 Display Key，可以调整，不能替代 Internal ID；
+- Git Commit、Issue ID、CI Run ID、Deployment ID 等外部身份使用 External Reference 表达；
+- 本阶段只确认身份语义，不指定 UUID、ULID 等具体编码格式。
+
+### 8.3 Common Metadata：通用元数据
+
+所有协议对象共同具备：
+
+- Internal ID；
+- Object Type；
+- Schema Version；
+- Project Scope；
+- Created At；
+- Source。
+
+以下元数据按对象性质选择性出现：
+
+- Aggregate Revision：仅用于需要乐观并发控制的可变聚合；
+- Domain Version：仅用于 Contract、Plan 等正式业务版本对象；
+- Digest：仅用于不可变内容、Manifest 或外部内容引用；
+- Actor/Producer：仅用于行为、判断、观察或生成记录；
+- Change ID：仅用于 Change 范围内对象，项目级定义不强制携带。
+
+协议不要求每个对象同时拥有 Version、Revision 和 Digest。字段是否存在由对象语义决定。
+
+### 8.4 时间语义
+
+- `created_at`：CimiLoop 创建协议对象或记录的时间；
+- `occurred_at`：外部动作或领域事实实际发生的时间，可以早于 created_at；
+- `effective_at`：Assignment、Policy、Decision 或 Exception 等授权开始生效的时间，按需使用；
+- `expires_at`：授权、例外或其他有时效对象失效的时间，按需使用。
+
+CimiLoop 内部时间统一保存为 UTC，交互界面按用户时区显示。Event 的可靠顺序由 Event Sequence 确定，不能只按时间戳排序。缺少可信外部发生时间时，occurred_at 保持未知，不能使用 created_at 冒充。
+
+### 8.5 Source Descriptor：来源描述
+
+Common Metadata 中的 Source 使用结构化 Source Descriptor，并区分：
+
+- `origin`：事实最初来自哪个权威系统或渠道，例如 Git、Runtime、CI、DevOps、Human 或 CimiLoop；
+- `producer`：实际产生内容或行为的 Actor、Agent Run、Tool、CI Run 等主体；
+- `recorder`：将事实写入 CimiLoop 的 Kernel 或 Adapter。
+
+三者可以相同，也可以分别指向不同主体。自由文本来源说明只能作为补充，不能替代稳定对象引用、External Reference 或结构化来源类型。
+
+### 8.6 External Reference：外部引用
+
+- External Reference 的稳定身份由外部系统类型、外部系统实例、资源类型和外部 ID 共同确定；
+- Locator/URL 是可变定位信息，不作为外部事实的唯一身份；
+- External Reference 可以附带外部版本或 Revision、内容 Digest、最后核对时间和 Adapter ID；
+- 同一 CimiLoop 对象可以关联多个 External Reference，但既有引用不得被静默重映射；
+- External Reference 不得包含访问令牌、凭据、签名 URL 或其他秘密；
+- 外部资源移动时只更新定位信息；暂时无法访问时标记 Unavailable，不声明原事实不存在。
+
+### 8.7 内部技术标识
 
 - Aggregate Revision：用于乐观并发控制；
 - Schema Version：用于协议结构演进；
@@ -276,7 +334,23 @@ Artifact 使用不可变 Artifact ID 与 Digest，不使用可原地修改的 Ar
 
 这些标识与 Contract/Plan 业务版本严格分离，不能混用，也不能用时间戳代替。
 
-### 8.3 跨聚合引用
+Digest 使用结构化表达，至少包含算法、摘要值和 Subject；需要规范化的内容同时声明 Canonicalization。只有算法与规范化方式一致的 Digest 才能直接比较。Git、Artifact Registry 等权威系统已有可信摘要时优先引用；无法取得原始内容时，CimiLoop 不得声称已重新验证。Digest 只证明内容一致性，不等同于数字签名、身份认证或来源真实性。
+
+每种序列化对象按 Object Type 独立维护 Schema Version；Export/Import Manifest 使用独立的 Manifest Schema Version。修改一种对象的结构不要求其他对象同步升级。Schema Version 只描述数据结构，不表示业务内容版本，读取端根据 Object Type 与 Schema Version 选择兼容或迁移逻辑。协议不设置迫使所有对象同步升级的单一全局 Schema Version。
+
+Schema 兼容与迁移遵循以下规则：
+
+- 新增可选字段且旧读取端可以安全忽略时，可以作为兼容扩展；
+- 删除字段、改变含义、改变必填性或结构时，必须产生新的对象 Schema Version；
+- 不可变历史记录保留原始 Payload 与原 Schema Version；
+- 读取时通过 Upcaster 映射为当前逻辑模型，不批量改写历史 Ledger；
+- 无法安全转换时返回 Unsupported Schema，不猜测、静默丢字段或伪造默认值；
+- Current State 与 Derived Read Model 可以迁移或重建，但不能反向修改历史；
+- Export/Import 保留原始 Schema 信息和必要转换来源。
+
+核心对象顶层字段使用严格 Schema。Adapter、外部框架和项目自定义信息统一放入带稳定命名空间的 `extensions`。Kernel 可以保存和转发未知扩展，但不能依据未知扩展修改核心状态。Extension 不能覆盖核心字段或绕过 Policy、Gate、权限和版本规则。不理解较新核心 Schema 的旧写入端不得重写对象并丢失未知核心字段。
+
+### 8.8 跨聚合引用
 
 - 跨聚合关系使用稳定对象 ID；
 - 引用 Contract、Plan 等版本化业务对象时必须同时引用精确业务版本；
@@ -284,6 +358,8 @@ Artifact 使用不可变 Artifact ID 与 Digest，不使用可原地修改的 Ar
 - 引用不可变事实记录时使用其稳定记录 ID；
 - 历史对象保持原引用，不自动追随 Change 的当前 Contract/Plan；
 - 反向关系和组合视图由 Read Model 构建，不维护跨聚合双向可变对象图。
+
+CimiLoop 内部对象引用统一使用 Typed Reference：至少包含 Object Type 与 Internal ID；版本化业务对象附精确 Domain Version；需要绑定具体内容的 Artifact 等对象附 Digest；不可变事实记录使用类型与记录 ID。Aggregate Revision 只用于 Command 并发前置条件，不进入普通引用。Display Key、名称和标题由 Read Model 解析，不复制进引用。CimiLoop Object Reference 与 External Reference 使用不同结构。
 
 ## 9. 版本变化与影响评估
 
@@ -321,6 +397,10 @@ flowchart TD
 - Transition Request 是具有生命周期语义的领域 Command，不是独立写入通道；
 - Event 表达已经提交的事实，一经记录不得改写；
 - Command 不能作为动作已经发生的证据，Event 不能被当作再次执行动作的指令。
+
+所有写入统一使用 Command Envelope，包含 Command ID、Command Type、Schema Version、Project Scope、可选 Change Reference、Actor Reference、acting role、Target Reference、Expected Revision、Idempotency Key、Requested At、Source、Correlation ID、Causation ID 和业务 Payload。Command Type 必须表达业务动作，禁止通用 set status。Actor 不能在 Payload 中自行声明权限。相同作用域内重复 Idempotency Key 返回原处理结果。每个 Command 只有一个主要写入聚合，跨聚合后续动作由 Kernel 事务、Event 和 Outbox 协调。
+
+所有领域事件统一使用 Event Envelope，包含 Event ID、Event Type、Schema Version、Project Scope、可选 Change Reference、Subject Reference、Aggregate Reference、提交后的 Aggregate Revision、Occurred At、Created At、Source、可选 Actor/Producer Reference、Command Reference、Correlation ID、Causation ID、Sequence 和业务 Payload。Event Type 使用已经发生的事实语义，只声明一个主要 Subject/Aggregate。Payload 不复制完整对象，也不承载秘密、大型日志或二进制内容。
 
 ### 10.2 Gate、Requirement Set 与 Evaluation
 
