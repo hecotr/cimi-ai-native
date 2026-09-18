@@ -380,15 +380,402 @@ V1 区分 Conversation、Feedback 与 Decision：
 - Change Room 只保存对流程有长期价值的 Feedback、Decision、Artifact、Evidence，以及必要的 Conversation 摘要和来源引用；
 - 原始对话保留在对应 Runtime 的 Agent Run Log 中。
 
-## 6. 后续阶段
+## 6. 阶段 C：核心领域模型与 Cimi Change Protocol
 
-- **阶段 C**：统一术语、核心对象关系、Cimi Change Protocol 边界和 Schema 目录；
+状态：**进行中**。
+
+阶段 C 先定义统一语言、领域对象、聚合边界、身份关系与版本关系，再讨论字段级 Schema、目录、存储和外部能力映射。
+
+### 6.1 第一轮：核心对象与聚合边界
+
+状态：**已确认**。
+
+#### Project、Change 与 Change Room
+
+- Project 与 Change 分别是聚合根，Change 必须归属一个 Project；
+- Project 管理项目级身份、治理边界和跨 Change 关系，不承载单个 Change 的运行状态；
+- Change 是独立交付、验证、发布和责任单元，也是生命周期状态的权威聚合；
+- 每个 Change 自动拥有唯一逻辑 Change Room；
+- Change Room 不是第三个事实聚合，而是与 Change 一一对应的交互与查询投影；
+- Change Room 组合展示 Contract、Plan、Work Item、Agent Run、Artifact、Evidence、Decision 和 Timeline，但不拥有这些对象，也不能成为绕过 Kernel 的写入边界。
+
+#### Change Contract 与版本
+
+- Change Contract 是从属于 Change、但独立版本化的聚合；
+- Contract 不能脱离所属 Change 存在，但拥有稳定 Contract ID 和不可变 Contract Version；
+- Change 只引用当前生效的 Contract Version，不把完整契约内容内嵌为可原地修改的状态；
+- Contract Amendment 产生新的不可变版本，旧版本永久保留；
+- Contract Version 的启用必须经过相应 Decision 与 Kernel 校验，修订不能直接改变 Change 生命周期状态。
+
+#### Plan、Task DAG、Work Item 与 Agent Run
+
+- Plan 是从属于 Change 的独立版本化聚合，并绑定授权它的 Contract Version；
+- Task 是 Plan 内的持久实体，Task 之间的依赖共同构成该 Plan Version 的 Task DAG；
+- Work Item 是 Kernel 针对某个 Task 创建的一次有边界执行授权，是独立的调度聚合；
+- Agent Run 是 Runtime 执行一次 Work Item 的独立尝试记录；
+- 一个 Task 可以产生多个 Work Item，一个 Work Item 也可以因重试、恢复或接管产生多个 Agent Run；
+- Plan Amendment 产生新的 Plan Version，不覆盖历史 Task、Work Item 和 Agent Run；
+- Work Item 和 Agent Run 必须引用执行时有效的 Contract Version 与 Plan Version，Run 成功不直接改变 Task 或 Change 状态。
+
+#### Artifact、Claim、Evidence 与 Gate Evaluation
+
+- Artifact 表示不可变候选交付物或外部工件引用，以稳定 ID、版本或 Digest 识别；
+- Claim 表示需要被证明或反驳的明确命题；
+- Evidence 表示支持、反驳或无法判定某个 Claim 的不可变观察或原始事实引用；
+- Gate Requirement Set 定义某次 Gate 必须满足的 Claim 与证据要求，并独立版本化；
+- Gate Evaluation 是针对某个 Requirement Set Version、Contract/Plan Version、Artifact Digest 和当时有效 Evidence 的一次不可变求值快照；
+- Gate Evaluation 只给出准入判断及依据，真正的生命周期迁移仍由 Kernel 执行。
+
+#### Actor、Role、Assignment、Decision 与权限
+
+- Actor 是稳定参与者身份，通过类型区分 Human 与 Agent；
+- Role 是责任与决策权定义，不直接固化在 Actor 上；
+- Assignment 把 Actor、Role、作用域和有效期绑定起来，是权限求值的重要输入；
+- Decision 是不可变事实，记录实际 Actor、acting role、目标对象及目标版本；
+- 当前权限由 Assignment、Policy、作用域和当前状态共同求值，不能只根据 Actor 或历史角色判断；
+- Decision 保存作出决定时的授权依据快照，后续 Role 或 Assignment 变化不改变历史 Decision 的含义；
+- Agent Actor 不能通过 Assignment 获得必须由 Human Role 行使的最终授权权力。
+
+### 6.2 第二轮：聚合引用方向与精确版本引用
+
+状态：**已确认**。
+
+已确认：
+
+- 所有跨聚合关系统一使用“稳定对象 ID + 精确业务版本”引用，不跨聚合复制完整对象；
+- 下游对象必须引用其创建或执行时实际依据的上游版本，不能只引用“最新版”；
+- Change 保存当前生效的 Contract Version 与 Plan Version 指针；
+- 历史 Plan、Task、Work Item、Agent Run、Artifact、Evidence、Decision 和 Gate Evaluation 保留原始精确版本引用，不自动追随 Change 的当前版本；
+- 反向关系和组合视图由 Read Model 构建，不通过在多个聚合中维护双向可变对象图实现。
+
+版本概念收敛为：
+
+- 主要业务版本只有 Contract Version 与 Plan Version，分别表达“当前授权做什么”和“当前授权如何实施”；
+- Change 使用稳定 Change ID，不设置面向用户的 Change Version；其 Aggregate Revision 只用于乐观并发控制；
+- Artifact 是不可变对象，使用 Artifact ID 与 Digest 标识，不采用可原地修改的 Artifact Version；
+- Task 使用稳定 Task ID；同一任务在不同 Plan Version 中的细节变化可使用内部 Task Revision，拆分、合并或目标边界变化时创建新的 Task ID；
+- Decision、Evidence、Gate Evaluation、Work Item、Agent Run、Deployment 和 Event 每次发生均创建新的不可变记录 ID，不引入面向用户的业务版本号；
+- Schema Version 标识协议结构，Event Sequence 标识事件顺序，Aggregate Revision 标识并发修订；三者与 Contract/Plan 业务版本严格分离，默认不作为用户日常操作概念；
+- 跨聚合引用的“精确版本”规则只适用于 Contract、Plan 等版本化业务对象；引用不可变对象时使用其稳定 ID，引用 Artifact 内容时同时使用 Digest。
+
+Contract Amendment 与正式版本的关系：
+
+- Contract Amendment 是独立的修订提案，不等于新的正式 Contract Version；
+- Amendment 必须声明其基于的父 Contract Version、修改原因和影响范围；
+- Amendment 在审核中可以被修改、拒绝或撤回，这些过程保留审计记录，但不占用正式 Contract Version；
+- 只有相应 Owner 正式批准后，Kernel 才基于父版本生成新的不可变 Contract Version，并将 Change 的当前生效契约指针切换到新版本；
+- 批准时如果父版本已不再是当前生效版本，必须重新检查冲突和影响，不能直接覆盖较新的契约；
+- 新 Contract Version 必须能够追溯到父版本、产生它的 Amendment 和授权它的 Decision。
+
+Plan Version 与 Task 身份的关系：
+
+- Plan Amendment 经批准后生成新的不可变 Plan Version；
+- Task 的工作含义、目标和责任边界不变时，在新的 Plan Version 中沿用稳定 Task ID；
+- Task 在不同 Plan Version 中的依赖、执行细节或描述变化使用内部 Task Revision 表达，不向用户增加一套独立业务版本概念；
+- Task 被拆分、合并，或工作目标与责任边界发生变化时，必须创建新的 Task ID；
+- 新旧 Task 通过 `supersedes`、`split-from` 或 `merged-from` 等谱系关系关联；
+- 历史 Work Item 和 Agent Run 永远引用执行时对应的 Plan Version 与 Task Revision，不因后续计划修订而改写。
+
+版本变化的下游影响：
+
+- Contract 或 Plan 产生新版本后，不对 Task、Work Item、Artifact、Evidence、Decision 和 Gate Evaluation 执行全量级联失效；
+- Kernel 根据对象依赖、修改影响范围、目标版本和 Policy 执行可审计的影响评估；
+- 影响评估统一区分 `Valid`（仍然有效）、`Stale`（历史事实保留但不能作为当前依据）和 `Superseded`（已被明确的新对象取代）；
+- 失效范围必须尽可能精确，既不能继续使用不适用的旧证据，也不能无依据要求所有工作重做；
+- Agent 和 Evaluator 可以提交影响分析建议，最终有效性判断由 Kernel 根据确定性规则和必要的人类 Decision 作出；
+- 每次判断必须记录所比较的旧版本、新版本、受影响对象、结论和规则依据。
+
+关闭、归档与清除语义：
+
+- Close（关闭）表示业务流程结束并停止正常调度，历史仍可查询，并允许按 Policy 补充后续观察或审计记录；
+- Archive（归档）表示从默认工作视图隐藏，不改变 Change 的关闭状态，也不删除任何历史；
+- Project 或 Change 的关闭与归档不得级联删除 Contract、Plan、Task、Work Item、Agent Run、Artifact、Evidence、Decision、Gate Evaluation、Deployment 或 Event；
+- V1 不提供 Project 或 Change 的常规 Hard Delete（硬删除）；
+- 未来因隐私、合规或密钥泄漏需要清除内容时，必须使用独立受控的 Purge/Redaction（清除/脱敏）流程；
+- 清除或脱敏后仍保留不含敏感内容的审计占位记录，说明执行时间、授权依据、范围与原因。
+
+### 6.3 第三轮：Command、Event、Transition、Gate 与 Decision 边界
+
+状态：**已确认**。
+
+已确认：
+
+- Command（命令）表达某个 Actor 请求系统执行的动作，是意图而不是事实；
+- Command 必须经过身份、权限、当前状态、版本、Policy 和幂等性校验，可能被接受或拒绝；
+- Event（事件）表达已经发生并由系统提交的事实，一经记录不得改写；
+- Command 不能直接作为状态变化已经发生的证据，Event 也不能被复用为再次执行动作的指令；
+- Kernel 接受 Command 后，在同一事务中提交状态变化与相应 Event；拒绝时记录明确结果，但不得产生表示成功的事实事件。
+
+Transition Request 与 Command 的关系：
+
+- Transition Request（迁移请求）是具有生命周期语义的领域 Command，不是独立的状态对象或另一套写入通道；
+- Transition Request 表达 Actor 希望 Change 执行某项迁移动作，可以声明期望起点、目标动作和所依据的 Contract/Plan Version；
+- 提交 Transition Request 不代表状态已经迁移，也不能直接写入目标状态；
+- Kernel 对其执行当前状态与版本检查、权限校验、Gate Evaluation 和并发校验；
+- 只有求值为 ALLOW 且事务提交成功后，Kernel 才更新 Change Current State 并产生 ChangeTransitioned Event；
+- REQUIRE_HUMAN、NEED_MORE_EVIDENCE 或 DENY 均保持迁移尚未发生，并返回对应的结构化后续动作。
+
+Gate 与 Gate Evaluation 的关系：
+
+- Gate 是稳定、具名的准入规则定义，例如“进入测试部署检查”，本身不保存某个 Change 的通过或失败状态；
+- Gate Requirement Set 是 Gate 在当前 Profile、Risk、Policy、Environment 和 Contract 下解析出的版本化具体要求；
+- Gate Evaluation 是针对某一 Requirement Set Version、目标迁移和当时上下文执行的一次不可变求值记录；
+- 同一 Gate 可以先后产生多次 Gate Evaluation，NEED_MORE_EVIDENCE、REQUIRE_HUMAN、DENY 或 ALLOW 等历史结果均不得被覆盖；
+- Change 的实际 Transition 必须引用直接支撑该次迁移的 Gate Evaluation；
+- Gate 定义回答“检查什么”，Requirement Set 回答“这次具体要求什么”，Gate Evaluation 回答“基于当时事实得出了什么结果”。
+
+Decision 与迁移的关系：
+
+- Gate 返回 REQUIRE_HUMAN 时创建 Decision Request，明确需要回答的问题、所需 Role、候选动作、上下文和目标版本；
+- Human 通过 Record Decision Command 提交决定，Kernel 必须校验 Actor、acting role、Assignment、Policy、作用域和目标版本；
+- 校验通过后形成不可变 Decision，Decision Request 与 Decision 分别表达“系统在问什么”和“有资格的 Actor 决定了什么”；
+- Decision 本身不能直接修改 Change 状态，也不能作为绕过 Gate 的迁移后门；
+- Decision 记录后，Kernel 必须使用最新状态、版本、风险、Evidence 和 Decision 重新执行 Gate Evaluation；
+- 只有新的 Gate Evaluation 返回 ALLOW 后才能执行 Transition，过期 Decision 不能授权已经变化的 Contract、Artifact、环境或操作范围。
+
+Transition Record、Current State 与 Event 的关系：
+
+- 每次成功生命周期迁移都创建独立、不可变的 Transition Record；
+- Transition Record 记录起始状态、迁移动作、目标状态、Contract/Plan Version、Transition Request、Gate Evaluation 和所依据的 Decision；
+- Change Current State 保存当前多维状态与最新成功 Transition 引用，用于高效读取和并发控制；
+- ChangeTransitioned Event 表达迁移已经提交的事实，用于驱动 Read Model、Outbox 和外部 Adapter；
+- Transition Record 负责解释迁移为何合法，Event 负责传播已发生事实，Current State 负责表达当前位置，三者不能相互替代；
+- 被拒绝、需要人工或证据不足的请求不创建成功 Transition Record，但保留 Command 处理结果与 Gate Evaluation。
+
+### 6.4 第四轮：跨 Change 与运行关系语义
+
+状态：**已确认**。
+
+已确认：
+
+- 每个 Change 始终是独立聚合，拥有自己的 Change Owner、Contract、Plan、生命周期、Gate、Evidence、Decision 和交付结论；
+- 从一个 Change 拆分或派生出的新 Change 不成为原 Change 内部的子对象，原 Change 不能直接修改其状态；
+- Change 之间通过显式、带类型的 Change Relationship 关联；
+- 基础关系类型包括 `depends-on`、`blocks`、`spawned`、`supersedes` 和 `related-to`；
+- 只有 `depends-on`、`blocks` 等被 Policy 明确定义的关系参与调度约束，普通关联不产生隐含生命周期控制；
+- 一个 Change 的关闭、归档或取消不得级联改变关联 Change 的状态。
+
+Supersede（取代）语义：
+
+- 建立 `supersedes` 关系首先表示取代提案或意图，不直接把旧 Change 改为 Superseded；
+- Kernel 必须核对旧 Change 的活动 Work Item、Agent Run、Artifact、Deployment、外部副作用和未完成事项；
+- 必须明确哪些工作转移到新 Change、哪些历史 Evidence 仅作引用、哪些资源需要停止、清理或补偿；
+- 旧 Change Owner 或 Policy 指定的责任角色必须确认取代范围与处置结果；
+- 完成核对且 Gate 返回 ALLOW 后，Kernel 才停止旧 Change 的后续调度并执行到 Superseded 的 Transition；
+- 旧 Change 的 Contract、Decision、Evidence、Run、Deployment 和 Event 历史永久保留，不迁移或重写为新 Change 的历史。
+
+Retry、Agent Run 与 Work Item 的关系：
+
+- 执行目标、输入版本、授权范围、权限、预算和停止条件均未变化时，Retry 保留原 Work Item，并创建新的 Agent Run 表示同一授权下的再次尝试；
+- Contract/Plan Version、目标、修改范围、权限、验证策略、预算或停止条件发生变化时，必须结束旧 Work Item 并创建新的 Work Item；
+- 验证或环境测试发现实现缺陷时，创建明确的 Repair Work Item，并关联失败 Evidence、原 Work Item 和受影响 Task；
+- 每次 Agent Run 都拥有独立 Run ID、尝试序号、输入快照、结果和失败记录，不覆盖此前 Run；
+- 外部操作结果未知时不得直接 Retry，必须先执行 Reconciliation（状态核对），确认安全后再决定继续原 Work Item 或创建新 Work Item。
+
+Gate Re-evaluation（重新求值）语义：
+
+- 对同一 Gate、目标 Transition 和完全相同的有效输入快照重复求值时，返回原 Gate Evaluation，不重复创建等价记录；
+- 有效输入至少包含 Change Current State、Contract/Plan Version、Gate Requirement Set Version、Artifact Digest、Evidence 集合、Risk Revision、Decision、Exception、目标 Environment 和相关 Policy Version；
+- 任一有效输入变化时，必须创建新的不可变 Gate Evaluation；
+- 新 Evaluation 通过 `re-evaluates` 关联此前 Evaluation，旧结果永久保留；
+- 该规则同时保证重复请求的幂等性，以及从 NEED_MORE_EVIDENCE、REQUIRE_HUMAN 或 DENY 演化为 ALLOW 的可解释历史。
+
+跨 Change 依赖与 Blocked 的关系：
+
+- `depends-on` 首先约束受影响 Task 或 Work Item 的 Ready 状态，不自动把整个依赖方 Change 标记为 Blocked；
+- 只要 Change 仍存在满足其他约束的可推进工作，其 `flow_condition` 保持 Active；
+- 只有当前 Change 已不存在任何可推进工作，且原因确实是未满足的跨 Change 依赖时，才设置 `flow_condition = Blocked`；
+- Blocked 不覆盖 `lifecycle_state`，并通过独立 Blocker 记录被依赖 Change、等待条件、责任方和解除条件；
+- 依赖条件必须可确定求值，例如目标 Change 达到指定状态、产生指定 Artifact、批准指定 Contract/接口版本或完成指定 Task；
+- 不允许仅使用“等待另一个 Change 完成”这种无法精确判断的模糊依赖条件。
+
+### 6.5 第五轮：Protocol 对象分层与 V1 最小集合
+
+状态：**已确认**。
+
+已确认：
+
+- Cimi Change Protocol 对象分为 Authoritative Domain Objects（权威领域对象）、Immutable Records（不可变事实记录）和 Derived Read Models（派生查询模型）三层；
+- 权威领域对象表达当前有效的业务约束、身份、授权和状态，例如 Project、Change、Contract、Plan、Task、Actor、Role、Assignment；
+- 不可变事实记录表达一次已经发生的行为、观察、判断或状态变化，例如 Work Item、Agent Run、Artifact、Evidence、Decision、Gate Evaluation、Transition、Deployment、Event；
+- 权威领域对象和不可变事实记录共同构成协议事实，必须遵守稳定 ID、版本/摘要、来源和审计规则；
+- Change Room、Timeline、Attention Queue、Decision Inbox 和 Lifecycle Board 属于派生查询模型，可以从协议事实重建；
+- 派生查询模型可以被删除和重建，不能反向成为生命周期状态、授权、证据或决策的事实权威。
+
+Risk Profile 与 Risk Assessment：
+
+- Risk Profile 是从属于 Change 的独立权威对象，不内嵌在 Contract Version 中；
+- Contract 表达被授权的意图与约束，Risk Profile 表达系统当前对影响和不确定性的认识，两者可以独立变化；
+- 每次风险重新评估产生不可变 Risk Assessment，Change 引用当前有效的评估结果；
+- 风险评估继续使用 Blast Radius、Reversibility、Data Impact、Security/Compliance、External Side Effect 和 Novelty/Uncertainty 等多维结构；
+- Risk Assessment 使用独立记录 ID 和时间线，不增加面向用户的 Risk v1/v2 业务版本概念；
+- Agent 可以提交风险评估建议，但风险降低必须经过 Policy 规定的 Human Role 确认；
+- Risk Assessment 变化可以触发 Gate Requirement Set 重新解析和下游影响评估，但不自动产生新的 Contract Version。
+
+Change Profile 的身份与版本：
+
+- Change Profile 不是写死在代码中的简单枚举，而是由 Project Policy 管理的版本化规则定义；
+- 标准 Profile 可以包括 Feature、Bugfix、Incident、Security Fix、Migration、Experiment、Tech Debt 和 Ops Change，但每个定义均具有稳定 Profile ID 与版本；
+- Profile 定义允许的生命周期路径、契约完整度、默认 Gate、必需 Evidence、默认人工决策点、允许终止状态以及风险和恢复附加约束；
+- Change 必须引用创建或最近一次获批变更时生效的精确 Profile ID 与版本；
+- 发布新的 Profile Version 不得静默改变正在运行的 Change；是否升级必须提交明确请求并执行影响评估；
+- Profile 变更如果实质改变 Change 类型、Intent、验收或授权边界，仍须遵守 Contract Amendment 与相应 Decision 规则。
+
+Project Policy 与 Policy Snapshot：
+
+- Project Policy 是项目级版本化权威定义，规则更新产生新的 Policy Version；
+- 每次创建 Work Item、执行 Gate Evaluation、校验 Decision 或授权外部副作用时，必须保存实际参与求值的 Policy Snapshot；
+- 发布新 Policy Version 后，新建 Change 默认使用新版本，运行中的 Change 必须执行影响评估，不能无痕改变既有授权边界；
+- 新增安全、合规等强制红线可以立即阻止尚未执行的后续操作，但必须记录规则来源、命中结果和受影响对象；
+- 历史 Work Item、Decision、Gate Evaluation 和 Transition 继续引用当时的 Policy Snapshot，不因 Policy 更新而改写；
+- Policy Exception 是独立、有限范围、带有效期和补偿措施的授权记录，不修改或派生替代原 Policy 定义。
+
+Environment、Release 与 Deployment：
+
+- Environment 是 Project 级稳定目标定义，例如测试环境或生产环境，并通过外部引用关联真实平台环境；
+- Release 是从属于 Change 的受控发布对象，绑定精确 Contract Version、Artifact ID 与 Digest、目标 Environment、Release Package、Recovery Strategy 和 Release Decision；
+- Release Owner 批准的是具体 Release，即指定 Artifact 在规定时间、范围和环境中的一次发布授权，不是通用生产权限；
+- Deployment 是在某个 Release 授权下调用外部平台的一次不可变执行尝试；
+- 同一 Release 可以因瞬时故障或状态核对后重试而产生多个 Deployment，但每次尝试都保留独立记录；
+- Artifact、目标 Environment、发布范围或 Recovery Strategy 发生实质变化时，必须创建新 Release 或重新取得有效 Release Decision。
+
+### 6.6 第六轮：Core、Runtime 与 Adapter Protocol 边界
+
+状态：**已确认**。
+
+已确认：
+
+- Cimi Change Protocol 只定义能够跨 Solo/Team、Store 和 Runtime 移植的业务事实与稳定语义；
+- Kernel Runtime Protocol 定义 Work Item Lease、Resource Lock、Scheduler Checkpoint、Outbox Task、Heartbeat 和 Reconciliation 状态等运行协调对象；
+- Adapter Protocol 定义外部执行请求、外部结果、External Reference、Capability、Health、Idempotency 和状态核对契约；
+- Lease、锁续期、心跳和内部 Outbox 状态不成为 Change 的长期业务语义，也不进入默认生命周期时间线；
+- Kernel 或 Adapter 的关键运行结果必须提升为 Cimi Change Protocol 中的 Event、Evidence、Run、Deployment 或 Failure 等业务事实；
+- 更换调度器、Store、Runtime 或 Adapter 实现不得要求改变 Cimi Change Protocol 的核心语义。
+
+Agent Run 的协议边界：
+
+- Cimi Change Protocol 保存可移植的 Agent Run Record，不保存完整 Transcript、内部推理、工具调用和命令输出；
+- Run Record 关联 Work Item、Agent Profile、acting role、Contract/Plan Version、Context Pack、Policy Snapshot、Runtime/Model/Skill/Tool 版本摘要以及开始、结束和结果；
+- Run 产生的 Artifact、Claim、Evidence、Failure 和关键资源使用通过稳定 ID 关联；
+- 原始 Session、Transcript、工具调用和命令输出由 Runtime 保存，Run Record 使用 External Reference 与 Digest 定位和校验；
+- 凭据、密钥和不应持久化的敏感运行内容不得进入 Run Record、Event 或可移植导出包；
+- 关键失败和结论提升为 Change 级业务 Event 或 Attention 事实，普通技术日志只在具体 Run 中查看。
+
+Context Pack 的协议边界：
+
+- Cimi Change Protocol 保存不可变 Context Pack Manifest，不复制代码、文档、Spec、ADR、知识库或完整历史 Evidence 内容；
+- Manifest 关联 Contract、Plan、Task、Policy、Role 和 Work Item，并记录每项上下文来源的位置、版本或 Digest；
+- 每项来源标记 Canonical、Derived、Reference 或 Runtime Observation 等权威级别和适用范围；
+- Manifest 记录生成时间、组装规则版本和整体 Digest，使 Agent Run 能够说明当时实际获得了什么上下文；
+- 原始内容继续由 Git、文件、知识平台或其他权威来源保存，需要时按 External Reference 定位并用 Digest 校验；
+- 来源不可访问时标记为 Unavailable，不删除 Run 历史，也不得声称仍能完整重放该次执行。
+
+Feedback 与 Conversation 的协议边界：
+
+- 只有关联到具体 Contract、Plan、Task、Artifact、Evidence 或 Agent Run 的结构化 Feedback 进入 Cimi Change Protocol；
+- Feedback 记录提出者、目标对象、内容摘要、处理状态与最终处置，但本身不具有授权效力；
+- Feedback 不能替代 Decision，自然语言中的同意、评论或表态不得被默认推断为正式批准；
+- 对流程有长期价值的对话内容可以形成 Conversation Summary，并附原始对话的 External Reference；
+- 原始聊天消息、流式输出、临时讨论和完整 Conversation 继续保存在 Runtime 或外部协作系统；
+- 对话中需要产生正式授权时，Actor 必须通过统一 Command 另行提交结构化 Decision。
+
+Failure、Blocker 与 Attention Item：
+
+- Failure 是一次已经发生的不可变失败事实，例如 Agent Run、测试、Gate、部署或恢复失败；
+- Blocker 是当前仍阻止 Change、Task 或 Work Item 推进的可解除条件，记录责任方、原因、影响范围和解除条件；
+- Attention Item 是 Workbench 使用的派生查询项，由 Failure、Blocker、Evidence 缺口、Risk 变化、过期 Decision 等协议事实生成；
+- 一个 Failure 可以打开 Blocker，也可以只留下历史而不阻塞当前工作；
+- Blocker 解除后保留其打开和解除历史，相关 Attention Item 可以从当前视图消失；
+- Attention Item 不是事实权威，删除或重建 Read Model 不影响 Failure 与 Blocker 原始记录。
+
+### 6.7 第七轮：Cimi Change Protocol V1 最小对象目录
+
+状态：**已确认**。
+
+已确认的第一组“项目与治理基础对象”：
+
+- `Project`：Change、Policy、Actor 和 Environment 的治理边界；
+- `Change Profile`：不同 Change 类型的路径与默认要求定义；
+- `Policy`：项目规则的版本化权威定义；
+- `Environment`：测试、生产等稳定目标定义；
+- `Actor`：Human 或 Agent 的稳定身份；
+- `Role`：责任、权限类别与决策权定义；
+- `Assignment`：Actor 在指定作用域与有效期内承担 Role 的关系。
+
+以上对象进入 V1 核心协议，但不意味着 V1 建设组织账号后台或通用策略平台；Embedded Solo Mode 可以使用单一本地 Human Actor、内置 Role、文件化 Policy 和少量 Environment 定义。
+
+已确认的第二组“Change 定义与计划对象”：
+
+- `Change`：独立交付、责任和生命周期单元；
+- `Change Relationship`：Change 之间的依赖、派生、取代和普通关联；
+- `Change Contract`：当前被授权的意图、范围、验收与约束；
+- `Contract Amendment`：契约修订提案；
+- `Risk Profile`：Change 当前风险画像；
+- `Risk Assessment`：一次不可变风险评估；
+- `Plan`：当前被授权的实施方式、Task DAG 和验证策略；
+- `Plan Amendment`：计划修订提案；
+- `Task`：Plan 中具有稳定身份的持久工作节点。
+
+其中 Contract 与 Plan 使用正式业务版本；Amendment 表示审批中的提案；Risk Assessment 使用不可变记录 ID；Task 使用稳定 Task ID，并通过所属 Plan Version 与内部 Revision 追踪变化。
+
+已确认的第三组“执行与交付对象”：
+
+- `Work Item`：Kernel 下发的一次有边界执行授权；
+- `Agent Run Record`：Runtime 执行 Work Item 的一次实际尝试摘要；
+- `Context Pack Manifest`：某次 Run 实际使用的不可变上下文清单；
+- `Artifact`：不可变候选交付物或外部工件引用；
+- `Release`：把指定 Artifact 晋升到指定 Environment 的受控发布对象；
+- `Deployment`：执行某个 Release 的一次外部部署尝试。
+
+Worktree、Lease、Resource Lock、Heartbeat 和 Outbox 属于 Kernel Runtime Protocol；完整运行日志和真实制品内容留在 Runtime、Git、Artifact Registry 或 DevOps 等权威系统，核心协议只保存摘要、Digest 与 External Reference。
+
+已确认的第四组“信任、Gate 与授权对象”：
+
+- `Claim`：需要被证明或反驳的明确命题；
+- `Evidence`：支持、反驳或无法判定 Claim 的事实；
+- `Gate`：稳定、具名的准入规则；
+- `Gate Requirement Set`：某次 Gate 在具体上下文中的版本化要求；
+- `Gate Evaluation`：一次不可变 Gate 求值；
+- `Decision Request`：系统请求指定 Human Role 回答的问题；
+- `Decision`：具备资格的 Actor 作出的正式决定；
+- `Policy Exception`：有限范围、带期限和补偿措施的规则例外；
+- `Transition Record`：一次成功生命周期迁移及其完整依据。
+
+Approval 不另设对象，而是 Decision 的一种类型；Intent Decision、Execution Plan Decision、Release Decision 和 Exception Decision 使用统一 Decision 模型表达。
+
+已确认的第五组“协作、异常与审计对象”：
+
+- `Event`：已经提交的不可变领域事实；
+- `Failure`：一次已经发生的失败记录；
+- `Blocker`：当前阻止推进、可以解除的条件；
+- `Feedback`：关联具体领域对象、但不具有授权效力的结构化反馈；
+- `Conversation Summary`：按需保存的对话摘要与原始记录引用；
+- `Learning Candidate`：从失败、纠正、例外或复盘中形成的改进候选。
+
+V1 同时定义两个通用协议构件：
+
+- `External Reference`：指向 Git、Runtime、CI/CD、DevOps、Artifact Registry 等外部权威事实；
+- `Command Envelope`：所有写入请求共用的命令外壳，承载 Actor、acting role、作用域、幂等键和期望 Aggregate Revision 等通用语义。
+
+Conversation Summary 是可选记录；Attention Item、Timeline、Decision Inbox 和 Lifecycle Board 继续作为可重建的 Derived Read Model，不进入最小事实对象目录。
+
+### 6.8 阶段 C 后续议题
+
+- 聚合之间的引用方向、生命周期依赖和删除/归档语义；
+- Change、Contract、Plan、Task 等对象的稳定身份与版本谱系；
+- Amendment、Supersede、Retry、Re-evaluation 等关系的一致语义；
+- Event、Command、Transition、Gate 与 Decision 的领域边界；
+- 核心协议对象分层与最小 V1 对象集合；
+- 上述语义确认后，再进入字段级 Schema 与协议载体设计。
+
+## 7. 后续阶段
+
 - **阶段 D**：Change 状态机、各节点输入/输出/Gate/产物及异常恢复规则；
 - **阶段 E**：角色模型、职责权限矩阵、人机与多 Agent 协作规则；
 - **阶段 F**：Context & Knowledge、能力装配、Verification & Evidence、DevOps、Workbench、存储与 Teams 演进；
 - **阶段 G**：开源能力 Build / Adopt / Adapt 矩阵、V1 范围、里程碑和验收计划。
 
-## 7. Parking Lot
+## 8. Parking Lot
 
 整体能力架构确认前只记录、不继续下钻：
 
@@ -401,7 +788,7 @@ V1 区分 Conversation、Feedback 与 Decision：
 - UI 页面与技术栈；
 - Store、Event Ledger 和服务化部署选型。
 
-## 8. 决策记录
+## 9. 决策记录
 
 | 编号 | 主题 | 状态 | 结论 |
 |---|---|---|---|
@@ -464,11 +851,48 @@ V1 区分 Conversation、Feedback 与 Decision：
 | D-057 | Adapter 契约 | 已确认 | 外部能力通过声明式 Adapter 及 Command/Query/Event 接入，不能直写 Kernel Store。 |
 | D-058 | 协议、数据与集成能力域 | 已确认 | Protocol、身份版本、数据权威、Store、Adapter 与 V1 最小集成边界已完成。 |
 | D-059 | 整体能力架构 | 已确认 | 六个一级能力域、核心运行闭环、权威关系、Solo/Team 拓扑和后续设计顺序已确认。 |
+| D-060 | Project、Change 与 Change Room 聚合边界 | 已确认 | Project 与 Change 分别是聚合根；Change Room 是与 Change 一一对应的交互与查询投影，不拥有事实对象或写入权威。 |
+| D-061 | Change Contract 聚合与版本 | 已确认 | Contract 从属于 Change 但独立版本化；Change 引用当前生效版本，Amendment 产生不可变新版本并保留完整历史。 |
+| D-062 | Plan、Task、Work Item 与 Agent Run 边界 | 已确认 | Plan 是独立版本化聚合，Task 属于 Plan；Work Item 是执行授权聚合，Agent Run 是独立执行尝试，均绑定执行时有效版本。 |
+| D-063 | Artifact、Claim、Evidence 与 Gate Evaluation | 已确认 | Artifact 是不可变工件，Claim 是待证明命题，Evidence 是不可变观察；Gate Evaluation 基于版本化要求和证据形成快照，Kernel 仍是迁移权威。 |
+| D-064 | Actor、Role、Assignment 与 Decision | 已确认 | Actor、Role 与作用域化 Assignment 分离；Decision 记录实际 Actor、行权角色、目标版本及当时授权依据，权限由 Policy 动态求值。 |
+| D-065 | 跨聚合引用 | 已确认 | 跨聚合统一使用稳定 ID 与精确业务版本引用；Change 保存当前生效版本指针，历史对象保留原始版本引用且不自动追随最新版。 |
+| D-066 | Change 内版本模型 | 已确认 | 主要业务版本仅为 Contract Version 与 Plan Version；Artifact 使用不可变 ID 和 Digest，运行事实使用独立记录 ID；Revision、Schema Version 与 Event Sequence 作为分离的内部技术标识。 |
+| D-067 | Contract Amendment 与版本生成 | 已确认 | Amendment 是独立修订提案；批准后才基于父版本生成并启用新的不可变 Contract Version，未批准提案保留审计记录但不占正式版本号。 |
+| D-068 | Plan Version 与 Task 身份 | 已确认 | Plan 修订产生新版本；任务含义与边界不变时沿用稳定 Task ID，拆分、合并或目标变化时创建新 ID 并保留谱系关系。 |
+| D-069 | 版本变化与精确影响评估 | 已确认 | Contract/Plan 新版本不触发全量级联失效；Kernel 将下游对象判定为 Valid、Stale 或 Superseded，并保存影响范围与判断依据。 |
+| D-070 | 关闭、归档与清除 | 已确认 | Project/Change 关闭或归档不级联删除历史；V1 不提供常规硬删除，未来清除或脱敏必须受控授权并保留审计占位记录。 |
+| D-071 | Command 与 Event 边界 | 已确认 | Command 是可能被接受或拒绝的行动请求；Event 是已经提交且不可改写的事实，两者使用不同语义且不能相互替代。 |
+| D-072 | Transition Request 定位 | 已确认 | Transition Request 是具有生命周期语义的领域 Command；它只表达迁移意图，Kernel 完成 Gate 求值并原子提交后迁移才成为事实。 |
+| D-073 | Gate 与 Gate Evaluation | 已确认 | Gate 是稳定命名的准入规则，不保存运行状态；每次检查产生不可覆盖的 Gate Evaluation，实际迁移引用直接支撑它的求值记录。 |
+| D-074 | Decision 与状态迁移 | 已确认 | Decision 是 Gate 的不可变输入而非状态修改指令；记录后必须基于最新事实重新求值，只有 ALLOW 才能执行 Transition。 |
+| D-075 | Transition Record、Current State 与 Event | 已确认 | 成功迁移创建不可变 Transition Record；Current State 表达当前位置，ChangeTransitioned Event 传播已提交事实，三者职责分离。 |
+| D-076 | 跨 Change 关系 | 已确认 | Change 之间通过显式类型关系连接，不形成可级联控制状态的父子聚合；每个 Change 保持独立 Owner、Contract、生命周期与证据链。 |
+| D-077 | Change Supersede 语义 | 已确认 | supersedes 关系只表达取代提案；完成运行、副作用、未完成事项和责任核对且 Gate 允许后，Kernel 才将旧 Change 迁移为 Superseded。 |
+| D-078 | Retry、Agent Run 与 Work Item | 已确认 | 授权边界未变时在原 Work Item 下创建新 Run；版本、目标、范围、权限或预算变化时创建新 Work Item，外部结果未知时先 Reconciliation。 |
+| D-079 | Gate Re-evaluation | 已确认 | 有效输入完全相同时复用原 Gate Evaluation；输入变化时创建新 Evaluation 并关联前次记录，兼顾幂等性与完整求值历史。 |
+| D-080 | 跨 Change 依赖与 Blocked | 已确认 | depends-on 先约束具体工作的 Ready 状态；仅当 Change 无其他可推进工作时才标记 Blocked，且依赖必须具有可确定求值的满足条件。 |
+| D-081 | Protocol 对象三层分类 | 已确认 | 协议对象分为权威领域对象、不可变事实记录和派生查询模型；前两者构成协议事实，Read Model 可重建且不能成为写入权威。 |
+| D-082 | Risk Profile 与 Risk Assessment | 已确认 | Risk Profile 是 Change 下独立权威对象；每次评估形成不可变记录，Change 指向当前结果，风险变化不强迫 Contract 升版。 |
+| D-083 | Change Profile 身份与版本 | 已确认 | Change Profile 是 Project Policy 管理的版本化规则定义；Change 引用精确 Profile ID 与版本，新版本必须经显式影响评估才能作用于运行中的 Change。 |
+| D-084 | Project Policy 与求值快照 | 已确认 | Project Policy 使用版本化定义；关键授权与 Gate 保存实际 Policy Snapshot，新规则不得改写历史，强制红线阻止后续动作时必须留下影响记录。 |
+| D-085 | Environment、Release 与 Deployment | 已确认 | Environment 是 Project 级目标定义，Release 是绑定 Artifact、环境、恢复策略和授权的 Change 级发布对象，Deployment 是一次不可变执行尝试。 |
+| D-086 | Core、Runtime 与 Adapter Protocol 边界 | 已确认 | Cimi Change Protocol 定义可移植业务事实；Lease、Lock、Outbox 等属于 Kernel Runtime Protocol，外部调用契约属于 Adapter Protocol。 |
+| D-087 | Agent Run 协议边界 | 已确认 | 核心协议保存可移植 Run Record；完整 Transcript、工具调用和命令输出留在 Runtime，以 External Reference 和 Digest 关联，关键结论提升为业务事实。 |
+| D-088 | Context Pack 协议边界 | 已确认 | 核心协议保存不可变 Context Pack Manifest；大内容留在原始权威来源，以引用、权威级别和 Digest 描述，来源丢失时明确标记不可用。 |
+| D-089 | Feedback 与 Conversation 边界 | 已确认 | 结构化 Feedback 进入核心协议但不具有授权效力；原始 Conversation 留在 Runtime/外部系统，只保存必要摘要与引用，正式授权必须形成 Decision。 |
+| D-090 | Failure、Blocker 与 Attention Item | 已确认 | Failure 是不可变失败事实，Blocker 是当前可解除条件，Attention Item 是可重建查询投影，三者职责分离。 |
+| D-091 | V1 项目与治理基础对象 | 已确认 | Project、Change Profile、Policy、Environment、Actor、Role、Assignment 进入 V1 核心协议；Solo Mode 可使用轻量内置实现。 |
+| D-092 | V1 Change 定义与计划对象 | 已确认 | Change、Change Relationship、Contract/Amendment、Risk Profile/Assessment、Plan/Amendment 和 Task 进入 V1 核心协议。 |
+| D-093 | V1 执行与交付对象 | 已确认 | Work Item、Agent Run Record、Context Pack Manifest、Artifact、Release 和 Deployment 进入 V1 核心协议；运行协调与大对象留在各自权威系统。 |
+| D-094 | V1 信任、Gate 与授权对象 | 已确认 | Claim、Evidence、Gate/Requirement Set/Evaluation、Decision Request/Decision、Policy Exception 和 Transition Record 进入 V1 核心协议；Approval 统一为 Decision 类型。 |
+| D-095 | V1 协作、异常与审计对象 | 已确认 | Event、Failure、Blocker、Feedback、可选 Conversation Summary 和 Learning Candidate 进入核心协议；External Reference 与 Command Envelope 作为通用构件。 |
 
-## 9. 当前进度
+## 10. 当前进度
 
 - 阶段 A 产品边界与架构原则：已完成；
 - 阶段 B 整体能力架构：已完成；
-- 正式架构文档：`docs/architecture/CimiLoop整体能力架构-v0.1.md`；
-- 下一步：阶段 C 核心领域模型与 Cimi Change Protocol；
+- 阶段 C 核心领域模型与 Cimi Change Protocol：进行中，领域语义、核心对象边界、引用与版本关系、协议分层及 V1 最小对象目录已确认；
+- 正式架构文档：`docs/architecture/CimiLoop整体能力架构-v0.1.md`、`docs/architecture/CimiChangeProtocol核心领域模型-v0.1.md`；
+- 下一步：在正式领域模型约束下进入字段级 Schema 讨论；
 - 阶段 D–G：尚未开始。
