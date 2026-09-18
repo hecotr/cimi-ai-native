@@ -131,6 +131,8 @@ N3 风险授权不位于这条链路中的某一个固定位置。它作为横�
 | N4 | 环境验证与生产交付 | 如何把同一制品安全送达生产 | Deployment Agent、Evaluator、Release Owner |
 | N5 | 复盘与学习 | 本次执行如何改善下一次 | Change Owner、Learning Agent、各类 Owner |
 
+![CimiLoop Change 端到端流程与 N3 风险授权](imgs/02-cimiloop-flow-spec/01-framework-end-to-end.png)
+
 ### 4.3 底层生命周期状态
 
 N1–N5 用于组织理解和责任划分，实际运行使用更细的生命周期状态：
@@ -177,6 +179,8 @@ Cancelled
 | ProductionDeploying | 正在向生产部署已批准制品 | Release Owner 明确批准 |
 | ReleaseVerified | 生产部署及即时验证完成 | Release Evidence Package 完整 |
 | DeliveryClosed | 本次交付记录关闭 | 决策证据完整，N5 分类完成 |
+
+![Change 主生命周期与异常等待状态](imgs/02-cimiloop-flow-spec/02-flowchart-change-lifecycle.png)
 
 ## 5. 角色与决策权
 
@@ -265,6 +269,8 @@ risk_observation: []
 | NEED_MORE_EVIDENCE | 需要更多证据 | 返回相应执行或验证环节 |
 
 LLM Agent 可以整理材料、解释风险并提出建议，但不得自行覆盖确定性 Policy 或伪造人类批准。
+
+![Gate 根据风险、证据和规则产生四类流转结果](imgs/02-cimiloop-flow-spec/03-framework-gate-routing.png)
 
 ### 7.3 V1 的三项基础人工决策
 
@@ -478,6 +484,8 @@ Executing
 → 证据不足：补充测试或环境事实
 → 风险或契约变化：暂停并请求相应 Owner
 ```
+
+![N2 中 Executor 与 Evaluator 分离的执行评价闭环](imgs/02-cimiloop-flow-spec/04-flowchart-n2-loop.png)
 
 ### 9.10 Plan Amendment 与 Contract Amendment
 
@@ -736,6 +744,8 @@ Recovery Strategy 应根据 Change 选择一种或多种方式：
 | 恢复失败或超范围 | Incident / Escalation | `Failed` 或 `Blocked` |
 
 进入 `ReleaseVerified` 只表示生产发布即时验证通过，不得宣称长期稳定或业务价值已经实现。
+
+![同一不可变制品从测试晋升到生产及恢复路径](imgs/02-cimiloop-flow-spec/05-flowchart-artifact-promotion.png)
 
 ## 12. N5：复盘与学习
 
