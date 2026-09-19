@@ -25,7 +25,7 @@
 
 `人定义意图与约束 → 系统形成任务图 → Agent 并行执行 → 环境自动验证 → 人按风险验收 → 生产信号回流`
 
-![从传统 SDLC 到 AI Native](imgs/01-comparison-sdlc-to-ai-native.png)
+![从传统 SDLC 到 AI Native](assets/01-comparison-sdlc-to-ai-native.png)
 
 ### 管理层需要记住的 5 个结论
 
@@ -54,7 +54,7 @@
 | 人的位置 | 参与每一步、审批每一关 | 设政策、按风险抽查、处理异常 |
 | 度量目标 | 使用率、代码量、PR 数 | 客户结果、周期、质量、返工、负担 |
 
-![节点提效与范式重构的六维判断](imgs/02-comparison-tooling-vs-paradigm.png)
+![节点提效与范式重构的六维判断](assets/02-comparison-tooling-vs-paradigm.png)
 
 一个方案若主要回答“每个传统节点用哪个 AI”，仍是 AI-assisted SDLC。上述六项中至少四项发生实质改变，才应称为 AI Native；否则容易出现局部速度更快、系统吞吐反而下降。
 
@@ -86,7 +86,7 @@ Anthropic 强调长时任务的 Harness 与 evaluator；Siemens 用代码知识�
 
 **适合借鉴：** 复杂遗留系统、强领域知识、长期任务，以及更远期的组织形态探索。
 
-![前沿企业的四条 AI Native 落地路线](imgs/03-framework-company-routes.png)
+![前沿企业的四条 AI Native 落地路线](assets/03-framework-company-routes.png)
 
 ### 横向判断
 
@@ -131,7 +131,7 @@ Anthropic 强调长时任务的 Harness 与 evaluator；Siemens 用代码知识�
 | 架构 / 安全 | 原则文档和末端审批 | 把架构与政策编码成可执行约束 | Constitution / Governance Owner |
 | 管理者 | 派任务、汇总状态、信息中转 | 目标取舍、系统吞吐、人才成长、冲突与责任 | Flow Owner / Player-coach |
 
-![产品、开发、测试与平台的角色迁移](imgs/04-framework-role-redesign.png)
+![产品、开发、测试与平台的角色迁移](assets/04-framework-role-redesign.png)
 
 三个常见误区：
 
@@ -147,7 +147,7 @@ Anthropic 强调长时任务的 Harness 与 evaluator；Siemens 用代码知识�
 
 `Living Spec → Task DAG → 隔离 Agent Runtime → 自动验证证据 → 风险分级验收 → 发布与生产观测 → 规则 / 知识 / Eval 回流`
 
-![AI Native 研发操作系统](imgs/05-framework-ai-native-operating-system.png)
+![AI Native 研发操作系统](assets/05-framework-ai-native-operating-system.png)
 
 ### 六层底座
 

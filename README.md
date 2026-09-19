@@ -38,11 +38,11 @@ CimiLoop 是一个面向 AI-Native 软件研发的 Runtime-neutral Harness（运
 ├─ docs/
 │  ├─ architecture/   # 正式架构、领域模型、协议与流程规范
 │  ├─ plans/          # 讨论记录、决策账本、产品范围与实施计划
-│  └─ articles/       # 面向传播和理解的流程文章
-├─ imgs/              # 现有研究材料引用的图片
-├─ *.md               # 项目早期行业调研与选型材料
-├─ .agents/skills/    # Agent 技能入口（当前为开发环境链接）
-└─ .claude/skills/    # Claude Code 技能入口（当前为开发环境链接）
+│  ├─ articles/       # 面向传播和理解的流程文章
+│  ├─ research/       # 历史调研、选型输入及其图片
+│  └─ implementation/ # 技术决策与 M0–M5 实施设计
+├─ .agents/skills/    # 本地 Agent 辅助技能，不属于产品运行时
+└─ .claude/skills/    # 本地 Claude Code 辅助技能，不属于产品运行时
 ```
 
 ## V1 北极星流程
@@ -62,7 +62,7 @@ CimiLoop 是一个面向 AI-Native 软件研发的 Runtime-neutral Harness（运
 
 进入 M0 前只做一轮受控的实施设计，确定：
 
-1. 技术栈与代码仓库布局；
+1. 基于已确认的 TypeScript + Node.js 技术栈确定代码仓库布局；
 2. Protocol、Kernel、Store、CLI 的模块边界；
 3. 首批 ID、Reference、Command、Event 和错误语义；
 4. Store Port、事务、Outbox（发件箱）与幂等实现策略；

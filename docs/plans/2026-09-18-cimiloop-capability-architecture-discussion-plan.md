@@ -1131,6 +1131,7 @@ Incident 采用“压缩流程、不跳过语义”：可以快速通过 IntentR
 | D-129 | Build / Adopt / Adapt 选型 | 已确认 | CimiLoop 核心 Build；SQLite、Git、Agent Skills 格式 Adopt；Runtime、DevOps 和外部能力经 Adapter 接入；Matt Skills 选择性适配；OpenSpec 降为可选 Spec Provider；CodeGraph、Multica 等延后。 |
 | D-130 | V1 Agent Runtime | 已确认 | V1 首个 Runtime 从 Claude Code 或 OpenCode 中通过 spike 与契约测试选择一个；优先验证 OpenCode 以降低未来企业内部 cimicode 接入成本，若关键能力不满足则选择 Claude Code；cimicode 不再是 V1 前置依赖。 |
 | D-131 | Change 知识闭环 | 已确认 | 每个 Change 执行 Knowledge Impact Assessment；受影响知识通过既有 Plan/Task/Work Item 分配给 Agent、开发者、业务或运维人员，以版本化 External Reference 和 Evidence 证明更新；Policy 决定阻塞 Release 或 Closure Gate，V1 使用 Human Work Item，不以前置飞书 Adapter 为条件。 |
+| D-132 | V1 实现语言与运行平台 | 已确认 | 首版采用 TypeScript + Node.js；该选择只约束 CimiLoop V1 的工程实现，不改变 Cimi Change Protocol 的运行时中立性，也不把 Kernel 绑定到 Claude Code、OpenCode 或 cimicode。 |
 
 ## 10. 当前进度
 
@@ -1150,5 +1151,5 @@ Incident 采用“压缩流程、不跳过语义”：可以快速通过 IntentR
 - V1 产品范围与实施里程碑基线：`docs/plans/2026-09-19-cimiloop-v1产品范围与实施里程碑-v0.1.md`；
 - Build / Adopt / Adapt 选型基线：`docs/plans/2026-09-19-cimiloop-build-adopt-adapt选型矩阵-v0.1.md`；
 - 面向非专业读者的整体讲解基线：`docs/architecture/CimiLoop整体架构通俗解读-v0.1.md`；
-- 下一步：进入实施架构与 M0 技术设计，先确定代码结构、协议 Schema 边界、Store Port、Command/Event Envelope 与首个纵向切片；M2 前完成 OpenCode/Claude Code Runtime Adapter spike；
+- 下一步：基于已确认的 TypeScript + Node.js 进入实施架构与 M0 技术设计，先确定代码结构、协议 Schema 边界、Store Port、Command/Event Envelope 与首个纵向切片；M2 前完成 OpenCode/Claude Code Runtime Adapter spike；
 - 阶段 E：已完成；阶段 F：已完成；阶段 G：已完成，V1 范围、里程碑和开源能力 Build / Adopt / Adapt 组合已经确认。

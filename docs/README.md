@@ -34,10 +34,15 @@
 
 以下材料形成于正式架构之前，保留作为行业背景、方案来源和历史依据：
 
-- [AI-Native Harness 开源项目深度调研与选型建议](../AI-Native-Harness开源项目深度调研与选型建议-2026.md)
-- [AI-Native 软件研发新范式行业深度调研](../AI-Native软件研发新范式行业深度调研-2026.md)
-- [AI-Native 软件研发新范式行业调研精炼版](../AI-Native软件研发新范式行业调研-精炼版-2026.md)
-- [AI-Native 产研全流程 v1.7 行业对标与 v2.0 优化建议](../AI-Native产研全流程v1.7-行业对标与v2.0优化建议.md)
+- [背景研究导航](research/README.md)
+- [AI-Native Harness 开源项目深度调研与选型建议](research/AI-Native-Harness开源项目深度调研与选型建议-2026.md)
+- [AI-Native 软件研发新范式行业深度调研](research/AI-Native软件研发新范式行业深度调研-2026.md)
+- [AI-Native 软件研发新范式行业调研精炼版](research/AI-Native软件研发新范式行业调研-精炼版-2026.md)
+- [AI-Native 产研全流程 v1.7 行业对标与 v2.0 优化建议](research/AI-Native产研全流程v1.7-行业对标与v2.0优化建议.md)
+
+## 实施设计
+
+- [实施设计导航与已确认技术决策](implementation/README.md)
 
 ## 文档职责
 
@@ -46,6 +51,7 @@
 | `architecture/` | 稳定的领域语义、协议和架构边界 | 架构决策改变时 |
 | `plans/` | 讨论过程、决策账本、范围和实施计划 | 决策确认或计划变化后立即更新 |
 | `articles/` | 面向非架构参与者的解释和传播 | 正式架构发生重要变化后 |
-| 根目录研究材料 | 保存背景研究和历史输入 | 原则上只修正事实，不持续承载正式设计 |
+| `research/` | 保存背景研究、历史输入及其图片 | 原则上只修正事实，不持续承载正式设计 |
+| `implementation/` | 技术选型、模块布局、接口契约和可执行里程碑 | 实施决策确认后立即更新 |
 
-进入实现阶段后，建议新增 `docs/implementation/`，用于保存技术选型、模块布局、接口契约、迁移方案和可执行里程碑；它不替代 `architecture/` 中稳定的领域语义。
+`implementation/` 不替代 `architecture/` 中稳定的领域语义；实现如果发现结构冲突，应先回到架构决策账本确认，再修改代码边界。

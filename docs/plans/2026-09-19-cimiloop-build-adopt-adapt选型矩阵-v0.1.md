@@ -363,7 +363,7 @@ Default Provider 不是 Protocol 依赖。缺少某个 Skill 时，系统应创�
 
 ## 15. 与旧调研结论的差异
 
-仓库根目录的 `AI-Native-Harness开源项目深度调研与选型建议-2026.md` 提供了扎实的项目能力分析，但形成于 CimiLoop 核心领域模型和权威关系冻结之前。本矩阵对其做三项修正：
+`docs/research/AI-Native-Harness开源项目深度调研与选型建议-2026.md` 提供了扎实的项目能力分析，但形成于 CimiLoop 核心领域模型和权威关系冻结之前。本矩阵对其做三项修正：
 
 1. **OpenSpec 从“Change Contract 底座”调整为“可选 Spec Artifact Provider”**；
 2. **Runtime 内的薄状态机调整为独立 CimiLoop Kernel，Claude Code、OpenCode 与未来 cimicode 均仅作为 Runtime Adapter**；
@@ -408,4 +408,4 @@ Default Provider 不是 Protocol 依赖。缺少某个 Skill 时，系统应创�
 - [OpenAI Symphony Specification](https://github.com/openai/symphony/blob/main/SPEC.md)
 - [GitHub Spec Kit](https://github.com/github/spec-kit)
 - [CodeGraph 候选实现](https://github.com/codegraph-ai/CodeGraph)
-- 仓库根目录：`AI-Native-Harness开源项目深度调研与选型建议-2026.md`
+- `docs/research/AI-Native-Harness开源项目深度调研与选型建议-2026.md`
