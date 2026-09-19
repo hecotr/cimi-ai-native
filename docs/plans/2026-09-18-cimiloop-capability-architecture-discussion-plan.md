@@ -31,7 +31,7 @@
 ## 3. 已确认基线
 
 - 产品名称为 **CimiLoop**，CLI 名称为 `cimi-loop`；
-- cimicode 是 Agent Runtime；CimiLoop 是独立于具体 Runtime 的 AI Native 软件研发 Harness；
+- Claude Code、OpenCode 和企业内部 cimicode 都是 Agent Runtime；CimiLoop 是独立于具体 Runtime 的 AI Native 软件研发 Harness；
 - CimiLoop 不是松散 Skills，也不是在传统研发节点上逐点提效；
 - Change 是独立运行、交付、验证和追踪的基本单元；
 - 同一项目中的多个 Change 可以并行处于不同阶段；
@@ -71,14 +71,14 @@ Adapter & Capability：Runtime / Skill / SCM / DevOps / Knowledge
 职责边界：
 
 - **CimiLoop** 决定 Change 当前状态、下一步是否允许执行，以及需要哪些产物和证据；
-- **cimicode** 运行 Agent、调用工具并执行具体任务；
+- **Agent Runtime**（V1 首个实现从 Claude Code 或 OpenCode 中选择）运行 Agent、调用工具并执行具体任务；企业内部 cimicode 后续按相同契约接入；
 - **Agent** 完成推理、澄清、规划、编码、分析和评估；
 - **Skill** 提供可替换的专业方法和能力；
 - **外部框架** 通过 Adapter 提供规格、执行或分析能力；
 - **Git、DevOps、知识平台** 提供代码、环境、部署和知识资源；
 - **人类** 定义意图、处理关键决策、批准风险并承担最终责任。
 
-> CimiLoop 管“这次变更如何可信地走完”；cimicode 管“Agent 如何把当前任务执行出来”。
+> CimiLoop 管“这次变更如何可信地走完”；Agent Runtime 管“Agent 如何把当前任务执行出来”。
 
 ### 4.3 十项架构不变量
 
@@ -126,7 +126,7 @@ Adapter & Capability：Runtime / Skill / SCM / DevOps / Knowledge
 
 - 每个 Change 自动拥有唯一的 Change Room；
 - 人、Agent、Decision、Artifact、Evidence、Agent Run 和流程事件均围绕 Change Room 组织；
-- CLI、Workbench、cimicode 和未来 Teams/飞书是进入同一个 Change Room 的不同入口；
+- CLI、Workbench、Agent Runtime 和未来 Teams/飞书是进入同一个 Change Room 的不同入口；
 - 项目级看板负责跨 Change 汇总，不取代 Change Room；
 - Change Room 是领域和交互概念，不等于 V1 必须实现完整聊天、实时多人在线或消息系统；
 - 所有操作以 Command、Decision、Feedback 等形式提交给 Kernel，由 Kernel 校验权限、Gate 和状态迁移。
@@ -134,7 +134,7 @@ Adapter & Capability：Runtime / Skill / SCM / DevOps / Knowledge
 CimiLoop 提供两种部署模式，但共享同一套 Protocol、Kernel、Change 模型和交互语义：
 
 - **Embedded Solo Mode（个人嵌入模式）**：Kernel、SQLite 和 Workbench 运行在本机，适合个人先跑通完整闭环；包含状态、参与者、时间线、产物、证据、Agent Run 和人工决策，不实现聊天、实时多人协作、消息推送和 Teams/飞书同步；
-- **Shared Team Mode（团队共享模式）**：Kernel 与项目 Store 以共享服务方式部署，多个成员和本地 cimicode Runtime 连接同一项目空间，共享全部 Change、状态、Run、Evidence 和 Decision；代码、Worktree、凭据和原始执行仍保留在各自执行机器；
+- **Shared Team Mode（团队共享模式）**：Kernel 与项目 Store 以共享服务方式部署，多个成员和本地 Agent Runtime 连接同一项目空间，共享全部 Change、状态、Run、Evidence 和 Decision；代码、Worktree、凭据和原始执行仍保留在各自执行机器；
 - Solo Mode 的 SQLite 是项目运行事实存储；Team Mode 的共享 Store 才是团队事实权威，本地 SQLite 仅作为缓存、Outbox 和离线恢复；
 - 两种模式不是两套产品，后续可通过稳定 ID、Event、Artifact Reference 和 Store 接口将 Solo 项目迁移到 Team Mode。
 
@@ -158,7 +158,7 @@ Project Workbench 采用 Attention-first 的项目视图：
 
 - Query 读取 Change、Timeline、Run、Evidence、Decision Inbox 和 Attention Queue 等 Read Model；
 - Command 表达 Actor 希望执行的动作，但是否接受由 Kernel 根据身份、Policy、Gate 和当前状态决定；
-- CLI、Workbench、cimicode 以及未来 Teams/飞书使用相同的 Command 语义；
+- CLI、Workbench、Agent Runtime 以及未来 Teams/飞书使用相同的 Command 语义；
 - 任何入口都不能直接写 Store 或绕过 Gate 修改 Change 状态；
 - Command 记录 Actor、Acting Role、来源和幂等信息，避免重试或重复点击造成重复副作用。
 
@@ -216,7 +216,7 @@ Kernel 通过结构化 Work Item 调度 Human 或 Agent，而不是下发无边�
 
 - Work Item 绑定 Change、Task、Contract Version 与 Plan Version；
 - Work Item 明确目标、允许范围、输入、预期产物、验证要求、权限、预算和停止条件；
-- cimicode Runtime 为 Work Item 创建 Agent Run，加载对应 Role、Skill 与 Context；
+- Agent Runtime 为 Work Item 创建 Agent Run，加载对应 Role、Skill 与 Context；
 - Agent Run 返回 Artifact、Evidence、Claim、Feedback、Decision Request 或 Failure；
 - Agent Run 成功只表示本次工作项执行完成，不直接代表 Change 可以迁移；
 - Agent 可以在 Work Item 授权范围内迭代，但超出范围、预算、权限或出现 Contract 冲突时必须停止并升级。
@@ -291,7 +291,7 @@ Kernel 持久化采用 Event-backed State，而不是纯 Event Sourcing：
 - Context Pack 按角色组装最小必要上下文，Intent、Planner、Executor、Evaluator 和 Deployment 角色获得不同范围；
 - Context Pack 是不可变版本快照，源知识变化时生成新版本，并按关键性判断旧 Run 继续、标记 Stale 或取消；
 - 区分 Run Memory、Change Memory 和 Project Knowledge，Run Observation 只能先成为 Learning Candidate，经 Owner 与 Eval 后才能晋升；
-- V1 知识来源聚焦 Change 记录、仓库文档、代码/Git、Project Policy、cimicode Run 和测试结果；飞书、CodeGraph、向量库等通过 Adapter 后续接入；
+- V1 知识来源聚焦 Change 记录、仓库文档、代码/Git、Project Policy、Runtime Run 和测试结果；飞书、CodeGraph、向量库等通过 Adapter 后续接入；
 - Agent/Skill 只能提交 Proposal、Artifact、Evidence Claim、Evaluation 和 Learning Candidate，不能直接修改权威状态、批准 Gate、修改全局 Policy、晋升知识或授予自身权限。
 
 ### 5.4 Engineering Execution & Delivery（工程执行与交付）
@@ -303,7 +303,7 @@ Kernel 持久化采用 Event-backed State，而不是纯 Event Sourcing：
 已确认：
 
 - 默认一个 Change 一个隔离 Worktree，顺序 Task 共享，只有依赖和文件范围明确时才创建并行子 Worktree；Agent 不直接修改主工作区；
-- Kernel 下发 Work Item，Runtime Adapter 转换为 cimicode Session/Command，cimicode 执行真实文件、命令和工具操作；
+- Kernel 下发 Work Item，Runtime Adapter 转换为 Claude Code/OpenCode Session/Command，由所选 Runtime 执行真实文件、命令和工具操作；未来 cimicode 复用同一契约；
 - 权限由 Work Item 声明，凭据留在 Runtime 或 DevOps，不进入 Prompt、Event 或 Artifact；
 - 每次有效代码变化产生不可变 Artifact Candidate，测试通过后将同一 Digest 晋升生产；修复后必须生成新 Artifact 并重新验证；
 - 通过统一 Environment/DevOps Adapter 执行 build、deploy、status、verify、recover 和 reconcile，V1 复用现有 DevOps；
@@ -343,7 +343,7 @@ Kernel 持久化采用 Event-backed State，而不是纯 Event Sourcing：
 - Solo 与 Team 使用同一 Protocol 和 Kernel，并通过 Export/Import 迁移项目历史；
 - Runtime、SCM、Workspace、Knowledge、DevOps、Environment、Notification、Spec 等外部能力通过声明能力、版本、权限、健康、幂等和核对能力的 Adapter 接入；
 - Adapter 只能使用 Command、Query 和 Event，不能直接修改 Kernel Store；
-- V1 最小集成为 cimicode Runtime、Git/Local Workspace、File Knowledge 和现有 DevOps/Environment；其余能力按相同契约后续接入。
+- V1 最小集成为 Claude Code 或 OpenCode Runtime（先实现一个）、Git/Local Workspace、File Knowledge 和现有 DevOps/Environment；企业内部 cimicode 与其余能力按相同契约后续接入。
 
 Change Room 采用两层时间线：
 
@@ -385,7 +385,7 @@ Human 与 Agent 使用统一 Actor 抽象，并通过 `actor_type` 区分：
 
 V1 区分 Conversation、Feedback 与 Decision：
 
-- 实时对话继续发生在 cimicode，Change Room 不实现通用聊天和自由评论系统；
+- 实时对话继续发生在所选 Agent Runtime，Change Room 不实现通用聊天和自由评论系统；
 - Feedback 必须关联到 Contract、Plan、Artifact、Evidence 或 Agent Run，并记录处理状态；
 - Decision 具有正式流程效力，使用独立结构化模型；
 - Change Room 只保存对流程有长期价值的 Feedback、Decision、Artifact、Evidence，以及必要的 Conversation 摘要和来源引用；
@@ -1041,7 +1041,7 @@ Incident 采用“压缩流程、不跳过语义”：可以快速通过 IntentR
 | D-039 | 智能能力边界 | 已确认 | Agent/Skill 只提交候选结果，不能直接改变权威状态、权限、Policy 或全局知识。 |
 | D-040 | 智能与上下文能力域 | 已确认 | 角色 Session、Context Pack、知识可信度、能力装配、Memory 治理与 V1 边界已完成。 |
 | D-041 | Workspace 隔离 | 已确认 | 默认每个 Change 使用独立 Worktree，并行子 Worktree 只在依赖和范围清晰时使用。 |
-| D-042 | Runtime Adapter | 已确认 | Kernel 下发 Work Item，cimicode 负责真实执行；权限显式声明，凭据不进入 CimiLoop 记录。 |
+| D-042 | Runtime Adapter | 已确认（由 D-130 更新具体实现） | Kernel 下发 Work Item，Agent Runtime 负责真实执行；权限显式声明，凭据不进入 CimiLoop 记录。 |
 | D-043 | Artifact 晋升 | 已确认 | Artifact Candidate 不可变；测试验证与生产使用同一 Digest，代码变化后重新构建和验证。 |
 | D-044 | DevOps Adapter | 已确认 | 使用统一环境接口并复用现有 DevOps，外部状态不明时先 reconcile。 |
 | D-045 | 测试到生产闭环 | 已确认 | 测试环境自动修复循环，生产发布显式批准并即时验证；长期生产观察后续接入。 |
@@ -1127,6 +1127,9 @@ Incident 采用“压缩流程、不跳过语义”：可以快速通过 IntentR
 | D-125 | Engineering Delivery & DevOps 模型 | 已确认 | Change 在隔离 Workspace 中形成不可变 Source Snapshot 与 Artifact；测试和生产晋升同一 Digest，Release 管授权、Deployment 管尝试，未知外部状态先 Reconciliation，Recovery/Compensation 作为新的受控动作保留完整历史。 |
 | D-126 | Workbench & Change Room 交互模型 | 已确认 | Project Workbench 采用跨 Change 的 Attention-first 视图，Change Room 负责单 Change 闭环并以 Current Focus 驱动下一动作；Decision 结构化、Evidence 按 Claim 呈现，生命周期事件与 Run 技术日志使用双层时间线。 |
 | D-127 | Storage & Solo-to-Team Evolution 模型 | 已确认 | Solo/Team 使用同一 Protocol 与 Kernel；Command 的状态、Event、Outbox 和幂等结果原子提交，Portable Import 先暂存校验且不自动合并分叉历史，Solo→Team 通过暂停、排空、核对、导入、激活和原实例只读封存避免双写。 |
+| D-128 | V1 产品范围与实施里程碑 | 已确认 | V1 采用 Embedded Solo Mode 的窄范围完整闭环，以真实 Feature 主场景、八类异常路径、Feature/Bugfix/Incident 关键 Profile、M0–M5 纵向里程碑和可恢复/可审计/可移植 Definition of Done 作为范围基线。 |
+| D-129 | Build / Adopt / Adapt 选型 | 已确认 | CimiLoop 核心 Build；SQLite、Git、Agent Skills 格式 Adopt；Runtime、DevOps 和外部能力经 Adapter 接入；Matt Skills 选择性适配；OpenSpec 降为可选 Spec Provider；CodeGraph、Multica 等延后。 |
+| D-130 | V1 Agent Runtime | 已确认 | V1 首个 Runtime 从 Claude Code 或 OpenCode 中通过 spike 与契约测试选择一个；优先验证 OpenCode 以降低未来企业内部 cimicode 接入成本，若关键能力不满足则选择 Claude Code；cimicode 不再是 V1 前置依赖。 |
 
 ## 10. 当前进度
 
@@ -1143,5 +1146,7 @@ Incident 采用“压缩流程、不跳过语义”：可以快速通过 IntentR
 - Engineering Delivery & DevOps 模型确认稿：`docs/architecture/CimiLoop工程交付与DevOps模型-v0.1.md`；
 - Workbench & Change Room 交互模型确认稿：`docs/architecture/CimiLoop工作台与变更空间交互模型-v0.1.md`；
 - Storage & Solo-to-Team Evolution 模型确认稿：`docs/architecture/CimiLoop存储与Solo-Team演进模型-v0.1.md`；
-- 下一步：进入阶段 G，先冻结 Embedded Solo Mode 的 V1 产品范围、端到端验收闭环与实施里程碑，再进行 Build / Adopt / Adapt 开源能力映射；
-- 阶段 E：已完成；阶段 F：已完成；阶段 G：准备开始。
+- V1 产品范围与实施里程碑基线：`docs/plans/2026-09-19-cimiloop-v1产品范围与实施里程碑-v0.1.md`；
+- Build / Adopt / Adapt 选型基线：`docs/plans/2026-09-19-cimiloop-build-adopt-adapt选型矩阵-v0.1.md`；
+- 下一步：进入实施架构与 M0 技术设计，先确定代码结构、协议 Schema 边界、Store Port、Command/Event Envelope 与首个纵向切片；M2 前完成 OpenCode/Claude Code Runtime Adapter spike；
+- 阶段 E：已完成；阶段 F：已完成；阶段 G：已完成，V1 范围、里程碑和开源能力 Build / Adopt / Adapt 组合已经确认。

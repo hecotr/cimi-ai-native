@@ -439,7 +439,7 @@ V1 至少要求 Evaluator 使用独立 Session，不共享 Executor 的完整对
 
 ### 10.1 入口
 
-V1 由用户在 cimicode 中描述需求、Bug 或技术变更，或提供已有 Issue/需求文本，主动创建 Draft Change。暂不自动监听工单、告警和生产信号。
+V1 由用户在所选 Agent Runtime（Claude Code 或 OpenCode）中描述需求、Bug 或技术变更，或提供已有 Issue/需求文本，主动创建 Draft Change。暂不自动监听工单、告警和生产信号。
 
 ### 10.2 Profile 识别
 
@@ -655,7 +655,7 @@ Release Owner 明确批准后，Deployment Agent 才获得一次性生产发布�
 
 ### 13.5 凭据和部署记录
 
-- cimicode V1 只获得触发指定 Pipeline 的权限；
+- V1 Agent Runtime 只获得触发指定 Pipeline 的权限；
 - 生产凭据由 DevOps 平台管理；
 - Agent 不读取和输出真实生产密钥；
 - 每次部署记录 Deployment ID、Change ID、Artifact、Contract Version、环境、触发者、授权、时间、结果和恢复动作；
@@ -789,7 +789,7 @@ observation_capability: manual_only
 
 保存变更契约、规格、规则、Task DAG 声明、代码、测试定义、决策和最终证据摘要。
 
-### cimicode：运行时状态
+### Agent Runtime：运行时状态
 
 保存 Session、任务实时状态、临时锁、暂停恢复、模型和 Skill 调用、预算与执行日志。
 
@@ -805,7 +805,7 @@ observation_capability: manual_only
 
 V1 明确面向单人或小团队、本地 Runtime 优先：
 
-- 每位执行者使用本地 cimicode；
+- 每位执行者使用本地 Agent Runtime；V1 首个实现从 Claude Code 或 OpenCode 中选择；
 - Repo 是团队持久协作协议；
 - 不建设中央数据库、复杂 Web 控制台或组织级 Agent 调度平台；
 - 测试和生产部署通过现有 CI/CD/DevOps 能力；
@@ -828,7 +828,7 @@ V1 明确面向单人或小团队、本地 Runtime 优先：
 - Skills 的输入输出和权限契约；
 - 人工干预记录器的 Hook 和 Diff 实现；
 - OpenSpec、Matt Skills、Superpowers 的适配方式；
-- cimicode Session、Worktree 和 Evaluator 隔离实现；
+- Agent Runtime Session、Worktree 和 Evaluator 隔离实现；
 - DevOps Adapter 接口；
 - 旧 cimi-flow 资产的迁移或废弃计划。
 

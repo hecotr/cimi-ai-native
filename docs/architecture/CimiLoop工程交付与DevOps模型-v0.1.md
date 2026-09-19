@@ -336,7 +336,7 @@ Adapter 只能通过 Command、Query 和 Event 与 Kernel 协作，不能直接�
 V1 必须实现：
 
 - 每个 Change 默认一个隔离 Worktree；
-- Work Item 驱动的 cimicode Runtime 执行；
+- Work Item 驱动的 Agent Runtime 执行；V1 首个 Runtime 从 Claude Code 或 OpenCode 中选择；
 - 不可变 Source Snapshot 与 Artifact/Digest；
 - 测试部署、验证、修复和重建循环；
 - 测试到生产的同 Digest 晋升；

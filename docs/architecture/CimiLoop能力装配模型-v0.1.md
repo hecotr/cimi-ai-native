@@ -321,7 +321,7 @@ V1 不承诺：
 - 基于在线竞价的动态模型路由；
 - 跨组织能力共享；
 - 通用插件生态治理后台；
-- OpenSpec、Superpowers、CodeGraph、Multica 等具体实现映射。
+- OpenSpec、Matt Pocock Skills、Superpowers、CodeGraph、Multica 等具体实现映射。
 
 ## 16. Kernel 不变量
 

@@ -293,7 +293,7 @@ Change Room 默认显示对业务闭环有意义的事件：
 - Read Model 尚未追上 Event 时显示“已提交，视图更新中”，不重复发送 Command；
 - 高风险动作提交前展示对象、版本、环境、范围和后果，不使用模糊确认。
 
-CLI、Workbench、cimicode 与未来外部渠道使用同一 Command/Query 语义。
+CLI、Workbench、Agent Runtime 与未来外部渠道使用同一 Command/Query 语义。
 
 ## 14. 通知
 
@@ -311,7 +311,7 @@ V1 Workbench 是本地单用户产品，但仍完整显示 Actor、acting role�
 
 - 不建设组织登录、实时多人在线和复杂权限后台；
 - 不实现通用聊天或自由评论系统；
-- 实时对话继续发生在 cimicode；
+- 实时对话继续发生在所选 Agent Runtime；
 - Change Room 只保留结构化 Feedback、Decision、Artifact、Evidence 与必要 Conversation Summary；
 - Project 创建者作为 Project Owner，可以显式承担多个角色；
 - 高风险缺少第二责任人时显示 break-glass，而不是伪造多人复核。

@@ -20,7 +20,7 @@
 
 > **CimiLoop 是一套以 Change（变更）为运行单元、以 Change Contract（变更契约）为基线、以 Evidence（证据）驱动 Gate（关卡）的 AI Native 软件研发 Harness，用于编排人和 Agent 完成从意图澄清到生产闭环的完整研发过程。**
 
-CimiLoop 管理“这次变更如何可信地走完”；cimicode 管理“Agent 如何把当前任务执行出来”。
+CimiLoop 管理“这次变更如何可信地走完”；Agent Runtime 管理“Agent 如何把当前任务执行出来”。V1 首个 Runtime 从 Claude Code 或 OpenCode 中选择，企业内部 cimicode 后续按相同 Adapter 契约接入。
 
 ### 2.1 CimiLoop 负责
 
@@ -142,7 +142,7 @@ Change Room 采用两层时间线：默认展示生命周期关键事件，进�
 
 - Query 读取 Change、Timeline、Run、Evidence、Decision Inbox 和 Attention Queue；
 - Command 表达 Actor 希望执行的动作，是否接受由 Kernel 判断；
-- CLI、Workbench、cimicode 和未来协作渠道使用相同语义；
+- CLI、Workbench、Agent Runtime 和未来协作渠道使用相同语义；
 - 任何入口都不能直接写 Store 或绕过 Gate；
 - Notification 是 Event 的派生投影，已送达或已读不等于正式 Decision。
 
@@ -266,7 +266,7 @@ Run Observation 只能先成为 Learning Candidate，经 Owner 审查和 Eval �
 
 Kernel 和流程声明 `required_capabilities`，不写死具体 Skill。Capability Resolver 根据项目 Policy 选择并固定可信的 Skill、Tool、Model 或 Adapter。
 
-V1 使用 Change 记录、仓库文档、代码/Git、Project Policy、cimicode Run 和测试结果。飞书、CodeGraph、向量库等后续通过 Adapter 接入。
+V1 使用 Change 记录、仓库文档、代码/Git、Project Policy、Agent Runtime Run 和测试结果。飞书、CodeGraph、向量库等后续通过 Adapter 接入。
 
 ## 9. Engineering Execution & Delivery：工程执行与交付
 
@@ -276,7 +276,7 @@ V1 使用 Change 记录、仓库文档、代码/Git、Project Policy、cimicode 
 - 顺序 Task 共享 Change Worktree；
 - 只有依赖和文件范围明确时才创建并行子 Worktree；
 - Agent 不直接修改主工作区；
-- Kernel 下发 Work Item，Runtime Adapter 转换为 cimicode Session/Command；
+- Kernel 下发 Work Item，Runtime Adapter 转换为所选 Claude Code/OpenCode Session/Command；
 - 权限由 Work Item 声明，凭据留在 Runtime 或 DevOps，不进入 Prompt、Event 或 Artifact。
 
 ### 9.2 Artifact 与环境晋升
@@ -372,7 +372,7 @@ Protocol 定义以下稳定语义：
 |---|---|
 | CimiLoop Store | Change 状态、Event、Decision、Feedback、Gate、Manifest |
 | Git Repo | Contract、Spec、Plan 快照、Policy、代码、测试和最终归档 |
-| cimicode Runtime | 原始 Session、Transcript、工具调用和命令输出 |
+| Agent Runtime | 原始 Session、Transcript、工具调用和命令输出 |
 | CI/CD、DevOps、Artifact Registry | 原始构建、测试、部署和制品事实 |
 
 CimiLoop 使用内部 ID、External Reference、版本和 Digest 聚合这些事实，不复制所有原始大对象。
@@ -444,7 +444,7 @@ Git / Runtime / DevOps
 ├── cimi-loop CLI / Local Workbench
 ├── CimiLoop Kernel
 ├── SQLite / Local Files
-├── cimicode Runtime
+├── Claude Code / OpenCode Runtime
 ├── Change Worktree
 └── Git / DevOps Adapter
 ```
@@ -454,7 +454,7 @@ Git / Runtime / DevOps
 ### 14.2 Shared Team Mode
 
 ```text
-多个 Human / Local cimicode Runtime
+多个 Human / Local Agent Runtime
                 ↓
 CimiLoop Shared Service
 ├── Kernel
@@ -476,7 +476,7 @@ V1 交付 Embedded Solo Mode，至少包含：
 - Change 生命周期、Gate、Decision、Event Ledger、Outbox 和恢复；
 - Orchestrator、角色 Session、Work Item、Agent Run 和 Context Pack；
 - 独立 Evaluator、Claim–Evidence 和多维风险 Policy；
-- Change Worktree、cimicode Runtime Adapter；
+- Change Worktree、Claude Code/OpenCode Runtime Adapter；
 - Git/Local Workspace、File Knowledge Adapter；
 - 现有 DevOps/Environment Adapter；
 - 测试环境自动修复循环、生产 Release Package、明确授权和即时验证；

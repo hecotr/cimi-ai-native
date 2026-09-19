@@ -161,7 +161,7 @@ V1 的本地持久化模型：
 │   └── 可选择纳入备份的内容寻址对象
 └── External References
     ├── Git / Workspace
-    ├── cimicode Runtime
+    ├── Agent Runtime（V1：Claude Code / OpenCode）
     └── CI/CD / DevOps / Artifact Registry
 ```
 

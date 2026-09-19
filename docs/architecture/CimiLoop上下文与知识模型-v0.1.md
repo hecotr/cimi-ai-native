@@ -83,7 +83,7 @@ Change Memory 的事实可以作为学习依据，但“曾经发生”不等于
 | CI、测试和扫描原始结果 | CI / Test Tool / Runtime | Evidence、来源和外部记录引用 |
 | 部署动作与平台状态 | DevOps / Environment Provider | Deployment、Evidence 与 External Reference |
 | 人类正式授权 | CimiLoop Decision | Actor、acting role、对象版本与 Decision |
-| 原始对话与工具轨迹 | cimicode / Runtime | Run Record、Conversation Summary 与 External Reference |
+| 原始对话与工具轨迹 | Agent Runtime | Run Record、Conversation Summary 与 External Reference |
 | ADR、运行手册、领域文档 | 被 Project Policy 指定的仓库或知识系统 | 知识来源、版本/Digest 与适用范围 |
 
 CimiLoop 保存“关联、摘要和治理事实”不代表它取代外部原始系统。例如，Deployment 在 CimiLoop 中有领域身份，但云平台仍是具体外部资源状态的原始权威。
@@ -237,7 +237,7 @@ V1 必须实现：
 
 - 不可变 Context Pack Manifest 及其 Run 绑定；
 - Change、Contract/Plan Version、Policy Snapshot、Work Item 与角色的精确引用；
-- Git/Repo 文档、代码、CimiLoop Store、cimicode Run 和测试结果来源；
+- Git/Repo 文档、代码、CimiLoop Store、Agent Runtime Run 和测试结果来源；
 - 角色化最小上下文模板；
 - 来源变化后的 Valid/Stale/Invalid/Superseded 判断；
 - Learning Candidate、人工晋升 Decision 与审计链；

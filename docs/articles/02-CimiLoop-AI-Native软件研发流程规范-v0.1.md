@@ -2,7 +2,7 @@
 
 > 状态：流程规范初稿  
 > 日期：2026-09-17  
-> 适用范围：CimiLoop V1，面向单人或小团队、本地 cimicode Runtime，并复用现有 CI/CD 与 DevOps 平台完成测试和生产部署。
+> 适用范围：CimiLoop V1，面向单人或小团队、本地 Agent Runtime（首个实现从 Claude Code 或 OpenCode 中选择），并复用现有 CI/CD 与 DevOps 平台完成测试和生产部署。企业内部 cimicode 后续按相同 Runtime Adapter 契约接入。
 
 ## 1. 文档目的
 
@@ -29,7 +29,7 @@
 - **可以**：根据 Change Profile、风险和团队环境选择；
 - **不得**：任何 Agent 或角色都不能绕过。
 
-文中的“产物”是逻辑工件，不等于必须创建一个独立文件。它可以由 Repo 中的文档和代码、cimicode 中的运行状态，以及 CI/CD 或环境中的原始记录共同组成。
+文中的“产物”是逻辑工件，不等于必须创建一个独立文件。它可以由 Repo 中的文档和代码、Agent Runtime 中的运行状态，以及 CI/CD 或环境中的原始记录共同组成。
 
 文中的 **Gate** 统一译为 **状态流转检查**：Change 进入下一状态之前，对授权、风险和证据执行的准入判断。
 
@@ -298,7 +298,7 @@ Policy Exception 必须包含：被突破的规则、原因、风险、补偿措
 
 V1 支持以下入口：
 
-- 用户在 cimicode 中描述一个需求、Bug 或技术变更；
+- 用户在所选 Agent Runtime 中描述一个需求、Bug 或技术变更；
 - 用户提供已有 Issue、需求文档或事故信息；
 - N5 学习结果建议创建新的 Change；
 - 已有 Change 需要拆分出独立 Change。
@@ -601,7 +601,7 @@ N3 输出包括 Transition Decision、规则命中记录、证据引用、能力
 4. 生产部署必须有明确的人类发布决定；
 5. 发布成功不等于长期稳定或业务结果验证；
 6. 恢复策略必须按 Change 定义，不能统一假设为版本回滚；
-7. cimicode 不保存和输出生产密钥，只触发被授权的部署能力。
+7. Agent Runtime 不保存和输出生产密钥，只触发被授权的部署能力。
 
 ### 11.3 输入
 
@@ -1012,9 +1012,9 @@ observation_capability: manual_only
 
 Repo 保存变更契约、规格、Policy、Task DAG 声明、代码、测试定义、决策和最终证据摘要，是团队协作和版本追踪的持久载体。
 
-### 19.2 cimicode：运行时状态
+### 19.2 Agent Runtime：运行时状态
 
-cimicode 保存 Session、任务实时状态、临时锁、暂停恢复、模型和 Skill 调用、预算与执行日志。它是 Agent Runtime，不替代 Repo 中的持久协议。
+Agent Runtime 保存 Session、任务实时状态、临时锁、暂停恢复、模型和 Skill 调用、预算与执行日志。它不替代 CimiLoop Kernel/Store 中的持久协议事实。
 
 ### 19.3 CI/CD 与环境：运行事实
 
@@ -1040,7 +1040,7 @@ CimiLoop V1 明确采用以下边界：
 
 ### 20.1 已纳入
 
-- 单人或小团队、本地 cimicode Runtime；
+- 单人或小团队、本地 Claude Code/OpenCode Runtime；
 - 人工创建 Change 或提供已有 Issue/需求；
 - Change Contract、Profile、Task DAG、Decision 和 Evidence；
 - Orchestrator 与按需创建的 Executor、Evaluator Session；
@@ -1090,7 +1090,7 @@ CimiLoop V1 明确采用以下边界：
 - Event、Decision、Evidence 的数据结构；
 - Skills 的输入输出、权限、预算、Evidence 和 Eval Contract；
 - Orchestrator、Executor、Evaluator 与 Deployment Session 的实现；
-- cimicode 暂停、恢复、锁、Worktree 和人工干预记录机制；
+- Agent Runtime 暂停、恢复、锁、Worktree 和人工干预记录机制；
 - OpenSpec、Matt Skills、Superpowers 等外部能力的适配边界；
 - DevOps Adapter、幂等、凭据和部署记录接口；
 - Harness 自身的回放、评估、版本和升级机制。
