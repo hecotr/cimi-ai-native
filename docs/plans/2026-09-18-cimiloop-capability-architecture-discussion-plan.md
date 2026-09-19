@@ -1132,6 +1132,15 @@ Incident 采用“压缩流程、不跳过语义”：可以快速通过 IntentR
 | D-130 | V1 Agent Runtime | 已确认 | V1 首个 Runtime 从 Claude Code 或 OpenCode 中通过 spike 与契约测试选择一个；优先验证 OpenCode 以降低未来企业内部 cimicode 接入成本，若关键能力不满足则选择 Claude Code；cimicode 不再是 V1 前置依赖。 |
 | D-131 | Change 知识闭环 | 已确认 | 每个 Change 执行 Knowledge Impact Assessment；受影响知识通过既有 Plan/Task/Work Item 分配给 Agent、开发者、业务或运维人员，以版本化 External Reference 和 Evidence 证明更新；Policy 决定阻塞 Release 或 Closure Gate，V1 使用 Human Work Item，不以前置飞书 Adapter 为条件。 |
 | D-132 | V1 实现语言与运行平台 | 已确认 | 首版采用 TypeScript + Node.js；该选择只约束 CimiLoop V1 的工程实现，不改变 Cimi Change Protocol 的运行时中立性，也不把 Kernel 绑定到 Claude Code、OpenCode 或 cimicode。 |
+| D-133 | V1 Node.js 与包管理基线 | 已确认 | 使用 Node.js 24 LTS 与 pnpm Workspace；pnpm 版本在工程清单中精确锁定，开发环境和 CI 显式安装，不依赖系统预装 Corepack。 |
+| D-134 | V1 Monorepo 模块布局 | 已确认 | 使用 `apps/cli`、`packages/protocol`、`packages/kernel`、`packages/store`、`packages/store-sqlite` 与根级场景测试；Kernel 只依赖 Protocol 和 Store Port，不依赖 CLI、SQLite 或具体 Agent Runtime。 |
+| D-135 | V1 Protocol Schema 工具链 | 已确认 | TypeBox 作为 TypeScript Schema 定义源，导出 JSON Schema 2020-12 作为跨语言协议制品，Ajv strict mode 执行外部边界运行时校验；不维护重复的手写 Protocol interface。 |
+| D-136 | M0 纵向演示边界 | 已确认 | M0 通过 Project 初始化、Draft Change 创建与查询、暂停/恢复、非法操作解释、重启恢复、幂等和 Event/Current State 一致性证明基础闭环；需要真实 Contract、Decision 与 Gate 的 `Draft → IntentReady` 留到 M1，不建立临时假审批。 |
+| D-137 | V1 Repository 与 Project 映射 | 已确认 | Embedded Solo Mode 默认一个本地 Git Repository 对应一个 CimiLoop Project；`cimiloop init` 自动发现 Git 根目录，非 Git 目录可显式初始化，Protocol 预留未来多仓库 Project 能力但 V1 不实现。 |
+| D-138 | V1 本地混合存储拓扑 | 已确认 | 每个 Project 在 Git Common Directory 下使用独立 SQLite 权威库和项目内容目录；用户级集中 registry 只保存可重建的项目索引，不能成为领域权威。非 Git 项目使用本地 `.cimiloop/`，跨设备迁移通过 Portable Export/Import。 |
+| D-139 | V1 CLI 名称与调用模式 | 已确认 | CLI 可执行命令使用 `cimiloop`，避免与既有 cimi 产品冲突；人类友好输出与 Agent `--json` 输出共享同一 Kernel Command 路径，修改命令支持幂等 ID 与期望 Revision。 |
+| D-140 | Solo Human Actor 初始化 | 已确认 | `cimiloop init` 读取 Git 用户名和邮箱作为建议，经用户确认或显式参数后创建稳定 Human Actor 与 Project Owner Assignment；Git 邮箱不作为内部主键，Agent 不得借用该身份执行人类批准。 |
+| D-141 | M0 工程执行模型 | 已确认 | M0 使用封装在 Store Adapter 内的 Node.js `node:sqlite`、UUIDv7、纯 Kernel 领域函数和原子 Unit of Work；Project/Change Current State、不可变记录、Event、Outbox 与幂等回执保持事务一致。 |
 
 ## 10. 当前进度
 
@@ -1151,5 +1160,6 @@ Incident 采用“压缩流程、不跳过语义”：可以快速通过 IntentR
 - V1 产品范围与实施里程碑基线：`docs/plans/2026-09-19-cimiloop-v1产品范围与实施里程碑-v0.1.md`；
 - Build / Adopt / Adapt 选型基线：`docs/plans/2026-09-19-cimiloop-build-adopt-adapt选型矩阵-v0.1.md`；
 - 面向非专业读者的整体讲解基线：`docs/architecture/CimiLoop整体架构通俗解读-v0.1.md`；
-- 下一步：基于已确认的 TypeScript + Node.js 进入实施架构与 M0 技术设计，先确定代码结构、协议 Schema 边界、Store Port、Command/Event Envelope 与首个纵向切片；M2 前完成 OpenCode/Claude Code Runtime Adapter spike；
+- M0 实施架构：`docs/implementation/2026-09-19-cimiloop-m0实施架构-v0.1.md`；
+- 下一步：按 M0 实施架构创建 TypeScript + Node.js 工程骨架并完成首个可恢复纵向切片；M2 前完成 OpenCode/Claude Code Runtime Adapter spike；
 - 阶段 E：已完成；阶段 F：已完成；阶段 G：已完成，V1 范围、里程碑和开源能力 Build / Adopt / Adapt 组合已经确认。

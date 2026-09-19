@@ -43,6 +43,7 @@
 ## 实施设计
 
 - [实施设计导航与已确认技术决策](implementation/README.md)
+- [M0 实施架构](implementation/2026-09-19-cimiloop-m0实施架构-v0.1.md)
 
 ## 文档职责
 
