@@ -323,7 +323,7 @@ Kernel 持久化采用 Event-backed State，而不是纯 Event Sourcing：
 - 使用 Blast Radius、Reversibility、Data Impact、Security/Compliance、External Side Effect、Novelty/Uncertainty 等多维风险画像；
 - Agent 可以建议风险，不能自行降级；V1 使用确定性项目 Policy，不引入复杂通用策略平台；
 - Human Approval 是结构化 Decision，不能沉默同意，并绑定具体 Change、版本、Artifact 与环境；
-- 普通 Change 允许一人多角色，高风险或不可逆动作必须执行与批准职责分离；
+- 普通 Change 允许一人多角色；高风险或不可逆动作默认要求执行与批准职责分离；Embedded Solo Mode 无法获得第二责任人时，只能使用限时、限范围、增强证据并强制事后复盘的紧急越权（break-glass），且不得把同一人伪装为多人复核；
 - 规则例外使用有限范围、有效期、Owner 和补偿措施明确的 Exception Record，不自动修改长期 Policy；
 - 重复 Exception 只能形成 Policy Change Candidate，并进入审计与复盘。
 
@@ -361,8 +361,15 @@ Change Room 采用两层时间线：
 
 V1 即使只有一个本地用户，也建立 Human Actor，并在正式决策中同时记录 `actor_id` 与 `acting_role`：
 
+- 每个 Change 从 Draft 到关闭始终有且只有一名当前 Human Change Owner，对推进、阻塞处理和闭环负责，但不因此自动获得其他角色的批准权；
+- Change Owner 可以移交；移交必须记录原负责人、新负责人、生效时间和原因，并保持完整责任链；
+- Incident Commander 可以临时指挥应急动作，但不会自动取代 Change Owner，除非完成正式负责人移交；
+- 所需责任角色未指派或不可用时，不允许 Change Owner 自动代行；Change 进入等待决策（AwaitingDecision），直到完成显式指派、限时委托或符合 Policy 的紧急越权；
+- Solo Mode 可以把多个角色显式指派给同一 Human Actor，但每次行动仍须声明 acting_role；职责分离禁止同一人代行时，只能等待其他 Actor 或显式使用 break-glass；
 - 同一人可以兼任多个角色；
 - 每次决策必须明确该用户以哪个角色行使权力；
+- 角色重叠不等于职责分离；是否允许同一 Actor 连续执行和批准，由当时生效的风险与 Project Policy 判定；
+- 高风险场景默认要求另一 Actor 复核；Solo Mode 缺少复核者时只能显式使用紧急越权（break-glass），并记录原因、范围、时限、补偿措施、增强 Evidence 和事后复盘要求；
 - 系统保留未来进行权限校验、职责分离和审计所需的信息；
 - V1 使用轻量本地身份配置，不建设登录系统和复杂组织权限后台。
 
@@ -370,8 +377,10 @@ Human 与 Agent 使用统一 Actor 抽象，并通过 `actor_type` 区分：
 
 - Agent 作为一等参与者出现在 Change Room；
 - Agent 行为同时关联稳定的 Agent Profile、当时承担的 Role 和具体 Agent Run；
+- V1 将角色分为人类责任角色与可执行角色：Change Owner、Intent Owner、Technical Owner、Release Owner、Policy Owner 和 Incident Commander 只能由 Human Actor 承担；Planner、Executor、Evaluator、Operator 等角色可由 Human 或 Agent 承担；
 - Agent 可以提交建议、Artifact、Evidence 和执行结果，并在 Policy 授权范围内执行工程动作；
 - Agent 不能冒充 Human Actor，不能获得必须由人类责任角色行使的最终授权权力；
+- 后续自治等级提高时，调整 Decision 与 Gate 的授权策略，不把 Agent 重写或伪装为历史中的人类责任主体；
 - Agent 的建议通过不等于 Gate 已通过。
 
 V1 区分 Conversation、Feedback 与 Decision：
@@ -960,7 +969,15 @@ Conversation Summary 是可选记录；Attention Item、Timeline、Decision Inbo
 - 独立 Evaluator 对完整候选交付进行 Change 级评价；
 - Change 级评价失败时执行 `Evaluating → Executing`，并创建关联失败 Evidence 的修复工作项（Repair Work Item）。
 
-### 7.2 后续阶段
+### 7.2 状态机场景核对
+
+状态：**已完成**。
+
+已完成普通 Feature、评价失败修复、测试失败重建 Artifact、Release Decision 过期、生产 Deployment 结果未知、生产恢复、Incident 应急恢复、Experiment 提前结束、Pause/Cancel/Supersede 和跨 Change 依赖场景核对。
+
+Incident 采用“压缩流程、不跳过语义”：可以快速通过 IntentReady 与 Planned，但执行前必须形成最小应急 Contract、最小应急 Plan、Gate、Decision 和一次性权限；恢复后强制补齐详细材料、Evidence、核对与复盘，且不得用事后补录替代事前最小授权。
+
+### 7.3 后续阶段
 
 - **阶段 E**：角色模型、职责权限矩阵、人机与多 Agent 协作规则；
 - **阶段 F**：Context & Knowledge、能力装配、Verification & Evidence、DevOps、Workbench、存储与 Teams 演进；
@@ -1097,14 +1114,34 @@ Conversation Summary 是可选记录；Attention Item、Timeline、Decision Inbo
 | D-112 | Plan 全局覆盖与滚动细化 | 已确认 | 初始 Plan 覆盖完整范围和高层 Task DAG，近期 Task 细化到可授权；后续滚动细化，结构性变化走 Plan Amendment。 |
 | D-113 | Plan 授权与 Task 调度 | 已确认 | Plan Version 获批后普通 Task 不逐项人工审批；Kernel 只为满足依赖、细化和权限条件的 Ready Task 创建 Work Item，高风险任务可由 Policy 加 Gate。 |
 | D-114 | Task 循环与 Change 宏观状态 | 已确认 | Task/Run 维护局部执行与验证状态；Change 在完整候选交付形成后才进入 Evaluating，Change 级评价失败再返回 Executing 并创建 Repair Work Item。 |
+| D-115 | Incident 压缩应急路径 | 已确认 | Incident 不从 Draft 无语义跳转到 Executing；它可以快速通过 IntentReady 与 Planned，但执行前保留最小应急 Contract、Plan、Gate、Decision 与一次性权限，恢复后强制补齐 Evidence、核对、复盘和永久修复安排。 |
+| D-116 | 角色重叠与职责分离 | 已确认 | Solo Mode 允许同一 Human Actor 兼任多个角色，每次 Decision 明确 acting_role；普通风险可按 Policy 连续批准，高风险或不可逆动作默认要求另一 Actor 复核，无法满足时仅可使用限时、限范围、增强 Evidence 并强制复盘的 break-glass。 |
+| D-117 | 唯一当前 Change Owner | 已确认 | 每个 Change 从 Draft 到关闭始终有且只有一名当前 Human Change Owner；其对推进与闭环负责但不自动拥有全部批准权，负责人可经审计化移交，Incident Commander 也只有在正式移交后才取代该责任。 |
+| D-118 | 责任角色缺失与代行 | 已确认 | 所需角色未指派或不可用时进入 AwaitingDecision，Change Owner 不自动获得代行权；必须显式指派或限时委托，Solo Mode 也要记录 acting_role，职责分离冲突只能等待其他 Actor 或使用合规 break-glass。 |
+| D-119 | 人类责任角色与可执行角色 | 已确认 | V1 中 Project/Change/Intent/Technical/Release/Policy Owner 与 Incident Commander 只能由 Human Actor 承担；Planner、Executor、Evaluator、Operator 可由 Human 或 Agent 承担，未来提高自治等级只调整授权策略，不伪装或重写责任主体。 |
+| D-120 | Executor 与 Evaluator 独立性 | 已确认 | Executor 可以运行测试并提交自检 Evidence，但不能自证正式通过；正式 Evaluation 至少来自不同且上下文隔离的 Evaluator Run，风险升高时由 Policy 要求不同 Profile、Actor 或确定性工具，且评价通过不替代 Release Owner 的发布决定。 |
+| D-121 | Project 级与 Change 内角色指派权 | 已确认 | 新增 Human Project Owner 管理 Project 级责任角色 Assignment，但不代替这些角色作业务决定；Change Owner 仅能在 Policy 范围内安排当前 Change 的可执行角色，不能授予责任角色或扩大环境权限；Solo 创建者在建项时被显式初始化为 Project Owner。 |
+| D-122 | Context & Knowledge 模型 | 已确认 | Agent Run 绑定不可变、可追溯且按角色最小化的 Context Pack；Run/Change/Project Memory 分层，权威按事实类型确定，来源变化精确传播，冲突复用 Claim/Evidence/Blocker/Decision Request，Run Observation 只有经过 Learning Candidate、评价和 Owner Decision 才能晋升项目知识。 |
+| D-123 | Capability Assembly 模型 | 已确认 | 流程声明语义化 Capability Requirement，Resolver 按 Policy、权限、兼容性、可信与健康确定 Provider，并为每个 Run/操作生成不可变 Binding；运行中不静默替换实现，外部结果未知先 Reconciliation，关键结果提升为协议事实。 |
+| D-124 | Verification & Evidence 模型 | 已确认 | 从 Contract/Policy/Risk 推导 Claim，Evidence 只记录支持、反驳或无法判定的不可变观察；Gate 按 Requirement Set、适用性、覆盖和独立性求值，未取得 Evidence 是缺口而非证据，反驳不能以数量投票覆盖，Human Decision 不能伪造事实。 |
+| D-125 | Engineering Delivery & DevOps 模型 | 已确认 | Change 在隔离 Workspace 中形成不可变 Source Snapshot 与 Artifact；测试和生产晋升同一 Digest，Release 管授权、Deployment 管尝试，未知外部状态先 Reconciliation，Recovery/Compensation 作为新的受控动作保留完整历史。 |
+| D-126 | Workbench & Change Room 交互模型 | 已确认 | Project Workbench 采用跨 Change 的 Attention-first 视图，Change Room 负责单 Change 闭环并以 Current Focus 驱动下一动作；Decision 结构化、Evidence 按 Claim 呈现，生命周期事件与 Run 技术日志使用双层时间线。 |
+| D-127 | Storage & Solo-to-Team Evolution 模型 | 已确认 | Solo/Team 使用同一 Protocol 与 Kernel；Command 的状态、Event、Outbox 和幂等结果原子提交，Portable Import 先暂存校验且不自动合并分叉历史，Solo→Team 通过暂停、排空、核对、导入、激活和原实例只读封存避免双写。 |
 
 ## 10. 当前进度
 
 - 阶段 A 产品边界与架构原则：已完成；
 - 阶段 B 整体能力架构：已完成；
-- 阶段 C 核心领域模型与 Cimi Change Protocol：进行中，领域语义、核心对象边界、引用与版本关系、协议分层及 V1 最小对象目录已确认；
-- 阶段 D Change 端到端运行流程：进行中，主状态机草案已形成，待典型场景和原型核对；
+- 阶段 C 核心领域模型与 Cimi Change Protocol：已完成领域与协议语义设计；字段级 Schema 延后到实现设计，不再逐字段讨论；
+- 阶段 D Change 端到端运行流程：已完成，主状态机、异常恢复语义和十类典型场景核对均已确认；
 - 正式架构文档：`docs/architecture/CimiLoop整体能力架构-v0.1.md`、`docs/architecture/CimiChangeProtocol核心领域模型-v0.1.md`；
-- 状态机草案：`docs/architecture/CimiLoopChange端到端状态机-v0.1.md`；
-- 下一步：用典型 Feature、Bugfix、Incident、测试修复和生产恢复场景验证状态机，再进入角色权限矩阵；
-- 阶段 E–G：尚未开始。
+- 状态机确认稿：`docs/architecture/CimiLoopChange端到端状态机-v0.1.md`；
+- 角色与权限模型确认稿：`docs/architecture/CimiLoop角色与权限模型-v0.1.md`；
+- Context & Knowledge 模型确认稿：`docs/architecture/CimiLoop上下文与知识模型-v0.1.md`；
+- Capability Assembly 模型确认稿：`docs/architecture/CimiLoop能力装配模型-v0.1.md`；
+- Verification & Evidence 模型确认稿：`docs/architecture/CimiLoop验证与证据模型-v0.1.md`；
+- Engineering Delivery & DevOps 模型确认稿：`docs/architecture/CimiLoop工程交付与DevOps模型-v0.1.md`；
+- Workbench & Change Room 交互模型确认稿：`docs/architecture/CimiLoop工作台与变更空间交互模型-v0.1.md`；
+- Storage & Solo-to-Team Evolution 模型确认稿：`docs/architecture/CimiLoop存储与Solo-Team演进模型-v0.1.md`；
+- 下一步：进入阶段 G，先冻结 Embedded Solo Mode 的 V1 产品范围、端到端验收闭环与实施里程碑，再进行 Build / Adopt / Adapt 开源能力映射；
+- 阶段 E：已完成；阶段 F：已完成；阶段 G：准备开始。

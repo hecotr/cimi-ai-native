@@ -1,6 +1,6 @@
 # CimiLoop Change 端到端状态机 v0.1
 
-> 状态：流程设计草案，待原型与场景核对  
+> 状态：讨论确认稿
 > 日期：2026-09-19  
 > 范围：定义 Change 从创建、契约、规划、执行、评价、测试、生产发布到关闭的主流程、多维状态、Gate、异常与恢复语义；不包含字段级 Schema、页面布局和具体 Runtime/DevOps 实现。
 
@@ -397,7 +397,7 @@ Human Decision 不能直接迁移状态。Decision 记录后，Kernel 必须基�
 |---|---|
 | Feature | 完整意图、计划、测试与生产发布路径 |
 | Bugfix | 契约较轻，但风险和回归证据不能因标签降级 |
-| Incident | 可以先执行最小安全恢复，再补齐 Contract、Decision 和 Evidence |
+| Incident | 使用压缩应急路径；执行前保留最小应急 Contract、Decision、Gate 与一次性权限，恢复后强制补齐详细 Plan、Evidence、核对与复盘 |
 | Security Fix | 强化职责分离、安全 Evidence 和披露约束 |
 | Migration | 强化兼容、数据校验、dry-run 和恢复演练 |
 | Experiment | 可以在契约授权的验证终点进入 N5，不要求生产发布 |
@@ -456,3 +456,73 @@ V1 至少保留三项明确人工决定：
 8. Experiment 不进入生产而正常关闭；
 9. Change 被暂停、取消或另一个 Change 取代；
 10. 跨 Change 依赖只阻塞部分 Task。
+
+## 19. 场景核对结果
+
+| 场景 | 结果 | 关键路径或待补规则 |
+|---|---|---|
+| 普通 Feature 正常发布 | 通过 | Draft → IntentReady → Planned → Executing → Evaluating → TestDeploying → TestValidating → ReleaseReady → ProductionDeploying → ReleaseVerified → DeliveryClosed |
+| Bugfix 在独立评价失败 | 通过 | Evaluating → Failure Evidence → Executing；创建 Repair Work Item，形成新 Artifact 后重新评价 |
+| 测试环境失败并重建制品 | 通过 | TestValidating → Executing → Evaluating → TestDeploying；旧 Artifact Evidence 不适用于新 Digest |
+| 等待发布决定期间 Artifact 变化 | 通过 | 原 Release Decision 过期；保留 ReleaseReady，创建新 Release 或重新审核 |
+| 生产 Deployment 结果未知 | 通过但需明确恢复细节 | 保持 ProductionDeploying，停止重复操作，打开 Blocker 并优先执行 Reconciliation |
+| 生产验证失败并恢复 | 通过但需明确恢复后的去向 | Recovery 成功后记录 Evidence，等待 Change Owner 决定修复重发、结束或创建 Incident |
+| Incident 应急恢复 | 通过 | 压缩各阶段停留时间和文档重量，但不跳过 Contract、Plan、Gate、Decision、Transition 与 Event 的语义 |
+| Experiment 不进入生产 | 通过 | 在 Contract 授权的 TestValidating/假设验证终点进入 N5，再关闭为 DeliveryClosed |
+| Pause、Cancel、Supersede | 通过 | 全部采用向前动作、核对和 Event，不回写或删除历史 |
+| 跨 Change 依赖只阻塞部分 Task | 通过 | 未满足依赖只影响相关 Task Ready 状态；无其他工作时才把 Change 标记 Blocked |
+
+### 19.1 外部结果未知
+
+当 CI/CD、部署或其他外部副作用返回未知结果时：
+
+1. Change 保持原生命周期位置；
+2. 打开“外部状态未知”Blocker，停止同类操作重试；
+3. Kernel 创建 Reconciliation 工作；
+4. 核对为成功时继续采集验证 Evidence；
+5. 核对为未执行时，按原 Work Item 授权决定是否安全重试；
+6. 核对为失败时进入恢复或修复路径；
+7. 超出核对预算仍未知时设置 `flow_condition = AwaitingDecision`，由责任角色决定人工核查、继续等待或补偿。
+
+### 19.2 生产恢复后的断点
+
+生产恢复动作成功只说明系统回到已知安全状态，不自动表示 Change 已完成：
+
+- 原 lifecycle state 和失败/恢复历史保留；
+- 当前停止新的生产动作并进入等待决定（AwaitingDecision）；
+- 选择修复重发时回到执行中（Executing），产生新 Artifact 并重新走完整验证；
+- 选择结束本次交付时必须记录未交付结论、残余影响和后续 Change；
+- 需要事故治理时创建独立 Incident Change，并通过 `spawned` 或 `related-to` 关联。
+
+### 19.3 Incident 压缩应急路径
+
+Incident 不从草稿（Draft）无语义跳转到执行中（Executing），而是采用“压缩流程、不跳过语义”的应急路径：
+
+```text
+Draft
+→ 最小应急 Contract 获得授权
+→ IntentReady
+→ 最小应急 Plan 与一次性权限获得授权
+→ Planned
+→ Executing
+→ ProductionDeploying
+→ ReleaseVerified
+```
+
+各状态可以在同一操作会话内快速通过，不要求按普通 Feature 的文档重量和等待时长执行，但必须保留对应的 Transition、Gate Evaluation、Decision 和 Event。进入执行前至少明确：
+
+1. 事故指挥者（Incident Commander）或变更负责人（Change Owner）；
+2. 已知影响与应急恢复目标；
+3. 允许操作的系统、范围和有效时限；
+4. 停止条件、恢复策略或补偿策略；
+5. 一次性生产操作权限。
+
+恢复后必须完成：
+
+1. 补齐详细 Contract 与 Plan，但不得改写执行前已经形成的最小授权事实；
+2. 核对实际执行、外部副作用、Artifact、Deployment 与环境现状；
+3. 补齐 Evidence、Decision 理由和完整时间线；
+4. 完成复盘并记录残余风险、纠正措施和后续责任；
+5. 将超出本次应急恢复范围的永久修复创建为独立 Bugfix 或 Change，并建立关系。
+
+因此，Incident 压缩的是活动与材料，不压缩授权、状态权威和审计语义；事后补录不能替代事前最小授权。
