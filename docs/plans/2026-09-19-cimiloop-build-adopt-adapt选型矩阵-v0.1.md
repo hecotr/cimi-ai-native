@@ -16,7 +16,7 @@ CimiLoop V1 不采用“选择一个现成 Harness 作为总平台”的路线�
 
 | 能力 | 推荐判断 | V1 位置 | 核心理由 |
 |---|---|---|---|
-| Cimi Change Protocol、Kernel、Gate、Decision、Evidence、Store Port | **Build（自研）** | P0，M0–M5 | 这是产品差异与权威边界，外部项目无法直接满足已确认语义 |
+| Cimi Change Protocol、Kernel、Gate、Decision、Evidence、Knowledge Closure、Store Port | **Build（自研）** | P0，M0–M5 | 这是产品差异与权威边界，外部项目无法直接满足已确认语义 |
 | SQLite | **Adopt（采用）** | P0，M0 | Embedded Solo Mode 的本地事实存储实现 |
 | Git | **Adopt + Adapt（采用并适配）** | P0，M2 | 直接采用 Git；通过 Workspace/SCM Adapter 绑定 Change、Worktree、Snapshot 与 Digest |
 | Claude Code / OpenCode | **Adapt（适配）** | P0，M2 | V1 首个 Runtime 从二者中选择一个落地；只能消费 Work Item 并回传 Run 事实 |
@@ -59,6 +59,7 @@ CimiLoop V1 不采用“选择一个现成 Harness 作为总平台”的路线�
 - Gate Requirement、Claim、Evidence、Evaluation 与 Evidence Package；
 - Actor、Role、Assignment、Decision、Policy Snapshot 与人工批准语义；
 - Capability Requirement、Provider Descriptor、Resolver、Binding 与 Invocation Record；
+- Knowledge Impact Assessment、知识 Task/Evidence 与 Release/Closure Gate；
 - Store Port、Event Ledger、Transactional Outbox、幂等 Command、Lease 和 Resource Lock；
 - Workbench、Change Room、Attention Queue、Decision Inbox 与解释性时间线；
 - Portable Export/Import、重建 Read Model 与 Solo→Team 迁移契约。
@@ -303,11 +304,11 @@ Team Mode 设计前不承诺哪一种，V1 仅借鉴其 UX、daemon 与多 Runti
 | 里程碑 | 必做 Build | Adopt / Adapt | 明确不引入 |
 |---|---|---|---|
 | M0 | Protocol、Kernel、Store Port、Event/Outbox、状态机 | SQLite | OpenSpec、Skills、CodeGraph、Multica |
-| M1 | Contract/Plan/Decision/Role/Policy、Change Room 基础 | Matt `grill-me`/`grilling`/`domain-modeling` 作为受控试点；OpenSpec 仅做可行性验证 | 第二套 Contract/Task 权威 |
+| M1 | Contract/Plan/Decision/Role/Policy、Knowledge Impact、Change Room 基础 | Matt `grill-me`/`grilling`/`domain-modeling` 作为受控试点；OpenSpec 仅做可行性验证 | 第二套 Contract/Task/知识义务权威 |
 | M2 | Work Item、Context Pack、Resolver/Binding、Run、Artifact | 首个 Claude Code/OpenCode Runtime Adapter、Git/Workspace Adapter、Agent Skills 包格式；Matt 执行类 Skill | cimicode 企业扩展、Superpowers 全局 bootstrap、远程多 Runtime 控制面 |
 | M3 | Claim/Evidence/Evaluation/Gate、Stale 传播 | Matt 或 Superpowers 的诊断/TDD/评审能力经 Eval 后择优；确定性测试结果提升 | Skill 自证直接通过 Gate |
 | M4 | Release/Deployment/Recovery/Reconciliation | 一个真实 CI/CD/Environment/Registry 路径 | Argo/多集群/通用发布平台 |
-| M5 | Workbench 完整闭环、Export/Import、加固 | 现有 Provider 的版本锁定、Eval、故障注入 | CodeGraph、Multica、Team Mode 扩张 |
+| M5 | Workbench、Knowledge Closure、Export/Import、加固 | 现有 Provider 的版本锁定、Eval、故障注入；外部知识先使用 Human Work Item | CodeGraph、Multica、Team Mode 扩张 |
 
 ## 13. V1 依赖等级
 

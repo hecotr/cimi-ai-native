@@ -87,6 +87,7 @@ V1 中以下角色只能由 Human Actor 承担：
 | Operator / Deployment Actor（操作/部署执行者） | 部署、恢复、核对等外部操作结果 | 只能执行 Release 或 Work Item 明确授权的动作 |
 | Reconciler（核对者） | 外部状态核对与事实回传 | 不能猜测未知外部结果或改写历史 |
 | Learning Curator（学习整理者） | Learning Candidate 和复盘材料 | 不能自行晋升 Project Knowledge 或修改 Policy |
+| Knowledge Maintainer（知识维护者） | 更新、废弃或核对产品、业务、技术、运维及支持知识 | 只能处理 Work Item 指定的知识范围；不能以“已更新”声明替代 Evidence，也不能自动批准内容正确性 |
 
 System Actor（系统参与者）可以执行计时、规则求值、派生投影和确定性自动化，但不能冒充 Human 或 Agent。
 

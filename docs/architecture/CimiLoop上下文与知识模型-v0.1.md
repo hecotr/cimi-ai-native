@@ -32,6 +32,7 @@ CimiLoop 管理上下文的选择、版本、来源和适用性，但不尝试�
 8. **敏感信息不进入上下文内容**：凭据、令牌和秘密留在 Runtime 或外部系统的安全边界内。
 9. **Evaluator 保持独立**：评价上下文包含 Contract、Artifact 和可验证 Evidence，不继承 Executor 的完整对话与私有推理轨迹。
 10. **历史不可重写**：源知识变化后产生新快照和影响判断，不修改旧 Run 当时实际使用的上下文。
+11. **系统变化与知识变化共同闭环**：每个 Change 评估其对产品、业务、技术、运维和外部沟通知识的影响；必需更新必须进入 Task、Evidence 与 Gate，不能在系统行为改变后留下已知陈旧知识。
 
 ## 3. 三层 Memory 模型
 
@@ -221,7 +222,61 @@ Observation / Feedback / Failure / Exception
 
 Agent 可以形成候选、归纳证据和提出建议，但不能自行完成晋升 Decision。
 
-## 11. 权限、隐私与安全
+## 11. Change 的知识影响与关闭闭环
+
+### 11.1 Knowledge Impact Assessment
+
+每个 Change 在 Contract/Plan 形成期间必须执行 Knowledge Impact Assessment（知识影响评估），检查产品与业务知识、技术知识、运维知识和外部沟通知识。对每个受检查来源给出以下结果之一：
+
+- Create：需要新增；
+- Update：需要更新；
+- Deprecate：需要废弃或标记不再适用；
+- Verify：需要核对，核对后可能无需修改；
+- No Impact：经分析确认不受影响。
+
+评估必须记录知识来源、权威载体、Owner、适用范围、与 Contract/Plan 的关系以及要求完成的 Gate。No Impact 是显式判断，不能以“没有创建文档 Task”替代。
+
+### 11.2 知识任务与责任
+
+受影响知识通过既有 Plan/Task/Work Item 表达，不在 V1 新增平行任务系统：
+
+- Repo 内 API、README、架构或 ADR 可以分配给开发者或 Agent；
+- 产品说明、业务流程和飞书知识库可以分配给业务人员或项目自定义 Knowledge Role；
+- Runbook、恢复手册和告警处理说明可以分配给 Operator/SRE；
+- Release Notes、培训或客服材料可以分配给产品、运营或支持人员；
+- Work Item 可以由 Agent、Human 或 External System 执行，但都必须绑定明确 Task、责任人、目标知识来源和完成条件。
+
+Change Owner 负责确保知识义务有人承担，但不自动获得替代业务、技术或运维 Owner 确认内容正确的资格。Project 可以定义 Knowledge Owner、Documentation Maintainer 等作用域化 Role，而不把所有知识组织角色写死为核心角色。
+
+### 11.3 知识更新 Evidence
+
+知识 Task 的完成不能只依赖“已更新”声明。Evidence 应在来源能力允许时记录：
+
+- Knowledge Asset 或 External Reference；
+- 新的 revision/version、Digest 或更新时间；
+- 受影响章节与变更摘要；
+- 对应 Contract/Plan Version；
+- 实际更新者和必要 Reviewer；
+- 来源不可访问、无法提供版本或仅完成人工核对时的明确限制。
+
+CimiLoop 不复制外部知识库全部内容。飞书、Confluence 或 Repo 仍保存各自原始内容；CimiLoop 保存影响原因、责任、版本引用、Evidence 和 Gate 结果。
+
+### 11.4 Gate 与时点
+
+Project Policy 按知识类型和风险决定知识义务阻塞哪个 Gate：
+
+- 发布前必需：Runbook、恢复说明、API 兼容说明、安全操作和上线前支持准备可以阻塞 Production Release Gate；
+- 发布后但关闭前必需：带生产截图的说明、正式发布说明等可以不阻塞部署，但阻塞 Change Closure Gate；
+- 非本次交付必需的长期知识重构可以形成关联新 Change，但不得借此转移当前交付必需义务；
+- 无法按时完成时必须形成 Blocker、明确后续 Change，或由合格角色批准有限 Policy Exception。
+
+关闭前必须确认所有 Mandatory Knowledge Task 已完成、受影响知识已更新/废弃/确认无影响，或存在合规例外。系统变化触发精确的知识新鲜度影响，不把整个知识库无差别标记为 Stale。
+
+### 11.5 V1 与后续 Adapter
+
+V1 使用 Human Work Item、Repo 文件、External Reference 和人工提交 Evidence 完成知识闭环，不依赖飞书或 Confluence Adapter。后续 Knowledge Adapter 可以查询 revision、创建草稿、通知 Owner 或提升外部修改记录，但不能取代外部知识 Owner、Gate 或 Kernel 状态权威。
+
+## 12. 权限、隐私与安全
 
 - Context Builder 只能读取 Actor 与 Work Item 被授权访问的来源；
 - Context Pack 不保存明文凭据、访问令牌、签名 URL 或私钥；
@@ -231,7 +286,7 @@ Agent 可以形成候选、归纳证据和提出建议，但不能自行完成�
 - 无权访问的内容不应通过 Derived 摘要、Embedding 或缓存侧漏；
 - 权限撤销后，历史 Manifest 保留引用事实，但新的读取和 Run 必须按当前权限重新校验。
 
-## 12. V1 边界
+## 13. V1 边界
 
 V1 必须实现：
 
@@ -241,6 +296,7 @@ V1 必须实现：
 - 角色化最小上下文模板；
 - 来源变化后的 Valid/Stale/Invalid/Superseded 判断；
 - Learning Candidate、人工晋升 Decision 与审计链；
+- Knowledge Impact Assessment、知识 Task、Human Work Item、知识更新 Evidence 与 Closure Gate 检查；
 - 冲突到 Claim/Evidence/Blocker/Decision Request 的转换；
 - External Reference 与不可访问状态处理。
 
@@ -255,7 +311,7 @@ V1 不承诺：
 
 这些能力以后通过 Knowledge Adapter、Index Adapter 或 Capability Resolver 接入，不改变本模型的权威与晋升语义。
 
-## 13. Kernel 不变量
+## 14. Kernel 不变量
 
 1. Agent Run 启动前必须绑定一个不可变 Context Pack Manifest。
 2. Manifest 必须能解析到精确 Contract/Plan/Policy 与来源版本，不能只写“最新”。
@@ -267,9 +323,10 @@ V1 不承诺：
 8. Run Observation 不得直接写入 Canonical Project Knowledge。
 9. Derived 与 Reference 内容不能覆盖 Canonical 内容或 Kernel State。
 10. 凭据和秘密不得进入 Context Pack、Event、Artifact 元数据或可导出历史。
+11. 已知 Mandatory Knowledge Impact 未完成、未确认无影响且无有效例外时，Change 不得关闭。
 
-## 14. 阶段结论
+## 15. 阶段结论
 
-本模型将 Context Pack 定义为“不可变、可追溯、按角色最小化的运行快照”，将 Change Memory 定义为既有协议事实的组合视图，并采用“Learning Candidate → Eval → Owner Decision → 新知识版本”的晋升链。它不新增万能 Conflict 或可自由改写的 Memory 聚合。
+本模型将 Context Pack 定义为“不可变、可追溯、按角色最小化的运行快照”，将 Change Memory 定义为既有协议事实的组合视图，并采用“Learning Candidate → Eval → Owner Decision → 新知识版本”的晋升链；同时以“知识影响评估 → Task/Work Item → Evidence → Release/Closure Gate”确保系统变化与组织认知共同闭环。它不新增万能 Conflict、平行文档任务系统或可自由改写的 Memory 聚合。
 
 上述语义已经确认。后续可以独立演进检索、索引、图谱和知识 Adapter，但不得绕过本模型的来源权威、快照、冲突、过期和知识晋升规则。

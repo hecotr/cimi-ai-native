@@ -262,6 +262,8 @@ Memory 分为：
 
 Run Observation 只能先成为 Learning Candidate，经 Owner 审查和 Eval 后才能晋升 Project Knowledge。
 
+每个 Change 在 Contract/Plan 阶段执行 Knowledge Impact Assessment。受影响的产品、业务、技术、运维和沟通知识通过同一 Plan/Task/Work Item 分配给 Agent、开发者、业务或运维人员；更新结果形成版本化 External Reference 与 Evidence。Project Policy 决定相关义务阻塞 Production Release Gate 还是 Change Closure Gate。V1 使用 Human Work Item 闭环，不以飞书等外部知识 Adapter 为前置条件。
+
 ### 8.4 能力装配
 
 Kernel 和流程声明 `required_capabilities`，不写死具体 Skill。Capability Resolver 根据项目 Policy 选择并固定可信的 Skill、Tool、Model 或 Adapter。
@@ -478,6 +480,7 @@ V1 交付 Embedded Solo Mode，至少包含：
 - 独立 Evaluator、Claim–Evidence 和多维风险 Policy；
 - Change Worktree、Claude Code/OpenCode Runtime Adapter；
 - Git/Local Workspace、File Knowledge Adapter；
+- Knowledge Impact Assessment、Human/Agent Knowledge Task、External Reference、知识更新 Evidence 与 Closure Gate；
 - 现有 DevOps/Environment Adapter；
 - 测试环境自动修复循环、生产 Release Package、明确授权和即时验证；
 - Solo 项目 Export/Import 以及 Team Mode 所需的稳定协议边界。

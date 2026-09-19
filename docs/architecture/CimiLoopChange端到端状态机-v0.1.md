@@ -149,6 +149,7 @@ Change 进入意图就绪（IntentReady）后，只要不存在 Blocker、Paused
 - 覆盖整个 Change 的主要范围；
 - 建立完整高层 Task DAG；
 - 标明关键依赖、风险、验证策略和恢复考虑；
+- 完成 Knowledge Impact Assessment，并将必需的产品、业务、技术、运维或沟通知识更新纳入 Task DAG；
 - 将近期 Task 细化到可以产生 Work Item 的程度。
 
 较远 Task 可以滚动细化。内部实现细节调整只需记录；改变 Task 边界、依赖、权限、风险、预算或验证策略时必须提交 Plan Amendment。
@@ -262,6 +263,7 @@ flowchart LR
 - 失败循环关闭或转化为明确残余风险；
 - Contract、Plan、Risk 和 Policy 引用有效；
 - Test Evidence Package 完整；
+- 所有被 Policy 标记为发布前必需的 Knowledge Task 已完成并具有有效 Evidence；
 - 生产 Checklist、恢复策略和即时验证步骤已准备；
 - 不存在阻断生产发布的 Policy。
 
@@ -326,6 +328,8 @@ outcome_status = NotObserved
 - 生产即时验证完成，或 Profile 明确允许不进入生产；
 - 必需 Decision、Evidence、Transition 和 Deployment 记录完整；
 - 已知问题、残余风险、人工干预和 Policy Exception 可追踪；
+- Knowledge Impact Assessment 完整；所有 Mandatory Knowledge Task 已完成、确认无影响，或具有有效 Policy Exception/关联后续 Change；
+- 知识更新 Evidence 能定位到权威载体、版本/revision、Owner 与对应 Contract/Plan；
 - Learning Candidate 已完成分类；
 - 未完成事项进入 Backlog 或独立新 Change；
 - Change Owner 未要求继续交付活动。
@@ -429,7 +433,7 @@ V1 至少保留三项明确人工决定：
 | TestValidating | 提交生产发布 | Test Evidence、恢复策略、Policy | ReleaseReady | Executing 或 TestValidating + AwaitingDecision |
 | ReleaseReady | 部署生产 | Release Decision、Artifact、Environment | ProductionDeploying | ReleaseReady + Paused/AwaitingDecision |
 | ProductionDeploying | 确认发布 | Deployment 与即时验证 Evidence | ReleaseVerified | ProductionDeploying + AwaitingDecision/Failed |
-| ReleaseVerified 或 Profile 终点 | 关闭 Change | 完整性、已知问题、学习分类 | DeliveryClosed | 保持原生命周期 + Blocked |
+| ReleaseVerified 或 Profile 终点 | 关闭 Change | 完整性、知识义务、已知问题、学习分类 | DeliveryClosed | 保持原生命周期 + Blocked |
 
 ## 17. Kernel 原子提交边界
 
