@@ -1141,6 +1141,7 @@ Incident 采用“压缩流程、不跳过语义”：可以快速通过 IntentR
 | D-139 | V1 CLI 名称与调用模式 | 已确认 | CLI 可执行命令使用 `cimiloop`，避免与既有 cimi 产品冲突；人类友好输出与 Agent `--json` 输出共享同一 Kernel Command 路径，修改命令支持幂等 ID 与期望 Revision。 |
 | D-140 | Solo Human Actor 初始化 | 已确认 | `cimiloop init` 读取 Git 用户名和邮箱作为建议，经用户确认或显式参数后创建稳定 Human Actor 与 Project Owner Assignment；Git 邮箱不作为内部主键，Agent 不得借用该身份执行人类批准。 |
 | D-141 | M0 工程执行模型 | 已确认 | M0 使用封装在 Store Adapter 内的 Node.js `node:sqlite`、UUIDv7、纯 Kernel 领域函数和原子 Unit of Work；Project/Change Current State、不可变记录、Event、Outbox 与幂等回执保持事务一致。 |
+| D-142 | M0 首个可恢复纵向切片 | 已实现 | 已实现 `cimiloop` 初始化及 Change 创建、查询、暂停、恢复和健康检查；自动化测试覆盖 Protocol 严格校验、幂等重放、Command ID 复用、Revision 冲突、事务回滚、重启恢复和 Outbox Lease 恢复。 |
 
 ## 10. 当前进度
 

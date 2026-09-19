@@ -1,0 +1,15 @@
+{
+  "name": "@cimiloop/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "cimiloop": "./dist/bin.js"
+  },
+  "dependencies": {
+    "@cimiloop/kernel": "workspace:*",
+    "@cimiloop/protocol": "workspace:*",
+    "@cimiloop/store-sqlite": "workspace:*",
+    "commander": "15.0.0"
+  }
+}

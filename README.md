@@ -13,7 +13,7 @@ CimiLoop 是一个面向 AI-Native 软件研发的 Runtime-neutral Harness（运
 - 已补充 Knowledge Closure（知识闭环），把受影响文档更新纳入 Change 的任务、证据和关闭条件。
 - V1 首批 Agent Runtime 目标为 OpenCode 和 Claude Code；cimicode 是企业内部基于 OpenCode 二次开发的 Runtime，后续通过同一适配边界接入。
 
-当前仓库仍以架构与规划文档为主，尚未进入正式代码实现。下一阶段是 M0：Kernel 最小闭环。
+项目已经进入正式实现阶段。M0 首个可恢复纵向切片已经可以运行：初始化 Project、创建 Draft Change、查询、暂停、恢复、幂等重放、Revision 冲突检查、Event/Outbox 原子提交及重启恢复。Contract、Plan、Gate 和 Agent Runtime Adapter 从后续里程碑逐步加入。
 
 ## 建议阅读顺序
 
@@ -35,6 +35,15 @@ CimiLoop 是一个面向 AI-Native 软件研发的 Runtime-neutral Harness（运
 
 ```text
 .
+├─ apps/
+│  └─ cli/            # cimiloop 命令行入口与本地装配
+├─ packages/
+│  ├─ protocol/       # Protocol Schema、ID、Command/Event 与校验
+│  ├─ kernel/         # 聚合规则、状态转换和命令处理
+│  ├─ store/          # Kernel 使用的逻辑 Store Port
+│  └─ store-sqlite/   # Embedded Solo Mode SQLite 实现
+├─ tests/
+│  └─ scenarios/      # 跨模块和 CLI 端到端场景
 ├─ docs/
 │  ├─ architecture/   # 正式架构、领域模型、协议与流程规范
 │  ├─ plans/          # 讨论记录、决策账本、产品范围与实施计划
@@ -44,6 +53,23 @@ CimiLoop 是一个面向 AI-Native 软件研发的 Runtime-neutral Harness（运
 ├─ .agents/skills/    # 本地 Agent 辅助技能，不属于产品运行时
 └─ .claude/skills/    # 本地 Claude Code 辅助技能，不属于产品运行时
 ```
+
+## 本地开发
+
+要求 Node.js 24.15+。项目精确使用 pnpm 12.4.2；尚未发布全局安装包，当前从源码运行：
+
+```text
+npx pnpm@12.4.2 install
+npx pnpm@12.4.2 build
+npx pnpm@12.4.2 test
+
+node apps/cli/dist/bin.js --help
+node apps/cli/dist/bin.js init
+node apps/cli/dist/bin.js change create --title "第一个 Change"
+node apps/cli/dist/bin.js change list
+```
+
+Agent 或脚本在命令中增加 `--json` 即可获得经过 Protocol Schema 校验的稳定结构输出。
 
 ## V1 北极星流程
 
@@ -60,12 +86,4 @@ CimiLoop 是一个面向 AI-Native 软件研发的 Runtime-neutral Harness（运
 
 ## 下一阶段
 
-进入 M0 前只做一轮受控的实施设计，确定：
-
-1. 基于已确认的 TypeScript + Node.js 技术栈确定代码仓库布局；
-2. Protocol、Kernel、Store、CLI 的模块边界；
-3. 首批 ID、Reference、Command、Event 和错误语义；
-4. Store Port、事务、Outbox（发件箱）与幂等实现策略；
-5. 第一个可运行的纵向闭环及其契约测试。
-
-完成这组决策后，直接开始实现，不再扩展宏观架构讨论。
+继续完成 M0 的 Schema 覆盖和可靠性验收，然后进入 M1：真实 Contract、Risk、Profile、Decision、Gate、Plan 与 Knowledge Impact Assessment。实施边界见 [M0 实施架构](docs/implementation/2026-09-19-cimiloop-m0实施架构-v0.1.md)。

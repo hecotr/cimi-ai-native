@@ -5,7 +5,7 @@
 ## 当前阶段
 
 - 当前里程碑：M0 Kernel 最小闭环设计。
-- 当前状态：M0 关键产品边界和实施架构已确认，可以创建工程骨架并编码。
+- 当前状态：M0 工程骨架和首个可恢复纵向切片已经实现；继续补齐 Schema 覆盖与里程碑验收。
 - 实施基线：[CimiLoop M0 实施架构 v0.1](2026-09-19-cimiloop-m0实施架构-v0.1.md)。
 
 ## 已确认技术决策
@@ -24,6 +24,7 @@
 | I-010 | M0 SQLite Driver | 已确认 | 使用 Node.js 24 自带的 `node:sqlite`，最低 24.15，并完全封装在 `store-sqlite`；不使用 ORM，兼容性不满足时只替换 Store Adapter。 |
 | I-011 | M0 Kernel 执行模型 | 已确认 | Command Handler 使用纯领域函数和注入的 ID/Clock；Current State、不可变记录、Event、Outbox 与 Command Receipt 在同一 Unit of Work 原子提交。 |
 | I-012 | M0 身份与展示键 | 已确认 | Internal ID 使用 UUIDv7；Change Display Key 使用项目内 `CHG-0001`，只用于交互，Typed Reference 和迁移始终使用 Internal ID。 |
+| I-013 | M0 首个纵向切片 | 已实现 | `cimiloop init` 与 Change create/list/show/pause/resume/doctor 已接通；Protocol、Kernel、Store Port、SQLite 与 CLI 保持单向依赖，自动化测试覆盖幂等、冲突、回滚、重启和 Outbox Lease 恢复。 |
 
 ## 技术决策协作方式
 
