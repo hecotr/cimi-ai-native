@@ -14,9 +14,13 @@ import { CimiLoopKernel } from "../../../packages/kernel/src/kernel.js";
 import { isLoopbackAddress, startWorkbench } from "../src/server.js";
 
 const temporaryDirectories: string[] = [];
+const openStores: SqliteProjectStore[] = [];
 const now = "2026-09-20T00:00:00.000Z";
 
 afterEach(() => {
+  while (openStores.length > 0) {
+    openStores.pop()?.close();
+  }
   while (temporaryDirectories.length > 0) {
     const directory = temporaryDirectories.pop();
     if (directory) rmSync(directory, { recursive: true, force: true });
@@ -78,6 +82,7 @@ const createReadyWorkbench = async (title = "Workbench Change") => {
   const directory = mkdtempSync(join(tmpdir(), "cimiloop-workbench-"));
   temporaryDirectories.push(directory);
   const store = new SqliteProjectStore(join(directory, "project.db"));
+  openStores.push(store);
   const kernel = new CimiLoopKernel({ store, now: () => now });
   const initialized = success(
     kernel.execute(
@@ -231,6 +236,36 @@ describe("local workbench", () => {
     expect(approved.status).toBe(303);
     expect(harness.store.getChange(harness.change.id)).toMatchObject({ lifecycle_state: "IntentReady" });
     await harness.workbench.close();
-    harness.store.close();
+  });
+
+  it("renders the V1 operator home, six-stage room, and accessible timeline", async () => {
+    const harness = await createReadyWorkbench("Accessible Room");
+    const home = await fetch(harness.workbench.url);
+    const homeHtml = await home.text();
+    expect(homeHtml).toContain("Attention Queue");
+    expect(homeHtml).toContain("Active Runs");
+    expect(homeHtml).toContain("Environments");
+    expect(homeHtml).toContain("Releases");
+    expect(homeHtml).toContain("<nav");
+    expect(homeHtml).toContain('role="main"');
+
+    const room = await fetch(`${harness.workbench.url}/changes/${harness.change.id}`);
+    const roomHtml = await room.text();
+    expect(roomHtml).toContain("Current Focus");
+    expect(roomHtml).toContain("Intent");
+    expect(roomHtml).toContain("Plan");
+    expect(roomHtml).toContain("Execute");
+    expect(roomHtml).toContain("Evidence");
+    expect(roomHtml).toContain("Delivery");
+    expect(roomHtml).toContain("Close");
+    expect(roomHtml).toContain("Contract");
+    expect(roomHtml).toContain("Activity");
+    expect(roomHtml).toContain("lifecycle");
+    expect(roomHtml).toMatch(/<nav[^>]*aria-label=/);
+    expect(roomHtml).toContain("skip");
+    const runDetail = await fetch(`${harness.workbench.url}/changes/${harness.change.id}?view=run`);
+    const runHtml = await runDetail.text();
+    expect(runHtml).toContain("Technical logs");
+    await harness.workbench.close();
   });
 });

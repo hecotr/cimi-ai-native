@@ -572,6 +572,10 @@ export class CimiLoopKernel {
     return this.#store.transaction((transaction) => transaction.listEnvironments(projectId));
   }
 
+  listOpenAttentionItems(projectId: InternalId) {
+    return this.#store.transaction((transaction) => transaction.listOpenAttentionItems(projectId));
+  }
+
   getRelease(id: InternalId): Release | DomainError {
     const release = this.#store.transaction((transaction) => transaction.getRelease(id));
     return release ?? domainError(this.#id(), "RELEASE_NOT_FOUND", "未找到指定 Release", "not_found", false, { id });

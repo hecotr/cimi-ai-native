@@ -34,6 +34,9 @@ export interface WorkbenchKernel {
   listExternalOperationsByChange(changeId: InternalId): import("@cimiloop/protocol").ExternalOperation[];
   listUnknownExternalOperations(): import("@cimiloop/protocol").ExternalOperation[];
   listRecoveryExecutionsByRelease(releaseId: InternalId): import("@cimiloop/protocol").RecoveryExecution[];
+  listOpenAttentionItems(projectId: InternalId): import("@cimiloop/protocol").AttentionItem[];
+  getCurrentContract(changeId: InternalId): import("@cimiloop/protocol").ContractVersion | undefined;
+  getTimeline(changeId: string): import("@cimiloop/protocol").TimelineResult | DomainError;
 }
 import { escapeHtml, page } from "./html.js";
 import { workbenchStyles } from "./styles.js";
@@ -53,6 +56,15 @@ export const renderHome = (context: WorkbenchContext): string => {
   const changes = context.kernel.listChanges();
   const inbox = context.kernel.listDecisionInbox(context.actorId);
   const items = isDomainError(inbox) ? [] : inbox.items;
+  const attention = context.kernel.listOpenAttentionItems(context.projectId);
+  const activeRuns = changes.flatMap((change) =>
+    context.kernel
+      .listWorkItemsByChange(change.id)
+      .flatMap((item) => context.kernel.listAgentRuns(item.id))
+      .filter((run) => run.status === "queued" || run.status === "starting" || run.status === "running")
+  );
+  const environments = context.kernel.listEnvironments(context.projectId);
+  const releases = changes.flatMap((change) => context.kernel.listReleasesByChange(change.id));
   const changeCards = changes
     .map(
       (change) =>
@@ -71,13 +83,45 @@ export const renderHome = (context: WorkbenchContext): string => {
     .join("");
   return page(
     "CimiLoop Workbench",
-    `<h1>Decision Inbox</h1>${inboxCards || "<p class=\"muted\">当前没有待处理 Decision。</p>"}
-     <h1>Changes</h1>${changeCards || "<p class=\"muted\">当前没有 Change。</p>"}`,
+    `<h1>Attention Queue</h1>${
+      attention.length === 0
+        ? "<p class=\"muted\">当前没有开放 Attention。</p>"
+        : `<ul>${attention
+            .map((item) => `<li>${escapeHtml(item.kind)} · ${escapeHtml(item.summary)}</li>`)
+            .join("")}</ul>`
+    }
+     <h1>Decision Inbox</h1>${inboxCards || "<p class=\"muted\">当前没有待处理 Decision。</p>"}
+     <h1>Changes</h1>${changeCards || "<p class=\"muted\">当前没有 Change。</p>"}
+     <h1>Active Runs</h1>${
+       activeRuns.length === 0
+         ? "<p class=\"muted\">当前没有进行中的 Run。</p>"
+         : `<ul>${activeRuns
+             .map((run) => `<li>${escapeHtml(run.id)} · ${escapeHtml(run.status)}</li>`)
+             .join("")}</ul>`
+     }
+     <h1>Environments</h1>${
+       environments.length === 0
+         ? "<p class=\"muted\">尚无 Environment。</p>"
+         : `<ul>${environments
+             .map((item) => `<li>${escapeHtml(item.environment_key)} · ${escapeHtml(item.kind)}</li>`)
+             .join("")}</ul>`
+     }
+     <h1>Releases</h1>${
+       releases.length === 0
+         ? "<p class=\"muted\">尚无 Release。</p>"
+         : `<ul>${releases
+             .map((item) => `<li>${escapeHtml(item.kind)} · ${escapeHtml(item.status)}</li>`)
+             .join("")}</ul>`
+     }`,
     workbenchStyles
   );
 };
 
-export const renderChangeRoom = (context: WorkbenchContext, idOrKey: string): string | undefined => {
+export const renderChangeRoom = (
+  context: WorkbenchContext,
+  idOrKey: string,
+  view: "lifecycle" | "run" = "lifecycle"
+): string | undefined => {
   const change = context.kernel.getChange(idOrKey);
   if (isDomainError(change)) return undefined;
   const room = context.kernel.getChangeRoom(change.id);
@@ -106,13 +150,35 @@ export const renderChangeRoom = (context: WorkbenchContext, idOrKey: string): st
       </form>`;
     })
     .join("");
+  const contract = context.kernel.getCurrentContract(change.id);
+  const timeline = context.kernel.getTimeline(change.id);
+  const activity = isDomainError(timeline) ? [] : timeline.events;
   return page(
     `${change.display_key} ${change.title}`,
-    `<article class="card">
+    `<nav aria-label="Change stages">
+      <ol>
+        <li>Intent</li>
+        <li>Plan</li>
+        <li>Execute</li>
+        <li>Evidence</li>
+        <li>Delivery</li>
+        <li>Close</li>
+      </ol>
+    </nav>
+    <article class="card">
       <h1>${escapeHtml(change.display_key)} ${escapeHtml(change.title)}</h1>
+      <h2>Current Focus</h2>
       <p>生命周期：${escapeHtml(change.lifecycle_state)} · Revision ${change.revision}</p>
       <p>焦点：${escapeHtml(room.room.focus)}</p>
       <p>下一动作：${escapeHtml(room.room.next_action)}</p>
+    </article>
+    <article class="card">
+      <h2>Contract</h2>
+      ${
+        contract
+          ? `<p>${escapeHtml(contract.profile_key)} v${contract.domain_version} · ${escapeHtml(contract.intent)}</p>`
+          : "<p class=\"muted\">尚无正式 Contract。</p>"
+      }
     </article>
     ${forms}
     <article class="card">
@@ -242,6 +308,23 @@ export const renderChangeRoom = (context: WorkbenchContext, idOrKey: string): st
           <p class="muted">操作数 ${operations.length}</p>
         `;
       })()}
+    </article>
+    <article class="card">
+      <h2>Activity</h2>
+      <p class="muted">${view === "run" ? "Technical logs" : "lifecycle"}</p>
+      ${
+        view === "run"
+          ? context.kernel
+              .listWorkItemsByChange(change.id)
+              .flatMap((item) => context.kernel.listAgentRuns(item.id))
+              .map((run) => `<p>log ${escapeHtml(run.log_reference)}</p>`)
+              .join("") || "<p class=\"muted\">尚无技术日志引用。</p>"
+          : activity.length === 0
+            ? "<p class=\"muted\">尚无 Activity。</p>"
+            : `<ol>${activity
+                .map((item) => `<li>${escapeHtml(item.event_type)} · ${escapeHtml(item.summary)}</li>`)
+                .join("")}</ol>`
+      }
     </article>
     <article class="card">
       <h2>Repair lineage</h2>

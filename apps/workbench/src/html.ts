@@ -15,8 +15,14 @@ export const page = (title: string, body: string, styles: string): string =>
   <style>${styles}</style>
 </head>
 <body>
-  <header><a href="/">CimiLoop Workbench</a></header>
-  <main>${body}</main>
+  <a class="skip" href="#content">Skip to content</a>
+  <header>
+    <a href="/">CimiLoop Workbench</a>
+    <nav aria-label="Workbench">
+      <a href="/">Home</a>
+    </nav>
+  </header>
+  <main id="content" role="main">${body}</main>
 </body>
 </html>
 `;

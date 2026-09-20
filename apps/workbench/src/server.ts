@@ -71,7 +71,11 @@ export const startWorkbench = async (options: WorkbenchOptions): Promise<Workben
       }
       const changeMatch = /^\/changes\/([^/]+)$/.exec(url.pathname);
       if (request.method === "GET" && changeMatch?.[1]) {
-        const html = renderChangeRoom(context, decodeURIComponent(changeMatch[1]));
+        const html = renderChangeRoom(
+          context,
+          decodeURIComponent(changeMatch[1]),
+          url.searchParams.get("view") === "run" ? "run" : "lifecycle"
+        );
         if (!html) {
           send(response, 404, renderError(404, "未找到指定 Change"));
           return;
