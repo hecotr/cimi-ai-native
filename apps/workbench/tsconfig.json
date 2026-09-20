@@ -9,6 +9,7 @@
   "references": [
     { "path": "../../packages/protocol" },
     { "path": "../../packages/kernel" },
+    { "path": "../../packages/orchestrator" },
     { "path": "../../packages/store-sqlite" }
   ]
 }

@@ -181,6 +181,9 @@ importers:
       '@cimiloop/kernel':
         specifier: workspace:*
         version: link:../../packages/kernel
+      '@cimiloop/orchestrator':
+        specifier: workspace:*
+        version: link:../../packages/orchestrator
       '@cimiloop/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
@@ -196,6 +199,9 @@ importers:
       '@cimiloop/kernel':
         specifier: workspace:*
         version: link:../../packages/kernel
+      '@cimiloop/orchestrator':
+        specifier: workspace:*
+        version: link:../../packages/orchestrator
       '@cimiloop/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
@@ -217,6 +223,21 @@ importers:
       '@cimiloop/store':
         specifier: workspace:*
         version: link:../store
+
+  packages/orchestrator:
+    dependencies:
+      '@cimiloop/context':
+        specifier: workspace:*
+        version: link:../context
+      '@cimiloop/kernel':
+        specifier: workspace:*
+        version: link:../kernel
+      '@cimiloop/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@cimiloop/runtime':
+        specifier: workspace:*
+        version: link:../runtime
 
   packages/protocol:
     dependencies:

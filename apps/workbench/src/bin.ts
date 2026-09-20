@@ -5,6 +5,7 @@ import { CimiLoopKernel } from "@cimiloop/kernel";
 import { SqliteProjectStore } from "@cimiloop/store-sqlite";
 import { readFileSync } from "node:fs";
 import { startWorkbench } from "./server.js";
+import "./composition.js";
 
 const projectDirFlag = process.argv.findIndex((arg) => arg === "--project-dir");
 const portFlag = process.argv.findIndex((arg) => arg === "--port");

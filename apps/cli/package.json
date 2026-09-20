@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@cimiloop/kernel": "workspace:*",
+    "@cimiloop/orchestrator": "workspace:*",
     "@cimiloop/protocol": "workspace:*",
     "@cimiloop/store-sqlite": "workspace:*",
     "commander": "15.0.0"

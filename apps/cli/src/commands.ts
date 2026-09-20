@@ -18,7 +18,8 @@ import {
   type InternalId
 } from "@cimiloop/protocol";
 import { SqliteProjectRegistry, SqliteProjectStore } from "@cimiloop/store-sqlite";
-import { readInstance, writeInstance } from "./instance.js";
+import { openProject } from "./composition.js";
+import { writeInstance } from "./instance.js";
 import { locateProject, readGitIdentity, registryDatabasePath } from "./location.js";
 import { formatChangeRoom, formatDecisionInbox, inputError, isDomainError, outputError, outputJson } from "./output.js";
 
@@ -136,18 +137,6 @@ export const initProject = async (options: InitOptions): Promise<void> => {
   } finally {
     store.close();
   }
-};
-
-const openProject = (options: GlobalOptions) => {
-  const start = options.projectDir ? resolve(options.projectDir) : process.cwd();
-  const allowNonGit = Boolean(options.projectDir) || existsSync(join(start, ".cimiloop", "instance.json"));
-  const location = locateProject(start, allowNonGit);
-  if (!existsSync(location.instancePath) || !existsSync(location.databasePath)) {
-    throw new Error("当前目录尚未初始化 CimiLoop Project，请先运行 cimiloop init");
-  }
-  const instance = readInstance(location.instancePath);
-  const store = new SqliteProjectStore(location.databasePath);
-  return { location, instance, store, kernel: new CimiLoopKernel({ store }) };
 };
 
 export const createChange = (title: string, options: GlobalOptions): void => {

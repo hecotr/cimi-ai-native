@@ -36,10 +36,21 @@ import {
   type Task,
   type TimelineResult,
   type WorkItem,
+  type AgentRunRecord,
+  type Blocker,
+  type CapabilityBinding,
   type ClaimWorkItemCommand,
+  type ContextPackManifest,
   type CreateExecutionWorkItemsCommand,
   type CreatePlanningWorkItemCommand,
+  type StartRunCommand,
+  type HeartbeatRunCommand,
+  type CompleteRunCommand,
+  type FailRunCommand,
+  type CancelRunCommand,
+  type ReclaimExpiredLeaseCommand,
   type Lease,
+  type PolicySnapshot,
   type ResourceLock
 } from "@cimiloop/protocol";
 import {
@@ -68,6 +79,17 @@ import { ReadModelBuilder } from "./read-models.js";
 import { createRiskAssessment, createRiskProfile, validateRiskDimensions } from "./risk.js";
 import { selectReadyTasks } from "./scheduler.js";
 import { validateTaskDag } from "./task-dag.js";
+import {
+  allowedRunTransition,
+  createBindingForRun,
+  createContextPackForWorkItem,
+  createDefaultRuntimeProvider,
+  createStartedRun,
+  failStatusForCode,
+  hasActiveRun,
+  isOpenExecutionStatus,
+  nextRunAttempt
+} from "./run.js";
 import { createExecutionWorkItem, createPlanningWorkItem } from "./work-item.js";
 import {
   createBuiltInChangeProfiles,
@@ -325,6 +347,52 @@ export class CimiLoopKernel {
     });
   }
 
+  getWorkItem(id: InternalId): WorkItem | DomainError {
+    const workItem = this.#store.transaction((transaction) => transaction.getWorkItem(id));
+    return (
+      workItem ?? domainError(this.#id(), "WORK_ITEM_NOT_FOUND", "未找到指定 Work Item", "not_found", false, { id })
+    );
+  }
+
+  listWorkItemsByChange(changeId: InternalId): WorkItem[] {
+    return this.#store.transaction((transaction) => transaction.listWorkItemsByChange(changeId));
+  }
+
+  listAgentRuns(workItemId: InternalId): AgentRunRecord[] {
+    return this.#store.transaction((transaction) => transaction.listAgentRuns(workItemId));
+  }
+
+  getAgentRun(id: InternalId): AgentRunRecord | DomainError {
+    const run = this.#store.transaction((transaction) => transaction.getAgentRun(id));
+    return run ?? domainError(this.#id(), "RUN_NOT_FOUND", "未找到指定 Run", "not_found", false, { id });
+  }
+
+  getCapabilityBinding(id: InternalId): CapabilityBinding | DomainError {
+    const binding = this.#store.transaction((transaction) => transaction.getCapabilityBinding(id));
+    return binding ?? domainError(this.#id(), "BINDING_NOT_FOUND", "未找到指定 Capability Binding", "not_found");
+  }
+
+  getContextPackManifest(id: InternalId): ContextPackManifest | DomainError {
+    const manifest = this.#store.transaction((transaction) => transaction.getContextPackManifest(id));
+    return manifest ?? domainError(this.#id(), "CONTEXT_PACK_NOT_FOUND", "未找到指定 Context Pack", "not_found");
+  }
+
+  listOpenBlockers(changeId: InternalId): Blocker[] {
+    return this.#store.transaction((transaction) => transaction.listOpenBlockers(changeId));
+  }
+
+  getCurrentContract(changeId: InternalId): ContractVersion | undefined {
+    return this.#store.transaction((transaction) => transaction.getCurrentContract(changeId));
+  }
+
+  getCurrentPlan(changeId: InternalId): PlanVersion | undefined {
+    return this.#store.transaction((transaction) => transaction.getCurrentPlan(changeId));
+  }
+
+  getLatestPolicySnapshot(projectId: InternalId): PolicySnapshot | undefined {
+    return this.#store.transaction((transaction) => transaction.getLatestPolicySnapshot(projectId));
+  }
+
   #dispatch(transaction: StoreTransaction, command: AnyCommand): KernelResult {
     switch (command.command_type) {
       case "InitializeProject":
@@ -358,13 +426,19 @@ export class CimiLoopKernel {
       case "ClaimWorkItem":
         return this.#claimWorkItem(transaction, command);
       case "StartRun":
+        return this.#startRun(transaction, command);
       case "HeartbeatRun":
+        return this.#heartbeatRun(transaction, command);
       case "CompleteRun":
+        return this.#completeRun(transaction, command);
       case "FailRun":
+        return this.#failRun(transaction, command);
       case "CancelRun":
+        return this.#cancelRun(transaction, command);
+      case "ReclaimExpiredLease":
+        return this.#reclaimExpiredLease(transaction, command);
       case "RecordSourceSnapshot":
       case "RecordArtifact":
-      case "ReclaimExpiredLease":
         return domainError(
           command.correlation_id,
           "COMMAND_UNSUPPORTED",
@@ -1673,6 +1747,30 @@ export class CimiLoopKernel {
       return domainError(command.correlation_id, "CURRENT_PLAN_NOT_FOUND", "创建 Execution Work Item 需要当前 Contract、Plan 与 Policy Snapshot", "not_found");
     }
     const tasks = transaction.listTasks(plan.plan_id, plan.domain_version);
+    const now = this.#now();
+    for (const item of transaction.listWorkItemsByChange(loaded.change.id)) {
+      if (item.kind !== "execution" || !isOpenExecutionStatus(item.status) || item.policy_snapshot_id === policy.id) {
+        continue;
+      }
+      transaction.updateWorkItem(
+        { ...item, status: "cancelled", updated_at: now, revision: item.revision + 1 },
+        item.revision
+      );
+      const lease = transaction.getActiveLeaseByWorkItem(item.id);
+      if (lease) {
+        transaction.updateLease(
+          { ...lease, status: "released", updated_at: now, revision: lease.revision + 1 },
+          lease.revision
+        );
+      }
+      const lock = transaction.getHeldResourceLock("worktree", `change/${loaded.change.id}`);
+      if (lock && lock.holder_work_item_id === item.id) {
+        transaction.updateResourceLock(
+          { ...lock, status: "released", updated_at: now, revision: lock.revision + 1 },
+          lock.revision
+        );
+      }
+    }
     const existing = transaction.listWorkItemsByChange(loaded.change.id);
     const readyTasks = selectReadyTasks(loaded.change.lifecycle_state, tasks, existing, {
       has_open_blocker: transaction.listOpenBlockers(loaded.change.id).length > 0,
@@ -1680,7 +1778,6 @@ export class CimiLoopKernel {
       has_plan: true,
       has_policy_snapshot: true
     });
-    const now = this.#now();
     const events: EventEnvelope[] = [];
     const created: WorkItem[] = readyTasks.map((task) => {
       const workItem = createExecutionWorkItem({
@@ -1821,6 +1918,262 @@ export class CimiLoopKernel {
       nextChange.revision,
       [event],
       { work_item: claimed, lease }
+    );
+  }
+
+  #startRun(transaction: StoreTransaction, command: StartRunCommand): KernelResult {
+    const workItem = transaction.getWorkItem(command.payload.work_item_id);
+    if (!workItem) {
+      return domainError(command.correlation_id, "WORK_ITEM_NOT_FOUND", "未找到指定 Work Item", "not_found");
+    }
+    const loaded = this.#requireChangeForMutation(transaction, command, workItem.change_id);
+    if ("code" in loaded) return loaded;
+    if (workItem.status !== "claimed" && workItem.status !== "running") {
+      return domainError(command.correlation_id, "WORK_ITEM_NOT_CLAIMED", "只有已领取的 Work Item 可以启动 Run", "conflict");
+    }
+    if (!transaction.getActiveLeaseByWorkItem(workItem.id)) {
+      return domainError(command.correlation_id, "LEASE_CONFLICT", "启动 Run 需要有效 Lease", "conflict");
+    }
+    const existingRuns = transaction.listAgentRuns(workItem.id);
+    if (hasActiveRun(existingRuns)) {
+      return domainError(command.correlation_id, "RUN_ALREADY_ACTIVE", "同一 Work Item 已有未结束的 Run", "conflict");
+    }
+    const now = this.#now();
+    const runId = this.#id();
+    const pack = createContextPackForWorkItem({
+      id: command.payload.context_pack_id,
+      workItem,
+      now
+    });
+    const provider = createDefaultRuntimeProvider({
+      id: this.#id(),
+      projectId: loaded.project.id,
+      now
+    });
+    const binding = createBindingForRun({
+      id: command.payload.binding_id,
+      workItem,
+      runId,
+      runtime: provider,
+      now
+    });
+    const run = createStartedRun({
+      id: runId,
+      workItem,
+      contextPackId: pack.id,
+      bindingId: binding.id,
+      attempt: nextRunAttempt(existingRuns),
+      now
+    });
+    const nextWorkItem: WorkItem = {
+      ...workItem,
+      status: "running",
+      updated_at: now,
+      revision: workItem.revision + 1
+    };
+    transaction.insertContextPackManifest(pack);
+    transaction.insertProviderDescriptor(provider);
+    transaction.insertCapabilityBinding(binding);
+    transaction.insertAgentRun(run);
+    transaction.updateWorkItem(nextWorkItem, workItem.revision);
+    const lease = transaction.getActiveLeaseByWorkItem(workItem.id);
+    if (lease) {
+      transaction.updateLease(
+        { ...lease, owner_run_id: run.id, updated_at: now, revision: lease.revision + 1 },
+        lease.revision
+      );
+    }
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "RunStarted",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "agent_run", id: run.id, domain_version: 1 },
+      aggregate_revision: run.revision,
+      actor_id: loaded.actorId,
+      command,
+      payload: { run_id: run.id, work_item_id: workItem.id, attempt: run.attempt },
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "agent_run", id: run.id, domain_version: 1 },
+      nextChange.revision,
+      [event],
+      { run }
+    );
+  }
+
+  #heartbeatRun(transaction: StoreTransaction, command: HeartbeatRunCommand): KernelResult {
+    return this.#transitionRun(transaction, command, command.payload.run_id, (run) => {
+      if (run.status === "starting") {
+        if (!allowedRunTransition(run.status, "running")) {
+          return domainError(command.correlation_id, "INVALID_RUN_TRANSITION", "不允许的 Run 状态迁移", "conflict");
+        }
+        return { ...run, status: "running" };
+      }
+      if (run.status !== "running") {
+        return domainError(command.correlation_id, "INVALID_RUN_TRANSITION", "只能对进行中的 Run 发送心跳", "conflict");
+      }
+      return run;
+    }, "RunHeartbeat", { run_id: command.payload.run_id });
+  }
+
+  #completeRun(transaction: StoreTransaction, command: CompleteRunCommand): KernelResult {
+    return this.#transitionRun(transaction, command, command.payload.run_id, (run) => {
+      if (!allowedRunTransition(run.status, "completed")) {
+        return domainError(command.correlation_id, "INVALID_RUN_TRANSITION", "不允许将 Run 标记为 completed", "conflict");
+      }
+      return {
+        ...run,
+        status: "completed" as const,
+        summary: command.payload.summary,
+        log_reference: command.payload.log_reference,
+        log_digest: command.payload.log_digest,
+        ended_at: this.#now()
+      };
+    }, "RunCompleted", { run_id: command.payload.run_id });
+  }
+
+  #failRun(transaction: StoreTransaction, command: FailRunCommand): KernelResult {
+    const nextStatus = failStatusForCode(command.payload.failure_code);
+    return this.#transitionRun(
+      transaction,
+      command,
+      command.payload.run_id,
+      (run) => {
+        if (!allowedRunTransition(run.status, nextStatus)) {
+          return domainError(command.correlation_id, "INVALID_RUN_TRANSITION", "不允许将 Run 标记为失败", "conflict");
+        }
+        const next = {
+          ...run,
+          status: nextStatus,
+          summary: command.payload.summary,
+          ended_at: this.#now()
+        };
+        return command.payload.log_reference && command.payload.log_digest
+          ? { ...next, log_reference: command.payload.log_reference, log_digest: command.payload.log_digest }
+          : next;
+      },
+      "RunFailed",
+      { run_id: command.payload.run_id, failure_code: command.payload.failure_code },
+      (transaction, run, now) => {
+        transaction.insertBlocker({
+          schema_version: SCHEMA_VERSION,
+          id: this.#id(),
+          project_id: run.project_id,
+          change_id: run.change_id,
+          work_item_id: run.work_item_id,
+          code: command.payload.failure_code,
+          summary: command.payload.summary,
+          status: "open",
+          resolution_condition: "reconcile the runtime process before retrying",
+          created_at: now,
+          updated_at: now,
+          revision: 1
+        });
+      }
+    );
+  }
+
+  #cancelRun(transaction: StoreTransaction, command: CancelRunCommand): KernelResult {
+    return this.#transitionRun(transaction, command, command.payload.run_id, (run) => {
+      if (!allowedRunTransition(run.status, "cancelled")) {
+        return domainError(command.correlation_id, "INVALID_RUN_TRANSITION", "不允许取消该 Run", "conflict");
+      }
+      return { ...run, status: "cancelled" as const, summary: command.payload.reason, ended_at: this.#now() };
+    }, "RunCancelled", { run_id: command.payload.run_id });
+  }
+
+  #reclaimExpiredLease(transaction: StoreTransaction, command: ReclaimExpiredLeaseCommand): KernelResult {
+    const lease = transaction.getLease(command.payload.lease_id);
+    if (!lease) {
+      return domainError(command.correlation_id, "LEASE_NOT_FOUND", "未找到指定 Lease", "not_found");
+    }
+    const workItem = transaction.getWorkItem(lease.work_item_id);
+    if (!workItem) {
+      return domainError(command.correlation_id, "WORK_ITEM_NOT_FOUND", "未找到指定 Work Item", "not_found");
+    }
+    const loaded = this.#requireChangeForMutation(transaction, command, workItem.change_id);
+    if ("code" in loaded) return loaded;
+    const now = this.#now();
+    if (lease.status !== "active" || lease.expires_at > now) {
+      return domainError(command.correlation_id, "LEASE_NOT_EXPIRED", "只能回收已过期的 Lease", "conflict");
+    }
+    const reclaimed: Lease = {
+      ...lease,
+      status: "reclaimed",
+      updated_at: now,
+      revision: lease.revision + 1
+    };
+    transaction.updateLease(reclaimed, lease.revision);
+    if (workItem.status === "claimed" || workItem.status === "running") {
+      transaction.updateWorkItem(
+        { ...workItem, status: "ready", updated_at: now, revision: workItem.revision + 1 },
+        workItem.revision
+      );
+    }
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "LeaseReclaimed",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "lease", id: lease.id, domain_version: 1 },
+      aggregate_revision: reclaimed.revision,
+      actor_id: loaded.actorId,
+      command,
+      payload: { lease_id: lease.id, work_item_id: workItem.id },
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "lease", id: lease.id, domain_version: 1 },
+      nextChange.revision,
+      [event],
+      { lease: reclaimed }
+    );
+  }
+
+  #transitionRun(
+    transaction: StoreTransaction,
+    command: HeartbeatRunCommand | CompleteRunCommand | FailRunCommand | CancelRunCommand,
+    runId: InternalId,
+    update: (run: AgentRunRecord) => AgentRunRecord | DomainError,
+    eventType: string,
+    payload: Record<string, unknown>,
+    after?: (transaction: StoreTransaction, run: AgentRunRecord, now: string) => void
+  ): KernelResult {
+    const run = transaction.getAgentRun(runId);
+    if (!run) {
+      return domainError(command.correlation_id, "RUN_NOT_FOUND", "未找到指定 Run", "not_found");
+    }
+    const loaded = this.#requireChangeForMutation(transaction, command, run.change_id);
+    if ("code" in loaded) return loaded;
+    const nextOrError = update(run);
+    if ("code" in nextOrError) return nextOrError;
+    const now = this.#now();
+    const next: AgentRunRecord = {
+      ...nextOrError,
+      updated_at: now,
+      revision: run.revision + 1
+    };
+    transaction.updateAgentRun(next, run.revision);
+    after?.(transaction, next, now);
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: eventType,
+      project_id: loaded.project.id,
+      aggregate: { object_type: "agent_run", id: run.id, domain_version: 1 },
+      aggregate_revision: next.revision,
+      actor_id: loaded.actorId,
+      command,
+      payload,
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "agent_run", id: run.id, domain_version: 1 },
+      nextChange.revision,
+      [event],
+      { run: next }
     );
   }
 

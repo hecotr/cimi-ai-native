@@ -13,6 +13,7 @@ export * from "./policy.js";
 export * from "./read-models.js";
 export * from "./ready-rules.js";
 export * from "./risk.js";
+export * from "./run.js";
 export * from "./scheduler.js";
 export * from "./task-dag.js";
 export * from "./work-item.js";
