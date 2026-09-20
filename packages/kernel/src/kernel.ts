@@ -54,8 +54,12 @@ import {
   type RecordEvidenceCommand,
   type PromoteTestResultCommand,
   type RequestEvaluationCommand,
+  type CompleteEvaluationCommand,
+  type ClaimAssessment,
   type Artifact,
   type Evidence,
+  type EvidenceValidity,
+  type IndependentEvaluation,
   type ImpactAssessment,
   type Lease,
   type PolicySnapshot,
@@ -70,7 +74,7 @@ import {
   type StoreTransaction
 } from "@cimiloop/store";
 import { createContractAmendment, createPlanAmendment, nextDomainVersion } from "./amendment.js";
-import { commandDigest } from "./canonical.js";
+import { commandDigest, requestDigest } from "./canonical.js";
 import { createDraftChange, pauseDraftChange, resumeDraftChange } from "./change.js";
 import { createContractCandidate } from "./contract.js";
 import {
@@ -82,6 +86,8 @@ import {
 } from "./decision.js";
 import { evaluateIntentGate } from "./gates/intent-gate.js";
 import { evaluatePlanGate } from "./gates/plan-gate.js";
+import { assessClaim } from "./evidence/assessment.js";
+import { evaluateEvidenceGate, evaluationInputDigest, findReusableEvaluation } from "./evidence/evaluation-gate.js";
 import { createEvidenceFromCommand } from "./evidence/ingest.js";
 import { parseWhitelistedTestResult, readPromotableReference } from "./evidence/promotion.js";
 import { createKnowledgeImpactAssessment, validateKnowledgeImpact } from "./knowledge-impact.js";
@@ -489,8 +495,9 @@ export class CimiLoopKernel {
         return this.#promoteTestResult(transaction, command);
       case "RequestEvaluation":
         return this.#requestEvaluation(transaction, command);
-      case "SubmitClaim":
       case "CompleteEvaluation":
+        return this.#completeEvaluation(transaction, command);
+      case "SubmitClaim":
       case "AssessImpact":
       case "CreateRepairWorkItem":
         return domainError(
@@ -2413,6 +2420,145 @@ export class CimiLoopKernel {
       nextChange.revision,
       [event],
       { work_item: workItem }
+    );
+  }
+
+  #completeEvaluation(transaction: StoreTransaction, command: CompleteEvaluationCommand): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
+    if ("code" in loaded) return loaded;
+    const artifact = transaction.getArtifact(command.payload.artifact_id);
+    if (!artifact || artifact.change_id !== loaded.change.id) {
+      return domainError(command.correlation_id, "ARTIFACT_NOT_FOUND", "完成评价需要已存在的 Artifact", "not_found");
+    }
+    if (
+      artifact.digest.algorithm !== command.payload.artifact_digest.algorithm ||
+      artifact.digest.value !== command.payload.artifact_digest.value
+    ) {
+      return domainError(
+        command.correlation_id,
+        "ARTIFACT_DIGEST_MISMATCH",
+        "评价必须绑定 Artifact 当前 Digest",
+        "conflict"
+      );
+    }
+    const requirementSet = transaction.getGateRequirementSet(command.payload.requirement_set_id);
+    if (!requirementSet || requirementSet.change_id !== loaded.change.id) {
+      return domainError(command.correlation_id, "REQUIREMENT_SET_NOT_FOUND", "完成评价需要已存在的 Requirement Set", "not_found");
+    }
+    const claims = transaction.listClaimsByChange(loaded.change.id);
+    const evidence = transaction.listEvidenceByChange(loaded.change.id);
+    const validity: Record<string, EvidenceValidity> = {};
+    for (const item of evidence) {
+      const impacts = transaction.listImpactAssessmentsBySubject(item.id);
+      validity[item.id] = impacts.at(-1)?.new_validity ?? "Valid";
+    }
+    const assessed = claims.map((claim) => {
+      const requirement = requirementSet.items.find((item) => item.claim_key === claim.claim_key);
+      const related = evidence.filter((item) => item.claim_id === claim.id);
+      return {
+        claim,
+        ...assessClaim({
+          claim,
+          ...(requirement ? { requirement } : {}),
+          evidence: related,
+          validity
+        })
+      };
+    });
+    const unresolvedRefutes = evidence.some(
+      (item) => item.stance === "Refutes" && (validity[item.id] ?? "Valid") === "Valid"
+    );
+    const gate = evaluateEvidenceGate({
+      assessments: assessed.map((item) => ({ claim: item.claim, result: item.result })),
+      unresolvedRefutes
+    });
+    const inputDigest = evaluationInputDigest({
+      artifactDigest: artifact.digest,
+      requirementSetDigest: requirementSet.digest,
+      evidenceDigests: evidence.map((item) => item.digest)
+    });
+    const reusable = findReusableEvaluation(
+      transaction.listIndependentEvaluationsByChange(loaded.change.id),
+      inputDigest
+    );
+    const now = this.#now();
+    if (reusable) {
+      const assessments = transaction.listClaimAssessmentsByEvaluation(reusable.id);
+      const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+      const event = this.#appendEvent(transaction, {
+        event_type: "EvaluationReused",
+        project_id: loaded.project.id,
+        aggregate: { object_type: "independent_evaluation", id: reusable.id, domain_version: 1 },
+        aggregate_revision: 1,
+        actor_id: loaded.actorId,
+        command,
+        payload: { evaluation_id: reusable.id, input_digest: inputDigest.value },
+        occurred_at: now
+      });
+      return this.#success(
+        command,
+        { object_type: "independent_evaluation", id: reusable.id, domain_version: 1 },
+        nextChange.revision,
+        [event],
+        { evaluation: reusable, assessments }
+      );
+    }
+    const evaluation: IndependentEvaluation = {
+      schema_version: SCHEMA_VERSION,
+      id: command.payload.evaluation_id,
+      project_id: loaded.project.id,
+      change_id: loaded.change.id,
+      artifact_id: artifact.id,
+      artifact_digest: artifact.digest,
+      requirement_set_id: requirementSet.id,
+      input_digest: inputDigest,
+      result: gate.result,
+      reason: gate.reason,
+      created_at: now
+    };
+    transaction.insertIndependentEvaluation(evaluation);
+    const assessments: ClaimAssessment[] = assessed
+      .filter((item) => item.evidence_ids.length > 0)
+      .map((item) => ({
+        schema_version: SCHEMA_VERSION,
+        id: this.#id(),
+        project_id: loaded.project.id,
+        change_id: loaded.change.id,
+        claim_id: item.claim.id,
+        evaluation_id: evaluation.id,
+        result: item.result,
+        evidence_ids: item.evidence_ids,
+        digest: {
+          algorithm: "sha256",
+          value: requestDigest({
+            claim_id: item.claim.id,
+            result: item.result,
+            evidence_ids: item.evidence_ids
+          }),
+          subject: "claim_assessment"
+        },
+        created_at: now
+      }));
+    for (const assessment of assessments) {
+      transaction.insertClaimAssessment(assessment);
+    }
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "EvaluationCompleted",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "independent_evaluation", id: evaluation.id, domain_version: 1 },
+      aggregate_revision: 1,
+      actor_id: loaded.actorId,
+      command,
+      payload: { evaluation_id: evaluation.id, result: evaluation.result },
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "independent_evaluation", id: evaluation.id, domain_version: 1 },
+      nextChange.revision,
+      [event],
+      { evaluation, assessments }
     );
   }
 
