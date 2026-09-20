@@ -69,7 +69,8 @@ export const createContextPackForWorkItem = (input: {
             freshness: "current" as const
           }
         ]
-      : [])
+      : []),
+    ...evaluationSources(input.workItem)
   ];
   const optionalRefs = {
     ...(input.workItem.plan_id ? { plan_id: input.workItem.plan_id } : {}),
@@ -113,6 +114,47 @@ export const createDefaultRuntimeProvider = (input: {
   version_digest: { algorithm: "sha256", value: requestDigest("claude-code/m2"), subject: "provider" },
   created_at: input.now
 });
+
+export const createEvaluatorProvider = (input: {
+  id: InternalId;
+  projectId: InternalId;
+  now: string;
+}): ProviderDescriptor => ({
+  schema_version: SCHEMA_VERSION,
+  id: input.id,
+  project_id: input.projectId,
+  provider_type: "runtime",
+  name: "cimiloop-evaluator",
+  implementation_version: "m3",
+  capability_ids: ["evidence.evaluate"],
+  version_digest: { algorithm: "sha256", value: requestDigest("cimiloop-evaluator/m3"), subject: "provider" },
+  created_at: input.now
+});
+
+const evaluationSources = (workItem: WorkItem) => {
+  const binding = workItem.extensions?.["cimiloop.evaluation"];
+  if (!binding || typeof binding !== "object" || binding === null || !("artifact_id" in binding)) {
+    return [];
+  }
+  const artifactId = String((binding as { artifact_id: unknown }).artifact_id);
+  const digestValue =
+    binding && typeof binding === "object" && "artifact_digest" in binding
+      ? (binding as { artifact_digest?: { value?: string } }).artifact_digest?.value
+      : undefined;
+  return [
+    {
+      key: "artifact",
+      authority: "canonical" as const,
+      location_ref: `cimi://artifact/${artifactId}`,
+      digest: {
+        algorithm: "sha256" as const,
+        value: digestValue ?? requestDigest(artifactId),
+        subject: "artifact"
+      },
+      freshness: "current" as const
+    }
+  ];
+};
 
 export const createBindingForRun = (input: {
   id: InternalId;

@@ -80,3 +80,46 @@ export const createExecutionWorkItem = (input: {
     revision: 1
   };
 };
+
+export const createEvaluationWorkItem = (input: {
+  id: InternalId;
+  projectId: InternalId;
+  changeId: InternalId;
+  contractId: InternalId;
+  contractVersion: number;
+  policySnapshotId: InternalId;
+  artifactId: InternalId;
+  artifactDigest: Digest;
+  requirementSetId: InternalId;
+  now: string;
+}): WorkItem => {
+  const authorization = {
+    permission_scope: ["workspace.read", "evidence.record"],
+    budget: { max_duration_ms: 600_000, max_retries: 1 },
+    stop_conditions: ["timeout", "cancel_requested"]
+  };
+  return {
+    schema_version: SCHEMA_VERSION,
+    id: input.id,
+    project_id: input.projectId,
+    change_id: input.changeId,
+    kind: "evaluation",
+    status: "ready",
+    contract_id: input.contractId,
+    contract_version: input.contractVersion,
+    policy_snapshot_id: input.policySnapshotId,
+    authorized_role_key: "technical_owner",
+    ...authorization,
+    authorization_digest: authorizationDigest(authorization, "work_item_authorization"),
+    created_at: input.now,
+    updated_at: input.now,
+    revision: 1,
+    extensions: {
+      "cimiloop.evaluation": {
+        artifact_id: input.artifactId,
+        artifact_digest: input.artifactDigest,
+        requirement_set_id: input.requirementSetId
+      }
+    }
+  };
+};

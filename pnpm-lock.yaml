@@ -218,6 +218,12 @@ importers:
         specifier: workspace:*
         version: link:../protocol
 
+  packages/evaluator:
+    dependencies:
+      '@cimiloop/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+
   packages/kernel:
     dependencies:
       '@cimiloop/protocol':
@@ -232,6 +238,9 @@ importers:
       '@cimiloop/context':
         specifier: workspace:*
         version: link:../context
+      '@cimiloop/evaluator':
+        specifier: workspace:*
+        version: link:../evaluator
       '@cimiloop/kernel':
         specifier: workspace:*
         version: link:../kernel

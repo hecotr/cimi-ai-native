@@ -53,6 +53,7 @@ import {
   type RecordArtifactCommand,
   type RecordEvidenceCommand,
   type PromoteTestResultCommand,
+  type RequestEvaluationCommand,
   type Artifact,
   type Evidence,
   type ImpactAssessment,
@@ -94,6 +95,7 @@ import {
   createBindingForRun,
   createContextPackForWorkItem,
   createDefaultRuntimeProvider,
+  createEvaluatorProvider,
   createStartedRun,
   failStatusForCode,
   hasActiveRun,
@@ -102,7 +104,7 @@ import {
 } from "./run.js";
 import { createArtifact, localReferenceExists } from "./artifact.js";
 import { createSourceSnapshot, snapshotKindValid } from "./source-snapshot.js";
-import { createExecutionWorkItem, createPlanningWorkItem } from "./work-item.js";
+import { createEvaluationWorkItem, createExecutionWorkItem, createPlanningWorkItem } from "./work-item.js";
 import {
   createBuiltInChangeProfiles,
   createSoloAssignments,
@@ -485,8 +487,9 @@ export class CimiLoopKernel {
         return this.#recordEvidence(transaction, command);
       case "PromoteTestResult":
         return this.#promoteTestResult(transaction, command);
-      case "SubmitClaim":
       case "RequestEvaluation":
+        return this.#requestEvaluation(transaction, command);
+      case "SubmitClaim":
       case "CompleteEvaluation":
       case "AssessImpact":
       case "CreateRepairWorkItem":
@@ -1996,11 +1999,18 @@ export class CimiLoopKernel {
       workItem,
       now
     });
-    const provider = createDefaultRuntimeProvider({
-      id: this.#id(),
-      projectId: loaded.project.id,
-      now
-    });
+    const provider =
+      workItem.kind === "evaluation"
+        ? createEvaluatorProvider({
+            id: this.#id(),
+            projectId: loaded.project.id,
+            now
+          })
+        : createDefaultRuntimeProvider({
+            id: this.#id(),
+            projectId: loaded.project.id,
+            now
+          });
     const binding = createBindingForRun({
       id: command.payload.binding_id,
       workItem,
@@ -2341,6 +2351,68 @@ export class CimiLoopKernel {
       nextChange.revision,
       [event],
       { artifact }
+    );
+  }
+
+  #requestEvaluation(transaction: StoreTransaction, command: RequestEvaluationCommand): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
+    if ("code" in loaded) return loaded;
+    const artifact = transaction.getArtifact(command.payload.artifact_id);
+    if (!artifact || artifact.change_id !== loaded.change.id) {
+      return domainError(command.correlation_id, "ARTIFACT_NOT_FOUND", "评价需要已存在的 Artifact", "not_found");
+    }
+    if (
+      artifact.digest.algorithm !== command.payload.artifact_digest.algorithm ||
+      artifact.digest.value !== command.payload.artifact_digest.value
+    ) {
+      return domainError(
+        command.correlation_id,
+        "ARTIFACT_DIGEST_MISMATCH",
+        "评价必须绑定 Artifact 当前 Digest",
+        "conflict"
+      );
+    }
+    const requirementSet = transaction.getGateRequirementSet(command.payload.requirement_set_id);
+    if (!requirementSet || requirementSet.change_id !== loaded.change.id) {
+      return domainError(command.correlation_id, "REQUIREMENT_SET_NOT_FOUND", "评价需要已存在的 Requirement Set", "not_found");
+    }
+    const policy = transaction.getLatestPolicySnapshot(loaded.project.id);
+    const now = this.#now();
+    const workItem = createEvaluationWorkItem({
+      id: this.#id(),
+      projectId: loaded.project.id,
+      changeId: loaded.change.id,
+      contractId: artifact.contract_id,
+      contractVersion: artifact.contract_version,
+      policySnapshotId: policy?.id ?? requirementSet.policy_snapshot_id,
+      artifactId: artifact.id,
+      artifactDigest: artifact.digest,
+      requirementSetId: requirementSet.id,
+      now
+    });
+    transaction.insertWorkItem(workItem);
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "EvaluationWorkItemCreated",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "work_item", id: workItem.id, domain_version: 1 },
+      aggregate_revision: 1,
+      actor_id: loaded.actorId,
+      command,
+      payload: {
+        work_item_id: workItem.id,
+        artifact_id: artifact.id,
+        artifact_digest: artifact.digest.value,
+        requirement_set_id: requirementSet.id
+      },
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "work_item", id: workItem.id, domain_version: 1 },
+      nextChange.revision,
+      [event],
+      { work_item: workItem }
     );
   }
 

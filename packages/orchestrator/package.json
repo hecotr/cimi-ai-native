@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@cimiloop/context": "workspace:*",
+    "@cimiloop/evaluator": "workspace:*",
     "@cimiloop/kernel": "workspace:*",
     "@cimiloop/protocol": "workspace:*",
     "@cimiloop/runtime": "workspace:*"

@@ -11,6 +11,7 @@ import {
   type InternalId,
   type WorkItem
 } from "@cimiloop/protocol";
+import { evaluationCapabilityRequirement, isolateEvaluatorWorkItem } from "./isolation.js";
 import type { OrchestratorDependencies, OrchestratorResult, RecoveryResult } from "./ports.js";
 
 const isError = (result: KernelResult): result is DomainError => "code" in result;
@@ -38,6 +39,12 @@ export class RunOrchestrator {
         current = claimed.data.work_item;
       }
 
+      if (current.kind === "evaluation") {
+        const isolation = isolateEvaluatorWorkItem(current);
+        if (isolation.kind === "allowed") {
+          return { kind: "failed", error: "EVALUATOR_WRITE_DENIED" };
+        }
+      }
       const sources = this.#sources(current);
       const pack = buildContextPack({
         role_key: current.authorized_role_key,
@@ -53,7 +60,10 @@ export class RunOrchestrator {
       const resolved = resolveCapabilities({
         work_item: current,
         run_id: createInternalId(),
-        requirements: [{ capability_id: "code.modify", required: true, side_effect: "workspace_write" }],
+        requirements:
+          current.kind === "evaluation"
+            ? [evaluationCapabilityRequirement()]
+            : [{ capability_id: "code.modify", required: true, side_effect: "workspace_write" }],
         providers: this.#deps.providers,
         actor_permissions: this.#deps.actorPermissions,
         provider_permissions: this.#deps.providerPermissions
