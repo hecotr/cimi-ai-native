@@ -1,0 +1,49 @@
+{
+  "profile_key": "feature",
+  "intent": "为 Draft Change 建立可批准的 Contract 与 Plan，使 Change 可靠进入 Planned。",
+  "outcomes": [
+    "Change 在人工批准后进入 Planned",
+    "Decision、Gate 与 Event 形成完整审计链"
+  ],
+  "scope": {
+    "in": ["Contract Candidate", "Plan Candidate", "Human Decision", "Knowledge Impact"],
+    "out": ["Runtime execution", "Artifact build", "Production release"]
+  },
+  "non_goals": ["不在 M1 执行 Agent Runtime", "不部署测试或生产环境"],
+  "acceptance": [
+    {
+      "key": "AC-planned",
+      "statement": "Feature Change 在 Contract 与 Plan 均获批准后进入 Planned。"
+    }
+  ],
+  "constraints": [
+    "Agent Actor 不得提交正式 Human Decision",
+    "正式 Contract 与 Plan 批准后不可原地覆盖"
+  ],
+  "risk": {
+    "data_exposure": "none",
+    "security": "none",
+    "reliability": "local-only",
+    "reversibility": "fully_reversible"
+  },
+  "knowledge_impact": {
+    "product_business": {
+      "conclusion": "NoImpact",
+      "rationale": "本次只建立治理闭环，不改变产品对外说明。"
+    },
+    "technical": {
+      "conclusion": "Update",
+      "owner_role": "technical_owner",
+      "gate": "change_closure",
+      "summary": "需要更新 M1 实施说明，记录 Contract/Plan 批准路径。"
+    },
+    "operations": {
+      "conclusion": "NoImpact",
+      "rationale": "无运行手册或告警路径变化。"
+    },
+    "communication": {
+      "conclusion": "NoImpact",
+      "rationale": "无对外沟通材料需要更新。"
+    }
+  }
+}

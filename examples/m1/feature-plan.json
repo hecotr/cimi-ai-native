@@ -1,0 +1,26 @@
+{
+  "summary": "先固化 Contract，再形成覆盖验收、风险与知识义务的 Task DAG。",
+  "verification_strategy": "通过 Kernel 场景测试证明 Draft → IntentReady → Planned，并覆盖越权与过期 Decision。",
+  "recovery_considerations": "任何写失败回滚 Change、Decision、Gate、Transition、Event、Outbox 与 Receipt。",
+  "tasks": [
+    {
+      "key": "define-contract",
+      "title": "形成并批准 Contract v1",
+      "kind": "governance",
+      "dependencies": []
+    },
+    {
+      "key": "define-plan",
+      "title": "形成覆盖验收与验证策略的 Plan",
+      "kind": "governance",
+      "dependencies": ["define-contract"]
+    },
+    {
+      "key": "update-m1-docs",
+      "title": "更新 M1 实施说明",
+      "kind": "knowledge",
+      "knowledge_source": "technical",
+      "dependencies": ["define-plan"]
+    }
+  ]
+}

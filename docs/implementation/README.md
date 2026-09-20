@@ -4,10 +4,10 @@
 
 ## 当前阶段
 
-- 当前里程碑：M1 意图、计划与人工决策开发中。
-- 当前状态：M0 Kernel 最小闭环已冻结。M1 已建立固定时钟、确定性 ID、临时 SQLite 与 Human/Agent Command 夹具，以及 `Draft → Planned` 垂直切片失败基线；Contract、Plan、Decision 与 Gate 尚未实现。
-- 下一里程碑：完成 M1 后进入 M2 执行、上下文与不可变产物。
-- 实施基线：[CimiLoop M0 实施架构 v0.1](2026-09-19-cimiloop-m0实施架构-v0.1.md)。
+- 当前里程碑：M1 意图、计划与人工决策已冻结。
+- 当前状态：M0 Kernel 最小闭环与 M1 `Draft → IntentReady → Planned` 治理闭环均已交付。Contract / Plan 版本、Human Decision、Gate、Inbox / Room / Timeline、CLI 与本地 Workbench 已实现；Agent Runtime、Artifact、Evidence 与发布恢复仍未实现。
+- 下一里程碑：M2 执行、上下文与不可变产物。
+- 实施基线：[CimiLoop M1 实施架构 v0.1](2026-09-20-cimiloop-m1实施架构-v0.1.md)；M0 基线仍为 [CimiLoop M0 实施架构 v0.1](2026-09-19-cimiloop-m0实施架构-v0.1.md)。
 
 ## 已确认技术决策
 
@@ -37,7 +37,8 @@ TypeScript 与 Node.js 的常规工程选择由实现负责人按稳定性、可
 
 ```text
 apps/
-└─ cli/                 # V1 用户入口与本地编排
+├─ cli/                 # V1 用户入口与本地编排
+└─ workbench/           # M1 本地 Decision Workbench（Node http SSR）
 packages/
 ├─ protocol/            # 稳定 ID、引用、Command/Event Envelope 与 Schema
 ├─ kernel/              # 聚合规则、状态机、Gate 与命令处理
@@ -49,7 +50,7 @@ tests/
 
 依赖规则：`kernel` 依赖 `protocol` 与 `store`，`store` 只依赖 `protocol`，`store-sqlite` 依赖 `store` 与 `protocol`，`cli` 负责组装 `kernel` 与 `store-sqlite`。Kernel 不得依赖 CLI、SQLite 或具体 Agent Runtime。
 
-Workbench、Team Server 和具体 Agent Runtime Adapter 不进入 M0 工程骨架；它们在核心闭环成立后按里程碑加入。
+M1 已加入本地 Workbench。Team Server 和具体 Agent Runtime Adapter 仍不进入当前工程骨架。
 
 ## M0 已实现的工程设计
 
