@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "GateRequirementSet.v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "created_at",
+    "id",
+    "project_id",
+    "change_id",
+    "version",
+    "profile_key",
+    "policy_snapshot_id",
+    "contract_id",
+    "contract_version",
+    "items",
+    "digest"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "created_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "change_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "profile_key": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "feature"
+        },
+        {
+          "type": "string",
+          "const": "bugfix"
+        },
+        {
+          "type": "string",
+          "const": "incident"
+        }
+      ]
+    },
+    "policy_snapshot_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "contract_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "contract_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "claim_key",
+          "obligation",
+          "source",
+          "accepted_evidence_kinds"
+        ],
+        "properties": {
+          "claim_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "obligation": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "required"
+              },
+              {
+                "type": "string",
+                "const": "conditional"
+              },
+              {
+                "type": "string",
+                "const": "advisory"
+              }
+            ]
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "acceptance"
+              },
+              {
+                "type": "string",
+                "const": "policy"
+              },
+              {
+                "type": "string",
+                "const": "risk"
+              },
+              {
+                "type": "string",
+                "const": "plan"
+              },
+              {
+                "type": "string",
+                "const": "contract"
+              }
+            ]
+          },
+          "accepted_evidence_kinds": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "executor"
+                },
+                {
+                  "type": "string",
+                  "const": "evaluator"
+                },
+                {
+                  "type": "string",
+                  "const": "human"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                },
+                {
+                  "type": "string",
+                  "const": "deterministic_test"
+                }
+              ]
+            },
+            "minItems": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "digest": {
+      "type": "object",
+      "required": [
+        "algorithm",
+        "value",
+        "subject"
+      ],
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "const": "sha256"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      },
+      "additionalProperties": false
+    },
+    "extensions": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

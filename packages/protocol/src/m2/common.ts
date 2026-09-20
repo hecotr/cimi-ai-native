@@ -1,6 +1,11 @@
 import { Type, type Static } from "typebox";
 
-export const WorkItemKindSchema = Type.Union([Type.Literal("planning"), Type.Literal("execution")]);
+export const WorkItemKindSchema = Type.Union([
+  Type.Literal("planning"),
+  Type.Literal("execution"),
+  Type.Literal("evaluation"),
+  Type.Literal("repair")
+]);
 
 export const WorkItemStatusSchema = Type.Union([
   Type.Literal("created"),

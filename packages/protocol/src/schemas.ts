@@ -48,7 +48,16 @@ export const ObjectTypeSchema = Type.Union([
   Type.Literal("resource_lock"),
   Type.Literal("lease"),
   Type.Literal("failure"),
-  Type.Literal("blocker")
+  Type.Literal("blocker"),
+  Type.Literal("claim"),
+  Type.Literal("evidence"),
+  Type.Literal("external_reference"),
+  Type.Literal("gate_requirement_set"),
+  Type.Literal("claim_assessment"),
+  Type.Literal("independent_evaluation"),
+  Type.Literal("evidence_package_manifest"),
+  Type.Literal("impact_assessment"),
+  Type.Literal("repair_work_item_link")
 ]);
 
 export const TypedReferenceSchema = Type.Object(

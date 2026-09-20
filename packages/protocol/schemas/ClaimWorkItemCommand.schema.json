@@ -203,6 +203,42 @@
             {
               "type": "string",
               "const": "blocker"
+            },
+            {
+              "type": "string",
+              "const": "claim"
+            },
+            {
+              "type": "string",
+              "const": "evidence"
+            },
+            {
+              "type": "string",
+              "const": "external_reference"
+            },
+            {
+              "type": "string",
+              "const": "gate_requirement_set"
+            },
+            {
+              "type": "string",
+              "const": "claim_assessment"
+            },
+            {
+              "type": "string",
+              "const": "independent_evaluation"
+            },
+            {
+              "type": "string",
+              "const": "evidence_package_manifest"
+            },
+            {
+              "type": "string",
+              "const": "impact_assessment"
+            },
+            {
+              "type": "string",
+              "const": "repair_work_item_link"
             }
           ]
         },

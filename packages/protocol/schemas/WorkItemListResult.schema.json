@@ -72,6 +72,14 @@
               {
                 "type": "string",
                 "const": "execution"
+              },
+              {
+                "type": "string",
+                "const": "evaluation"
+              },
+              {
+                "type": "string",
+                "const": "repair"
               }
             ]
           },

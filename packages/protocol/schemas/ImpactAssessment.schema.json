@@ -1,0 +1,212 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ImpactAssessment.v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "created_at",
+    "id",
+    "project_id",
+    "change_id",
+    "trigger",
+    "subject_type",
+    "subject_id",
+    "rule",
+    "old_input_digest",
+    "new_input_digest",
+    "old_validity",
+    "new_validity",
+    "affected_ids"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "created_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "change_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "trigger": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "contract"
+        },
+        {
+          "type": "string",
+          "const": "artifact"
+        },
+        {
+          "type": "string",
+          "const": "environment"
+        },
+        {
+          "type": "string",
+          "const": "policy"
+        },
+        {
+          "type": "string",
+          "const": "context"
+        }
+      ]
+    },
+    "subject_type": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "artifact"
+        },
+        {
+          "type": "string",
+          "const": "contract"
+        },
+        {
+          "type": "string",
+          "const": "plan"
+        },
+        {
+          "type": "string",
+          "const": "environment"
+        },
+        {
+          "type": "string",
+          "const": "context_pack"
+        },
+        {
+          "type": "string",
+          "const": "run"
+        },
+        {
+          "type": "string",
+          "const": "evidence"
+        }
+      ]
+    },
+    "subject_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "rule": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "old_input_digest": {
+      "type": "object",
+      "required": [
+        "algorithm",
+        "value",
+        "subject"
+      ],
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "const": "sha256"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      },
+      "additionalProperties": false
+    },
+    "new_input_digest": {
+      "type": "object",
+      "required": [
+        "algorithm",
+        "value",
+        "subject"
+      ],
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "const": "sha256"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      },
+      "additionalProperties": false
+    },
+    "old_validity": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "Valid"
+        },
+        {
+          "type": "string",
+          "const": "Stale"
+        },
+        {
+          "type": "string",
+          "const": "Superseded"
+        },
+        {
+          "type": "string",
+          "const": "Invalid"
+        }
+      ]
+    },
+    "new_validity": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "Valid"
+        },
+        {
+          "type": "string",
+          "const": "Stale"
+        },
+        {
+          "type": "string",
+          "const": "Superseded"
+        },
+        {
+          "type": "string",
+          "const": "Invalid"
+        }
+      ]
+    },
+    "affected_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "minItems": 1
+    },
+    "extensions": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

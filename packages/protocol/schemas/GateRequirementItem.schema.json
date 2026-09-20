@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "GateRequirementItem.v1",
+  "type": "object",
+  "required": [
+    "claim_key",
+    "obligation",
+    "source",
+    "accepted_evidence_kinds"
+  ],
+  "properties": {
+    "claim_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "obligation": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "required"
+        },
+        {
+          "type": "string",
+          "const": "conditional"
+        },
+        {
+          "type": "string",
+          "const": "advisory"
+        }
+      ]
+    },
+    "source": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "acceptance"
+        },
+        {
+          "type": "string",
+          "const": "policy"
+        },
+        {
+          "type": "string",
+          "const": "risk"
+        },
+        {
+          "type": "string",
+          "const": "plan"
+        },
+        {
+          "type": "string",
+          "const": "contract"
+        }
+      ]
+    },
+    "accepted_evidence_kinds": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "string",
+            "const": "executor"
+          },
+          {
+            "type": "string",
+            "const": "evaluator"
+          },
+          {
+            "type": "string",
+            "const": "human"
+          },
+          {
+            "type": "string",
+            "const": "system"
+          },
+          {
+            "type": "string",
+            "const": "deterministic_test"
+          }
+        ]
+      },
+      "minItems": 1
+    }
+  },
+  "additionalProperties": false
+}

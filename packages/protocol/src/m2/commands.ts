@@ -19,6 +19,15 @@ import {
   SubmitPlanCandidateCommandSchema
 } from "../m1/commands.js";
 import { ContentReferenceSchema, GitShaSchema, SnapshotKindSchema } from "./common.js";
+import {
+  AssessImpactCommandSchema,
+  CompleteEvaluationCommandSchema,
+  CreateRepairWorkItemCommandSchema,
+  PromoteTestResultCommandSchema,
+  RecordEvidenceCommandSchema,
+  RequestEvaluationCommandSchema,
+  SubmitClaimCommandSchema
+} from "../m3/commands.js";
 
 export const CreatePlanningWorkItemCommandSchema = mutatingCommandSchema(
   "CreatePlanningWorkItem",
@@ -150,7 +159,14 @@ export const AnyCommandSchema = Type.Union([
   CancelRunCommandSchema,
   RecordSourceSnapshotCommandSchema,
   RecordArtifactCommandSchema,
-  ReclaimExpiredLeaseCommandSchema
+  ReclaimExpiredLeaseCommandSchema,
+  SubmitClaimCommandSchema,
+  RecordEvidenceCommandSchema,
+  PromoteTestResultCommandSchema,
+  RequestEvaluationCommandSchema,
+  CompleteEvaluationCommandSchema,
+  AssessImpactCommandSchema,
+  CreateRepairWorkItemCommandSchema
 ]);
 
 export const m2CommandSchemas = {

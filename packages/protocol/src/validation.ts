@@ -74,6 +74,18 @@ import {
   type WorkItemShowResult
 } from "./m2/results.js";
 import {
+  ClaimShowResultSchema,
+  EvaluationShowResultSchema,
+  EvidencePackageShowResultSchema,
+  EvidenceShowResultSchema,
+  RequirementSetShowResultSchema,
+  type ClaimShowResult,
+  type EvaluationShowResult,
+  type EvidencePackageShowResult,
+  type EvidenceShowResult,
+  type RequirementSetShowResult
+} from "./m3/results.js";
+import {
   ChangeListResultSchema,
   ChangeShowResultSchema,
   DoctorResultSchema,
@@ -150,6 +162,13 @@ export const parseWorkItemShowResult = compileValidator<WorkItemShowResult>(Work
 export const parseRunListResult = compileValidator<RunListResult>(RunListResultSchema);
 export const parseRunShowResult = compileValidator<RunShowResult>(RunShowResultSchema);
 export const parseArtifactShowResult = compileValidator<ArtifactShowResult>(ArtifactShowResultSchema);
+export const parseClaimShowResult = compileValidator<ClaimShowResult>(ClaimShowResultSchema);
+export const parseEvidenceShowResult = compileValidator<EvidenceShowResult>(EvidenceShowResultSchema);
+export const parseRequirementSetShowResult =
+  compileValidator<RequirementSetShowResult>(RequirementSetShowResultSchema);
+export const parseEvaluationShowResult = compileValidator<EvaluationShowResult>(EvaluationShowResultSchema);
+export const parseEvidencePackageShowResult =
+  compileValidator<EvidencePackageShowResult>(EvidencePackageShowResultSchema);
 
 export const formatValidationErrors = (errors: readonly ErrorObject[]): string[] =>
   errors.map((error) => `${error.instancePath || "/"} ${error.message ?? "校验失败"}`);

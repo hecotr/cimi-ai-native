@@ -302,6 +302,11 @@ export const GateEvaluationSchema = Type.Object(
     digest: DigestSchema,
     request_id: Type.Optional(InternalIdSchema),
     decision_id: Type.Optional(InternalIdSchema),
+    requirement_set_id: Type.Optional(InternalIdSchema),
+    artifact_id: Type.Optional(InternalIdSchema),
+    artifact_digest: Type.Optional(DigestSchema),
+    independent_evaluation_id: Type.Optional(InternalIdSchema),
+    reason: Type.Optional(Type.String({ minLength: 1, maxLength: 2000 })),
     ...optionalExtensions
   },
   { additionalProperties: false }

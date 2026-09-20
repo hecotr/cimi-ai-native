@@ -467,6 +467,19 @@ export class CimiLoopKernel {
         return this.#recordSourceSnapshot(transaction, command);
       case "RecordArtifact":
         return this.#recordArtifact(transaction, command);
+      case "SubmitClaim":
+      case "RecordEvidence":
+      case "PromoteTestResult":
+      case "RequestEvaluation":
+      case "CompleteEvaluation":
+      case "AssessImpact":
+      case "CreateRepairWorkItem":
+        return domainError(
+          command.correlation_id,
+          "COMMAND_UNSUPPORTED",
+          "M3 evidence command is registered but not yet implemented",
+          "conflict"
+        );
     }
   }
 

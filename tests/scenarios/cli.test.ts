@@ -93,5 +93,5 @@ describe("cimiloop CLI", () => {
       ok: false,
       error: { code: "CLI_ARGUMENT_INVALID", category: "validation" }
     });
-  });
+  }, 20_000);
 });

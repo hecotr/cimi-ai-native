@@ -1,0 +1,401 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "CompleteEvaluationCommand.v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "command_id",
+    "correlation_id",
+    "command_type",
+    "requested_at",
+    "actor_id",
+    "project_id",
+    "expected_revision",
+    "source",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "command_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "correlation_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "command_type": {
+      "type": "string",
+      "const": "CompleteEvaluation"
+    },
+    "requested_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    },
+    "actor_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "target": {
+      "type": "object",
+      "required": [
+        "object_type",
+        "id"
+      ],
+      "properties": {
+        "object_type": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "project"
+            },
+            {
+              "type": "string",
+              "const": "actor"
+            },
+            {
+              "type": "string",
+              "const": "role"
+            },
+            {
+              "type": "string",
+              "const": "assignment"
+            },
+            {
+              "type": "string",
+              "const": "change"
+            },
+            {
+              "type": "string",
+              "const": "transition_record"
+            },
+            {
+              "type": "string",
+              "const": "event"
+            },
+            {
+              "type": "string",
+              "const": "outbox_message"
+            },
+            {
+              "type": "string",
+              "const": "change_profile"
+            },
+            {
+              "type": "string",
+              "const": "project_policy"
+            },
+            {
+              "type": "string",
+              "const": "policy_snapshot"
+            },
+            {
+              "type": "string",
+              "const": "contract_candidate"
+            },
+            {
+              "type": "string",
+              "const": "contract_version"
+            },
+            {
+              "type": "string",
+              "const": "contract_amendment"
+            },
+            {
+              "type": "string",
+              "const": "risk_profile"
+            },
+            {
+              "type": "string",
+              "const": "risk_assessment"
+            },
+            {
+              "type": "string",
+              "const": "knowledge_impact_assessment"
+            },
+            {
+              "type": "string",
+              "const": "plan_candidate"
+            },
+            {
+              "type": "string",
+              "const": "plan_version"
+            },
+            {
+              "type": "string",
+              "const": "plan_amendment"
+            },
+            {
+              "type": "string",
+              "const": "task"
+            },
+            {
+              "type": "string",
+              "const": "decision_request"
+            },
+            {
+              "type": "string",
+              "const": "decision"
+            },
+            {
+              "type": "string",
+              "const": "feedback"
+            },
+            {
+              "type": "string",
+              "const": "gate_evaluation"
+            },
+            {
+              "type": "string",
+              "const": "work_item"
+            },
+            {
+              "type": "string",
+              "const": "agent_run"
+            },
+            {
+              "type": "string",
+              "const": "context_pack_manifest"
+            },
+            {
+              "type": "string",
+              "const": "context_source"
+            },
+            {
+              "type": "string",
+              "const": "capability_requirement"
+            },
+            {
+              "type": "string",
+              "const": "provider_descriptor"
+            },
+            {
+              "type": "string",
+              "const": "capability_binding"
+            },
+            {
+              "type": "string",
+              "const": "source_snapshot"
+            },
+            {
+              "type": "string",
+              "const": "artifact"
+            },
+            {
+              "type": "string",
+              "const": "resource_lock"
+            },
+            {
+              "type": "string",
+              "const": "lease"
+            },
+            {
+              "type": "string",
+              "const": "failure"
+            },
+            {
+              "type": "string",
+              "const": "blocker"
+            },
+            {
+              "type": "string",
+              "const": "claim"
+            },
+            {
+              "type": "string",
+              "const": "evidence"
+            },
+            {
+              "type": "string",
+              "const": "external_reference"
+            },
+            {
+              "type": "string",
+              "const": "gate_requirement_set"
+            },
+            {
+              "type": "string",
+              "const": "claim_assessment"
+            },
+            {
+              "type": "string",
+              "const": "independent_evaluation"
+            },
+            {
+              "type": "string",
+              "const": "evidence_package_manifest"
+            },
+            {
+              "type": "string",
+              "const": "impact_assessment"
+            },
+            {
+              "type": "string",
+              "const": "repair_work_item_link"
+            }
+          ]
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "domain_version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "origin",
+        "producer"
+      ],
+      "properties": {
+        "origin": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "human_cli"
+            },
+            {
+              "type": "string",
+              "const": "agent"
+            },
+            {
+              "type": "string",
+              "const": "system"
+            }
+          ]
+        },
+        "producer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repository_path": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "change_id",
+        "evaluation_id",
+        "artifact_id",
+        "artifact_digest",
+        "requirement_set_id",
+        "input_digest",
+        "result",
+        "reason"
+      ],
+      "properties": {
+        "change_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "evaluation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "artifact_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "artifact_digest": {
+          "type": "object",
+          "required": [
+            "algorithm",
+            "value",
+            "subject"
+          ],
+          "properties": {
+            "algorithm": {
+              "type": "string",
+              "const": "sha256"
+            },
+            "value": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "subject": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "additionalProperties": false
+        },
+        "requirement_set_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "input_digest": {
+          "type": "object",
+          "required": [
+            "algorithm",
+            "value",
+            "subject"
+          ],
+          "properties": {
+            "algorithm": {
+              "type": "string",
+              "const": "sha256"
+            },
+            "value": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "subject": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "additionalProperties": false
+        },
+        "result": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "ALLOW"
+            },
+            {
+              "type": "string",
+              "const": "NEED_MORE_EVIDENCE"
+            },
+            {
+              "type": "string",
+              "const": "REQUIRE_HUMAN"
+            },
+            {
+              "type": "string",
+              "const": "DENY"
+            }
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
