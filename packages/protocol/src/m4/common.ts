@@ -146,3 +146,4 @@ export type RecoveryAuthorization = Static<typeof RecoveryAuthorizationSchema>;
 export type RecoveryExecutionStatus = Static<typeof RecoveryExecutionStatusSchema>;
 export type ReconciliationConclusion = Static<typeof ReconciliationConclusionSchema>;
 export type RecoveryStrategyDraft = Static<typeof RecoveryStrategyDraftSchema>;
+export type ReleaseWindow = Static<typeof ReleaseWindowSchema>;
