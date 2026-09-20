@@ -1,3 +1,4 @@
+import { dirname } from "node:path";
 import {
   ProtocolValidationError,
   SCHEMA_VERSION,
@@ -78,6 +79,8 @@ import {
   type ArchiveChangeCommand,
   type CreateLearningCandidateCommand,
   type ExportProjectCommand,
+  type StageImportCommand,
+  type CommitImportCommand,
   type RequestReleaseDecisionCommand,
   type DecisionRequest,
   type Claim,
@@ -132,7 +135,14 @@ import { evaluateEvidenceGate, evaluationInputDigest, findReusableEvaluation } f
 import { classifyImpact, projectValidity } from "./evidence/impact.js";
 import { createEvidenceFromCommand } from "./evidence/ingest.js";
 import { parseWhitelistedTestResult, readPromotableReference } from "./evidence/promotion.js";
-import { exportProjectBundle, PortableExportError } from "@cimiloop/portability";
+import {
+  classifyImportHistory,
+  createImportReport,
+  exportProjectBundle,
+  PortableExportError,
+  PortableImportError,
+  stageImportBundle
+} from "@cimiloop/portability";
 import { evaluateKnowledgeClosureGate } from "./closure/gate.js";
 import { createProposedLearningCandidate } from "./closure/learning.js";
 import {
@@ -803,8 +813,9 @@ export class CimiLoopKernel {
       case "ExportProject":
         return this.#exportProject(transaction, command);
       case "StageImport":
+        return this.#stageImport(transaction, command);
       case "CommitImport":
-        return this.#unsupported(command);
+        return this.#commitImport(transaction, command);
     }
   }
 
@@ -4890,6 +4901,169 @@ export class CimiLoopKernel {
       [event],
       { learning_candidate: candidate }
     );
+  }
+
+  #stageImport(transaction: StoreTransaction, command: StageImportCommand): KernelResult {
+    const existing = transaction.getCurrentProject();
+    if (existing) {
+      const context = this.#requireProjectActor(transaction, command);
+      if ("code" in context) return context;
+      if (command.expected_revision !== existing.revision) {
+        return domainError(command.correlation_id, "REVISION_CONFLICT", "目标对象已被其他命令修改，请刷新后重试", "conflict", false, {
+          current_revision: existing.revision
+        });
+      }
+    } else if (command.expected_revision !== 1) {
+      return domainError(command.correlation_id, "REVISION_CONFLICT", "空目标导入必须使用 expected_revision=1", "conflict");
+    }
+    const allowedRoot = existing?.repository_path ?? dirname(command.payload.bundle_reference.replace(/^file:\/\//, ""));
+    try {
+      const staged = stageImportBundle({
+        allowedRoot,
+        bundleReference: command.payload.bundle_reference,
+        bundleDigest: command.payload.bundle_digest,
+        maxBytes: 5_000_000,
+        reportId: this.#id(),
+        stagedAt: this.#now()
+      });
+      const report = {
+        ...staged.report,
+        summary: `content_digest=${staged.historyDigest}; ${staged.report.summary}`
+      };
+      transaction.insertImportReport(report);
+      const events = existing
+        ? [
+            this.#appendEvent(transaction, {
+              event_type: "ImportStaged",
+              project_id: existing.id,
+              aggregate: { object_type: "import_report", id: report.id, domain_version: 1 },
+              aggregate_revision: 1,
+              actor_id: command.actor_id,
+              command,
+              payload: { import_report_id: report.id, runtime_ownership: report.runtime_ownership },
+              occurred_at: this.#now()
+            })
+          ]
+        : [];
+      return this.#success(
+        command,
+        { object_type: "import_report", id: report.id, domain_version: 1 },
+        existing?.revision ?? 1,
+        events,
+        { import_report: report }
+      );
+    } catch (error) {
+      if (error instanceof PortableImportError) {
+        return domainError(command.correlation_id, error.code, error.message, "validation");
+      }
+      throw error;
+    }
+  }
+
+  #commitImport(transaction: StoreTransaction, command: CommitImportCommand): KernelResult {
+    const report = transaction.getImportReport(command.payload.import_report_id);
+    if (!report) {
+      return domainError(command.correlation_id, "IMPORT_REPORT_NOT_FOUND", "未找到指定 Import Report", "not_found");
+    }
+    if (report.status !== "staged") {
+      return domainError(command.correlation_id, "IMPORT_NOT_STAGED", "只能提交已 staging 的 Import Report", "conflict");
+    }
+    const existing = transaction.getCurrentProject();
+    if (existing && command.expected_revision !== existing.revision) {
+      return domainError(command.correlation_id, "REVISION_CONFLICT", "目标对象已被其他命令修改，请刷新后重试", "conflict", false, {
+        current_revision: existing.revision
+      });
+    }
+    if (!existing && command.expected_revision !== 1) {
+      return domainError(command.correlation_id, "REVISION_CONFLICT", "空目标导入必须使用 expected_revision=1", "conflict");
+    }
+    const incomingDigest = /content_digest=([0-9a-f]{64})/.exec(report.summary)?.[1] ?? "";
+    const history = classifyImportHistory({
+      ...(existing ? { localProjectId: existing.id, localDigest: this.#currentContentDigest(existing.id) } : {}),
+      incomingProjectId: report.project_id,
+      incomingDigest
+    });
+    if (history === "divergent") {
+      const rejected = createImportReport({
+        id: this.#id(),
+        projectId: report.project_id,
+        stagedAt: this.#now(),
+        status: "rejected",
+        conflicts: ["DIVERGENT_HISTORY"],
+        digestMismatches: incomingDigest ? [incomingDigest] : [],
+        summary: "Local project history diverges from the staged bundle."
+      });
+      transaction.insertImportReport(rejected);
+      return domainError(command.correlation_id, "DIVERGENT_HISTORY", "拒绝静默合并分叉历史", "conflict", false, {
+        import_report_id: rejected.id
+      });
+    }
+    const accepted = createImportReport({
+      id: this.#id(),
+      projectId: report.project_id,
+      stagedAt: this.#now(),
+      status: "accepted",
+      summary:
+        history === "identical"
+          ? "Import is idempotent with the existing project history."
+          : "Empty target accepted the staged bundle without activating runtime ownership."
+    });
+    transaction.insertImportReport(accepted);
+    const events = existing
+      ? [
+          this.#appendEvent(transaction, {
+            event_type: "ImportCommitted",
+            project_id: existing.id,
+            aggregate: { object_type: "import_report", id: accepted.id, domain_version: 1 },
+            aggregate_revision: 1,
+            actor_id: command.actor_id,
+            command,
+            payload: { import_report_id: accepted.id, runtime_ownership: accepted.runtime_ownership, history },
+            occurred_at: this.#now()
+          })
+        ]
+      : [];
+    return this.#success(
+      command,
+      { object_type: "import_report", id: accepted.id, domain_version: 1 },
+      existing?.revision ?? 1,
+      events,
+      { import_report: accepted }
+    );
+  }
+
+  #currentContentDigest(projectId: string): string {
+    const project = this.#store.getProject();
+    if (!project) return "";
+    const changes = this.#store.listChanges();
+    const events = this.#store.listEvents();
+    return exportProjectBundle({
+      projectId,
+      exporterActorId: project.id,
+      sourceInstanceId: project.instance_id,
+      exportedAt: this.#now(),
+      manifestId: this.#id(),
+      facts: [
+        {
+          object_type: "project",
+          schema_version: SCHEMA_VERSION,
+          id: project.id,
+          domain_version: project.revision,
+          payload: { ...project }
+        },
+        ...changes.map((change) => ({
+          object_type: "change",
+          schema_version: SCHEMA_VERSION,
+          id: change.id,
+          domain_version: change.revision,
+          payload: { ...change }
+        }))
+      ],
+      events: events.map((event) => ({ event_id: event.event_id, event_sequence: event.event_sequence })),
+      outbox: this.#store.listOutbox().map((item) => ({ id: item.id, status: item.status })),
+      ownershipState: "active",
+      latestRevision: project.revision
+    }).content_digest.value;
   }
 
   #touchChange(transaction: StoreTransaction, change: Change, expectedRevision: number, now: string): Change {

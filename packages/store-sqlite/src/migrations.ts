@@ -654,7 +654,7 @@ CREATE TABLE IF NOT EXISTS attention_items (
 
 CREATE TABLE IF NOT EXISTS import_reports (
   id TEXT PRIMARY KEY,
-  project_id TEXT NOT NULL REFERENCES projects(id),
+  project_id TEXT NOT NULL,
   status TEXT NOT NULL,
   runtime_ownership TEXT NOT NULL,
   payload_json TEXT NOT NULL
