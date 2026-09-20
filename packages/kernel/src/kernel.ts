@@ -12,11 +12,15 @@ import {
   type DomainError,
   type EventEnvelope,
   type BootstrapSoloGovernanceCommand,
+  type ContractVersion,
+  type GateEvaluation,
   type InitializeProjectCommand,
   type InternalId,
   type Project,
+  type RequestIntentDecisionCommand,
   type Role,
-  type SubmitContractCandidateCommand
+  type SubmitContractCandidateCommand,
+  type SubmitDecisionCommand
 } from "@cimiloop/protocol";
 import {
   StoreConflictError,
@@ -28,6 +32,14 @@ import {
 import { commandDigest } from "./canonical.js";
 import { createDraftChange, pauseDraftChange, resumeDraftChange } from "./change.js";
 import { createContractCandidate } from "./contract.js";
+import {
+  actorHasRole,
+  computeDecisionRequestDigest,
+  createDecisionRecord,
+  createDecisionRequest,
+  createFeedbackRecords
+} from "./decision.js";
+import { evaluateIntentGate } from "./gates/intent-gate.js";
 import { createKnowledgeImpactAssessment, validateKnowledgeImpact } from "./knowledge-impact.js";
 import { createRiskAssessment, createRiskProfile, validateRiskDimensions } from "./risk.js";
 import {
@@ -170,6 +182,10 @@ export class CimiLoopKernel {
         return this.#bootstrapSoloGovernance(transaction, command);
       case "SubmitContractCandidate":
         return this.#submitContractCandidate(transaction, command);
+      case "RequestIntentDecision":
+        return this.#requestIntentDecision(transaction, command);
+      case "SubmitDecision":
+        return this.#submitDecision(transaction, command);
       default:
         return domainError(
           command.correlation_id,
@@ -544,6 +560,286 @@ export class CimiLoopKernel {
       risk_assessment: riskAssessment,
       knowledge_assessment: knowledge
     });
+  }
+
+  #requestIntentDecision(
+    transaction: StoreTransaction,
+    command: RequestIntentDecisionCommand
+  ): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
+    if ("code" in loaded) return loaded;
+    const facts = this.#collectIntentFacts(transaction, loaded.change, command.correlation_id);
+    if ("code" in facts) return facts;
+    const now = this.#now();
+    for (const open of transaction.listOpenDecisionRequests()) {
+      if (open.change_id === loaded.change.id && open.request_type === "intent") {
+        transaction.updateDecisionRequest({ ...open, status: "expired", updated_at: now, revision: open.revision + 1 }, open.revision);
+      }
+    }
+    const request = createDecisionRequest({
+      id: this.#id(),
+      projectId: loaded.project.id,
+      changeId: loaded.change.id,
+      requestType: "intent",
+      requiredRoleKey: "intent_owner",
+      candidateId: facts.candidate.id,
+      candidateRevision: facts.candidate.revision,
+      profileId: facts.profile.id,
+      profileVersion: facts.profile.domain_version,
+      riskAssessmentId: facts.riskAssessment.id,
+      knowledgeAssessmentId: facts.knowledge.id,
+      policySnapshotId: facts.snapshot.id,
+      digest: facts.digest,
+      now
+    });
+    transaction.insertDecisionRequest(request);
+    const gate = this.#recordGate(transaction, loaded.change, "intent", "REQUIRE_HUMAN", facts.snapshot.id, facts.digest, now, request.id);
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "IntentDecisionRequested",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "decision_request", id: request.id, domain_version: 1 },
+      aggregate_revision: request.revision,
+      actor_id: loaded.actorId,
+      command,
+      payload: { change_id: loaded.change.id, request_id: request.id, gate_id: gate.id },
+      occurred_at: now
+    });
+    return this.#success(command, event.aggregate, nextChange.revision, [event], { request });
+  }
+
+  #submitDecision(transaction: StoreTransaction, command: SubmitDecisionCommand): KernelResult {
+    if (command.source.origin === "agent") {
+      return domainError(
+        command.correlation_id,
+        "HUMAN_ACTOR_REQUIRED",
+        "Agent Actor 不能提交正式 Human Decision",
+        "forbidden"
+      );
+    }
+    const context = this.#requireProjectActor(transaction, command);
+    if ("code" in context) return context;
+    const request = transaction.getDecisionRequest(command.payload.request_id);
+    if (!request) {
+      return domainError(command.correlation_id, "DECISION_REQUEST_NOT_FOUND", "未找到指定 Decision Request", "not_found");
+    }
+    const loaded = this.#requireChangeForMutation(transaction, command, request.change_id);
+    if ("code" in loaded) return loaded;
+    if (request.status !== "open") {
+      return domainError(command.correlation_id, "DECISION_REQUEST_EXPIRED", "Decision Request 已过期或已结束", "conflict");
+    }
+    const roles = transaction.listRoles();
+    const assignments = transaction.listAssignments(loaded.project.id);
+    if (
+      !actorHasRole(assignments, roles, loaded.actorId, command.payload.acting_role_id, request.required_role_key)
+    ) {
+      return domainError(
+        command.correlation_id,
+        "ROLE_NOT_ALLOWED",
+        "当前 acting role 无权提交该 Decision",
+        "forbidden"
+      );
+    }
+    const facts = this.#collectIntentFacts(transaction, loaded.change, command.correlation_id);
+    if ("code" in facts) return facts;
+    if (facts.digest !== request.digest.value) {
+      transaction.updateDecisionRequest(
+        { ...request, status: "expired", updated_at: this.#now(), revision: request.revision + 1 },
+        request.revision
+      );
+      return domainError(command.correlation_id, "DECISION_REQUEST_EXPIRED", "输入已变化，原 Decision Request 已过期", "conflict");
+    }
+
+    const now = this.#now();
+    const decision = createDecisionRecord({
+      id: this.#id(),
+      request,
+      actorId: loaded.actorId,
+      actingRoleId: command.payload.acting_role_id,
+      outcome: command.payload.outcome,
+      reason: command.payload.reason,
+      now
+    });
+    transaction.insertDecision(decision);
+    for (const feedback of createFeedbackRecords(command.payload.feedback, decision, () => this.#id())) {
+      transaction.insertFeedback(feedback);
+    }
+    transaction.updateDecisionRequest(
+      { ...request, status: "decided", updated_at: now, revision: request.revision + 1 },
+      request.revision
+    );
+
+    const gateResult = evaluateIntentGate({
+      hasCompleteCandidate: true,
+      hasHumanApproval: command.payload.outcome === "approve",
+      digestMatches: true,
+      rejected: command.payload.outcome === "reject"
+    });
+    const gate = this.#recordGate(
+      transaction,
+      loaded.change,
+      request.request_type,
+      gateResult,
+      facts.snapshot.id,
+      facts.digest,
+      now,
+      request.id,
+      decision.id
+    );
+
+    let nextChange = loaded.change;
+    let contract: ContractVersion | undefined;
+    if (command.payload.outcome === "reject") {
+      nextChange = {
+        ...loaded.change,
+        operating_status: "Paused",
+        pause_reason: command.payload.reason,
+        updated_at: now,
+        revision: loaded.change.revision + 1
+      };
+      transaction.updateChange(nextChange, loaded.expectedRevision);
+    } else if (command.payload.outcome === "request_changes") {
+      nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    } else if (gateResult === "ALLOW") {
+      contract = {
+        schema_version: SCHEMA_VERSION,
+        id: this.#id(),
+        contract_id: this.#id(),
+        project_id: loaded.project.id,
+        change_id: loaded.change.id,
+        domain_version: 1,
+        candidate_id: facts.candidate.id,
+        profile_key: facts.candidate.profile_key,
+        intent: facts.candidate.intent,
+        outcomes: facts.candidate.outcomes,
+        scope: facts.candidate.scope,
+        non_goals: facts.candidate.non_goals,
+        acceptance: facts.candidate.acceptance,
+        constraints: facts.candidate.constraints,
+        created_at: now
+      };
+      transaction.insertContractVersion(contract);
+      nextChange = {
+        ...loaded.change,
+        lifecycle_state: "IntentReady",
+        operating_status: "Active",
+        updated_at: now,
+        revision: loaded.change.revision + 1
+      };
+      transaction.updateChange(nextChange, loaded.expectedRevision);
+      transaction.insertTransition({
+        schema_version: SCHEMA_VERSION,
+        id: this.#id(),
+        project_id: loaded.project.id,
+        change_id: loaded.change.id,
+        command_id: command.command_id,
+        transition_type: "lifecycle_changed",
+        from_lifecycle: "Draft",
+        to_lifecycle: "IntentReady",
+        from_status: loaded.change.operating_status,
+        to_status: "Active",
+        gate_evaluation_id: gate.id,
+        decision_id: decision.id,
+        actor_id: loaded.actorId,
+        occurred_at: now
+      });
+    }
+
+    const event = this.#appendEvent(transaction, {
+      event_type: "DecisionSubmitted",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "change", id: nextChange.id, domain_version: 1 },
+      aggregate_revision: nextChange.revision,
+      actor_id: loaded.actorId,
+      command,
+      payload: {
+        request_id: request.id,
+        decision_id: decision.id,
+        outcome: decision.outcome,
+        gate_result: gate.result,
+        contract_version: contract?.domain_version
+      },
+      occurred_at: now
+    });
+    return this.#success(command, event.aggregate, nextChange.revision, [event], {
+      decision,
+      change: nextChange,
+      gate,
+      ...(contract ? { contract } : {})
+    });
+  }
+
+  #collectIntentFacts(transaction: StoreTransaction, change: Change, correlationId: InternalId) {
+    const candidate = transaction.getContractCandidateByChange(change.id);
+    const knowledge = transaction.getKnowledgeImpactAssessmentByChange(change.id);
+    const snapshot = transaction.getLatestPolicySnapshot(change.project_id);
+    const policy = transaction.getProjectPolicy(change.project_id);
+    const profile = transaction
+      .listChangeProfiles(change.project_id)
+      .find((item) => item.profile_key === candidate?.profile_key);
+    const latestRisk = transaction.getLatestRiskAssessment(change.id);
+    if (!candidate || !knowledge || !snapshot || !policy || !profile || !latestRisk) {
+      return domainError(
+        correlationId,
+        "CONTRACT_ASSESSMENT_INVALID",
+        "Intent Decision 缺少完整 Contract/Risk/Knowledge/Policy 输入",
+        "validation"
+      );
+    }
+    const assignments = transaction.listAssignments(change.project_id);
+    const roles = transaction.listRoles();
+    const digest = computeDecisionRequestDigest({
+      change_id: change.id,
+      candidate_id: candidate.id,
+      candidate_revision: candidate.revision,
+      profile_id: profile.id,
+      profile_version: profile.domain_version,
+      risk_assessment_id: latestRisk.id,
+      knowledge_assessment_id: knowledge.id,
+      policy_snapshot_id: snapshot.id,
+      required_role_key: policy.intent_required_role,
+      scope: candidate.scope,
+      assignments: assignments.map((assignment) => ({
+        actor_id: assignment.actor_id,
+        role_key: roles.find((role) => role.id === assignment.role_id)?.role_key ?? "project_owner",
+        scope_type: assignment.scope_type
+      }))
+    });
+    return { candidate, knowledge, snapshot, policy, profile, riskAssessment: latestRisk, digest };
+  }
+
+  #recordGate(
+    transaction: StoreTransaction,
+    change: Change,
+    gateType: GateEvaluation["gate_type"],
+    result: GateEvaluation["result"],
+    policySnapshotId: InternalId,
+    digestValue: string,
+    now: string,
+    requestId?: InternalId,
+    decisionId?: InternalId
+  ): GateEvaluation {
+    const gate: GateEvaluation = {
+      schema_version: SCHEMA_VERSION,
+      id: this.#id(),
+      project_id: change.project_id,
+      change_id: change.id,
+      gate_type: gateType,
+      result,
+      policy_snapshot_id: policySnapshotId,
+      digest: { algorithm: "sha256", value: digestValue, subject: `${gateType}_gate` },
+      created_at: now,
+      ...(requestId ? { request_id: requestId } : {}),
+      ...(decisionId ? { decision_id: decisionId } : {})
+    };
+    transaction.insertGateEvaluation(gate);
+    return gate;
+  }
+
+  #touchChange(transaction: StoreTransaction, change: Change, expectedRevision: number, now: string): Change {
+    const next = { ...change, updated_at: now, revision: change.revision + 1 };
+    transaction.updateChange(next, expectedRevision);
+    return next;
   }
 
   #requireChangeForMutation(

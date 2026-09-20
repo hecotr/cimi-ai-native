@@ -344,6 +344,14 @@ class SqliteTransaction implements StoreTransaction {
     return this.getPayload("SELECT payload_json FROM policy_snapshots WHERE id = ?", parsePolicySnapshot, id);
   }
 
+  getLatestPolicySnapshot(projectId: InternalId): PolicySnapshot | undefined {
+    return this.getPayload(
+      "SELECT payload_json FROM policy_snapshots WHERE project_id = ? ORDER BY policy_revision DESC, rowid DESC LIMIT 1",
+      parsePolicySnapshot,
+      projectId
+    );
+  }
+
   insertContractCandidate(candidate: ContractCandidate): void {
     this.database
       .prepare(
@@ -442,6 +450,14 @@ class SqliteTransaction implements StoreTransaction {
 
   getRiskAssessment(id: InternalId): RiskAssessment | undefined {
     return this.getPayload("SELECT payload_json FROM risk_assessments WHERE id = ?", parseRiskAssessment, id);
+  }
+
+  getLatestRiskAssessment(changeId: InternalId): RiskAssessment | undefined {
+    return this.getPayload(
+      "SELECT payload_json FROM risk_assessments WHERE change_id = ? ORDER BY rowid DESC LIMIT 1",
+      parseRiskAssessment,
+      changeId
+    );
   }
 
   insertKnowledgeImpactAssessment(assessment: KnowledgeImpactAssessment): void {

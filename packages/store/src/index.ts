@@ -94,6 +94,7 @@ export interface StoreTransaction {
 
   insertPolicySnapshot(snapshot: PolicySnapshot): void;
   getPolicySnapshot(id: InternalId): PolicySnapshot | undefined;
+  getLatestPolicySnapshot(projectId: InternalId): PolicySnapshot | undefined;
 
   insertContractCandidate(candidate: ContractCandidate): void;
   updateContractCandidate(candidate: ContractCandidate, expectedRevision: number): void;
@@ -114,6 +115,7 @@ export interface StoreTransaction {
 
   insertRiskAssessment(assessment: RiskAssessment): void;
   getRiskAssessment(id: InternalId): RiskAssessment | undefined;
+  getLatestRiskAssessment(changeId: InternalId): RiskAssessment | undefined;
 
   insertKnowledgeImpactAssessment(assessment: KnowledgeImpactAssessment): void;
   updateKnowledgeImpactAssessment(assessment: KnowledgeImpactAssessment, expectedRevision: number): void;
