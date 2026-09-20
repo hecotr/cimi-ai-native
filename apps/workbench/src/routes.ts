@@ -19,6 +19,10 @@ export interface WorkbenchKernel {
   listDecisionInbox(actorId: InternalId): DecisionInboxResult | DomainError;
   getDecisionRequest(requestId: InternalId): GetDecisionRequestResult | DomainError;
   listRoles(): Role[];
+  listWorkItemsByChange(changeId: InternalId): import("@cimiloop/protocol").WorkItem[];
+  listTasksByChange(changeId: InternalId): import("@cimiloop/protocol").Task[];
+  listOpenBlockers(changeId: InternalId): import("@cimiloop/protocol").Blocker[];
+  listAgentRuns(workItemId: InternalId): import("@cimiloop/protocol").AgentRunRecord[];
 }
 import { escapeHtml, page } from "./html.js";
 import { workbenchStyles } from "./styles.js";
@@ -99,7 +103,46 @@ export const renderChangeRoom = (context: WorkbenchContext, idOrKey: string): st
       <p>焦点：${escapeHtml(room.room.focus)}</p>
       <p>下一动作：${escapeHtml(room.room.next_action)}</p>
     </article>
-    ${forms}`,
+    ${forms}
+    <article class="card">
+      <h2>Task DAG</h2>
+      ${
+        context.kernel.listTasksByChange(change.id).length === 0
+          ? "<p class=\"muted\">尚无 Task。</p>"
+          : `<ul>${context.kernel
+              .listTasksByChange(change.id)
+              .map((task) => {
+                const items = context.kernel.listWorkItemsByChange(change.id).filter((item) => item.task_id === task.id);
+                const ready = items.some((item) => item.status === "ready");
+                return `<li>${escapeHtml(task.key)} · ${escapeHtml(task.title)} · ${ready ? "ready" : items[0]?.status ?? "pending"}</li>`;
+              })
+              .join("")}</ul>`
+      }
+    </article>
+    <article class="card">
+      <h2>Blockers</h2>
+      ${
+        context.kernel.listOpenBlockers(change.id).length === 0
+          ? "<p class=\"muted\">没有开放 Blocker。</p>"
+          : `<ul>${context.kernel
+              .listOpenBlockers(change.id)
+              .map((blocker) => `<li>${escapeHtml(blocker.code)} · ${escapeHtml(blocker.summary)}</li>`)
+              .join("")}</ul>`
+      }
+    </article>
+    <article class="card">
+      <h2>Runs</h2>
+      ${
+        context.kernel
+          .listWorkItemsByChange(change.id)
+          .flatMap((item) => context.kernel.listAgentRuns(item.id))
+          .map(
+            (run) =>
+              `<p class="muted">Run ${escapeHtml(run.id)} · ${escapeHtml(run.status)} · log ${escapeHtml(run.log_reference)}</p>`
+          )
+          .join("") || "<p class=\"muted\">尚无 Run。</p>"
+      }
+    </article>`,
     workbenchStyles
   );
 };

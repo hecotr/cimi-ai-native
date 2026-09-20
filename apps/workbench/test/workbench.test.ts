@@ -185,6 +185,9 @@ describe("local workbench", () => {
     expect(room.status).toBe(200);
     const roomHtml = await room.text();
     expect(roomHtml).toContain("Intent Owner 批准 Contract");
+    expect(roomHtml).toContain("Task DAG");
+    expect(roomHtml).toContain("Blockers");
+    expect(roomHtml).toContain("Runs");
     expect(roomHtml).toContain("/decisions/");
     expect(roomHtml).not.toContain(harness.workbench.databasePath);
 

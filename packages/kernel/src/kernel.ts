@@ -408,6 +408,17 @@ export class CimiLoopKernel {
     return this.#store.transaction((transaction) => transaction.listArtifactsByChange(changeId));
   }
 
+  getActiveLeaseByWorkItem(workItemId: InternalId): Lease | undefined {
+    return this.#store.transaction((transaction) => transaction.getActiveLeaseByWorkItem(workItemId));
+  }
+
+  listTasksByChange(changeId: InternalId): Task[] {
+    return this.#store.transaction((transaction) => {
+      const plan = transaction.getCurrentPlan(changeId);
+      return plan ? transaction.listTasks(plan.plan_id, plan.domain_version) : [];
+    });
+  }
+
   #dispatch(transaction: StoreTransaction, command: AnyCommand): KernelResult {
     switch (command.command_type) {
       case "InitializeProject":

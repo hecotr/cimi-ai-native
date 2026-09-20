@@ -1,0 +1,49 @@
+{
+  "profile_key": "feature",
+  "intent": "让 Planned Change 产生有边界 Work Item，并留下可追溯 Run 与 Artifact。",
+  "outcomes": [
+    "Ready Task 生成 Execution Work Item",
+    "Run 结果只记录事实，不直接完成 Task"
+  ],
+  "scope": {
+    "in": ["Work Item", "Run", "Context Pack", "Source Snapshot", "Artifact"],
+    "out": ["Production release", "Evidence Gate"]
+  },
+  "non_goals": ["不在 M2 批准生产发布", "不把 Runtime 成功当作 Gate"],
+  "acceptance": [
+    {
+      "key": "AC-run",
+      "statement": "Claimed Work Item 可以产生 Run、Snapshot 与 Artifact。"
+    }
+  ],
+  "constraints": [
+    "Runtime 不能修改权威状态",
+    "Secret 不得进入日志或 JSON 输出"
+  ],
+  "risk": {
+    "data_exposure": "none",
+    "security": "none",
+    "reliability": "local-only",
+    "reversibility": "fully_reversible"
+  },
+  "knowledge_impact": {
+    "product_business": {
+      "conclusion": "NoImpact",
+      "rationale": "本次只建立执行切片，不改变产品对外说明。"
+    },
+    "technical": {
+      "conclusion": "Update",
+      "owner_role": "technical_owner",
+      "gate": "change_closure",
+      "summary": "需要更新 M2 实施说明，记录 Work Item 与 Artifact 路径。"
+    },
+    "operations": {
+      "conclusion": "NoImpact",
+      "rationale": "无运行手册变化。"
+    },
+    "communication": {
+      "conclusion": "NoImpact",
+      "rationale": "无对外沟通材料需要更新。"
+    }
+  }
+}

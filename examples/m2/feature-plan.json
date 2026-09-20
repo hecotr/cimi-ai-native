@@ -1,0 +1,26 @@
+{
+  "summary": "为 Planned Change 创建 Execution Work Item，并记录 Run、Snapshot 与 Artifact。",
+  "verification_strategy": "通过 CLI/场景测试证明 Planned → Work Item → Run → Artifact。",
+  "recovery_considerations": "未知进程结果必须 reconciliation，不得盲目重试。",
+  "tasks": [
+    {
+      "key": "implement",
+      "title": "实现有边界执行",
+      "kind": "implementation",
+      "dependencies": []
+    },
+    {
+      "key": "verify",
+      "title": "验证 Run 与 Artifact",
+      "kind": "verification",
+      "dependencies": ["implement"]
+    },
+    {
+      "key": "update-docs",
+      "title": "更新 M2 实施说明",
+      "kind": "knowledge",
+      "knowledge_source": "technical",
+      "dependencies": ["verify"]
+    }
+  ]
+}

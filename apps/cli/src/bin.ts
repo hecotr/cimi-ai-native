@@ -18,6 +18,15 @@ import {
   submitContractCandidate,
   submitDecision,
   submitPlanCandidate,
+  tickScheduler,
+  listWorkItems,
+  showWorkItem,
+  claimWorkItem,
+  executeWorkItem,
+  listRuns,
+  showRun,
+  recordArtifact,
+  showArtifact,
   type GlobalOptions
 } from "./commands.js";
 import { outputError } from "./output.js";
@@ -152,6 +161,49 @@ program
   .command("timeline <change>")
   .description("查看 Change Timeline")
   .action((change, _options, command) => showTimeline(change, globals(command)));
+
+const workItem = program.command("work-item").description("Work Item 查询与领取");
+workItem.command("list <change>").description("列出 Change 的 Work Item").action((change, _options, command) =>
+  listWorkItems(change, globals(command))
+);
+workItem.command("show <id>").description("查看 Work Item").action((id, _options, command) =>
+  showWorkItem(id, globals(command))
+);
+workItem
+  .command("claim <id>")
+  .description("领取 Work Item")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((id, options, command) => claimWorkItem(id, { ...globals(command), ...options }));
+workItem
+  .command("execute <id>")
+  .description("在授权边界内执行 Work Item")
+  .requiredOption("--executable <path>", "Runtime executable")
+  .action(async (id, options, command) => executeWorkItem(id, { ...globals(command), ...options }));
+
+const runCommand = program.command("run").description("Run 查询");
+runCommand.command("list <work-item>").description("列出 Work Item 的 Run").action((workItemId, _options, command) =>
+  listRuns(workItemId, globals(command))
+);
+runCommand.command("show <id>").description("查看 Run").action((id, _options, command) => showRun(id, globals(command)));
+
+const artifact = program.command("artifact").description("Artifact 记录与查询");
+artifact
+  .command("record <run>")
+  .description("记录 Source Snapshot 与 Artifact")
+  .requiredOption("--file <path>", "制品文件")
+  .requiredOption("--summary <text>", "制品摘要")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((runId, options, command) => recordArtifact(runId, { ...globals(command), ...options }));
+artifact.command("show <id>").description("查看 Artifact").action((id, _options, command) =>
+  showArtifact(id, globals(command))
+);
+
+program
+  .command("scheduler")
+  .command("tick <change>")
+  .description("为 ready Task 创建 Execution Work Item")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((change, options, command) => tickScheduler(change, { ...globals(command), ...options }));
 
 program
   .command("doctor")

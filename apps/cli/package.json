@@ -10,6 +10,7 @@
     "@cimiloop/kernel": "workspace:*",
     "@cimiloop/orchestrator": "workspace:*",
     "@cimiloop/protocol": "workspace:*",
+    "@cimiloop/runtime-claude-code": "workspace:*",
     "@cimiloop/store-sqlite": "workspace:*",
     "commander": "15.0.0"
   }

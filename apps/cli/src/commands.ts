@@ -1,24 +1,33 @@
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { CimiLoopKernel } from "@cimiloop/kernel";
 import {
   SCHEMA_VERSION,
   createInternalId,
+  parseArtifactShowResult,
   parseChangeListResult,
   parseChangeRoomResult,
   parseChangeShowResult,
   parseCommandResult,
   parseDecisionInboxResult,
   parseDoctorResult,
+  parseRunListResult,
+  parseRunShowResult,
   parseTimelineResult,
+  parseWorkItemListResult,
+  parseWorkItemShowResult,
   type AnyCommand,
   type DecisionOutcome,
-  type InternalId
+  type InternalId,
+  type ProviderDescriptor
 } from "@cimiloop/protocol";
+import { ClaudeCodeRuntimeAdapter } from "@cimiloop/runtime-claude-code";
 import { SqliteProjectRegistry, SqliteProjectStore } from "@cimiloop/store-sqlite";
-import { openProject } from "./composition.js";
+import { createRunOrchestrator, openProject } from "./composition.js";
 import { writeInstance } from "./instance.js";
 import { locateProject, readGitIdentity, registryDatabasePath } from "./location.js";
 import { formatChangeRoom, formatDecisionInbox, inputError, isDomainError, outputError, outputJson } from "./output.js";
@@ -478,6 +487,238 @@ export const doctor = (options: GlobalOptions): void => {
       stdout.write("CimiLoop Project 健康检查通过。\n");
       stdout.write(`Change：${report.changes}，Event：${report.events}，待投递 Outbox：${report.pending_outbox}\n`);
     }
+  } finally {
+    context.store.close();
+  }
+};
+
+const sha256 = (value: string | Buffer, subject: string) => ({
+  algorithm: "sha256" as const,
+  value: createHash("sha256").update(value).digest("hex"),
+  subject
+});
+
+const mutate = (
+  context: ReturnType<typeof openProject>,
+  changeId: string,
+  commandType: AnyCommand["command_type"],
+  payload: Record<string, unknown>,
+  options: GlobalOptions & { expectedRevision?: string }
+) => {
+  const change = context.kernel.getChange(changeId);
+  if (isDomainError(change)) return change;
+  const ids = commandIdentity(options);
+  return context.kernel.execute({
+    schema_version: SCHEMA_VERSION,
+    command_id: ids.commandId,
+    correlation_id: ids.correlationId,
+    command_type: commandType,
+    requested_at: now(),
+    project_id: context.instance.project_id,
+    actor_id: context.instance.actor_id,
+    expected_revision: options.expectedRevision ? Number(options.expectedRevision) : change.revision,
+    target: { object_type: "change", id: change.id, domain_version: 1 },
+    source: source(context.location.repositoryPath),
+    payload
+  } as AnyCommand);
+};
+
+const defaultProvider = (projectId: InternalId): ProviderDescriptor => ({
+  schema_version: SCHEMA_VERSION,
+  id: createInternalId(),
+  project_id: projectId,
+  provider_type: "runtime",
+  name: "claude-code",
+  implementation_version: "cli",
+  capability_ids: ["code.modify"],
+  version_digest: sha256("claude-code/cli", "provider"),
+  created_at: now()
+});
+
+export const tickScheduler = (idOrKey: string, options: GlobalOptions & { expectedRevision?: string }): void => {
+  const context = openProject(options);
+  try {
+    const change = context.kernel.getChange(idOrKey);
+    if (isDomainError(change)) return outputError(change, Boolean(options.json));
+    const result = mutate(context, change.id, "CreateExecutionWorkItems", { change_id: change.id }, options);
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    if ("work_items" in result.data) {
+      stdout.write(`已调度 ${result.data.work_items.length} 个 Work Item。\n`);
+    }
+  } finally {
+    context.store.close();
+  }
+};
+
+export const listWorkItems = (idOrKey: string, options: GlobalOptions): void => {
+  const context = openProject(options);
+  try {
+    const change = context.kernel.getChange(idOrKey);
+    if (isDomainError(change)) return outputError(change, Boolean(options.json));
+    const work_items = context.kernel.listWorkItemsByChange(change.id);
+    if (options.json) return outputJson({ ok: true, work_items }, parseWorkItemListResult);
+    if (work_items.length === 0) return void stdout.write("当前 Change 没有 Work Item。\n");
+    for (const item of work_items) {
+      stdout.write(`${item.id}\t${item.kind}\t${item.status}\n`);
+    }
+  } finally {
+    context.store.close();
+  }
+};
+
+export const showWorkItem = (workItemId: string, options: GlobalOptions): void => {
+  const context = openProject(options);
+  try {
+    const workItem = context.kernel.getWorkItem(workItemId as InternalId);
+    if (isDomainError(workItem)) return outputError(workItem, Boolean(options.json));
+    const lease = context.kernel.getActiveLeaseByWorkItem(workItem.id);
+    if (options.json) {
+      return outputJson({ ok: true, work_item: workItem, ...(lease ? { lease } : {}) }, parseWorkItemShowResult);
+    }
+    stdout.write(`${workItem.id} ${workItem.kind} ${workItem.status}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const claimWorkItem = (workItemId: string, options: GlobalOptions & { expectedRevision?: string }): void => {
+  const context = openProject(options);
+  try {
+    const workItem = context.kernel.getWorkItem(workItemId as InternalId);
+    if (isDomainError(workItem)) return outputError(workItem, Boolean(options.json));
+    const result = mutate(context, workItem.change_id, "ClaimWorkItem", { work_item_id: workItem.id }, options);
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    stdout.write(`已领取 Work Item ${workItem.id}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const executeWorkItem = async (
+  workItemId: string,
+  options: GlobalOptions & { executable: string }
+): Promise<void> => {
+  const context = openProject(options);
+  try {
+    const workItem = context.kernel.getWorkItem(workItemId as InternalId);
+    if (isDomainError(workItem)) return outputError(workItem, Boolean(options.json));
+    const orchestrator = createRunOrchestrator(context.kernel, {
+      runtime: new ClaudeCodeRuntimeAdapter({
+        executable: options.executable,
+        logDirectory: join(context.location.dataDirectory, "runtime-logs"),
+        timeoutMs: 30_000
+      }),
+      projectId: context.instance.project_id,
+      actorId: context.instance.actor_id,
+      worktreePath: join(context.location.dataDirectory, "worktrees", workItem.change_id),
+      contextDirectory: join(context.location.dataDirectory, "context"),
+      providers: [defaultProvider(context.instance.project_id)],
+      actorPermissions: ["workspace.write", "git.commit"],
+      providerPermissions: ["workspace.write", "git.commit"]
+    });
+    const result = await orchestrator.executeReadyWorkItem(workItem.change_id);
+    if (result.kind === "failed") {
+      return outputError(inputError("ORCHESTRATOR_FAILURE", result.error), Boolean(options.json));
+    }
+    if (result.kind === "blocked") {
+      return outputError(inputError(result.code, "缺少执行能力"), Boolean(options.json));
+    }
+    const run = context.kernel.getAgentRun(result.run.id);
+    if (isDomainError(run)) return outputError(run, Boolean(options.json));
+    if (options.json) return outputJson({ ok: true, run }, parseRunShowResult);
+    stdout.write(`Run ${run.id} ${run.status}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const listRuns = (workItemId: string, options: GlobalOptions): void => {
+  const context = openProject(options);
+  try {
+    const workItem = context.kernel.getWorkItem(workItemId as InternalId);
+    if (isDomainError(workItem)) return outputError(workItem, Boolean(options.json));
+    const runs = context.kernel.listAgentRuns(workItem.id);
+    if (options.json) return outputJson({ ok: true, runs }, parseRunListResult);
+    for (const run of runs) stdout.write(`${run.id}\t${run.status}\t${run.attempt}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const showRun = (runId: string, options: GlobalOptions): void => {
+  const context = openProject(options);
+  try {
+    const run = context.kernel.getAgentRun(runId as InternalId);
+    if (isDomainError(run)) return outputError(run, Boolean(options.json));
+    if (options.json) return outputJson({ ok: true, run }, parseRunShowResult);
+    stdout.write(`${run.id} ${run.status} attempt ${run.attempt}\n`);
+    stdout.write(`log: ${run.log_reference}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const recordArtifact = (
+  runId: string,
+  options: GlobalOptions & { file: string; summary: string; expectedRevision?: string }
+): void => {
+  const context = openProject(options);
+  try {
+    const run = context.kernel.getAgentRun(runId as InternalId);
+    if (isDomainError(run)) return outputError(run, Boolean(options.json));
+    if (!existsSync(options.file)) writeFileSync(options.file, "");
+    const bytes = readFileSync(options.file);
+    const snapshot = mutate(
+      context,
+      run.change_id,
+      "RecordSourceSnapshot",
+      {
+        run_id: run.id,
+        snapshot_kind: "explicit_dirty_manifest",
+        dirty: true,
+        digest: sha256(run.id, "source_snapshot"),
+        content_reference: `worktree://${run.change_id}#dirty`
+      },
+      options
+    );
+    if (isDomainError(snapshot) || !("snapshot" in snapshot.data)) {
+      return outputError(
+        isDomainError(snapshot) ? snapshot : inputError("SNAPSHOT_NOT_FOUND", "无法记录 Snapshot"),
+        Boolean(options.json)
+      );
+    }
+    const recorded = mutate(
+      context,
+      run.change_id,
+      "RecordArtifact",
+      {
+        run_id: run.id,
+        source_snapshot_id: snapshot.data.snapshot.id,
+        context_pack_id: run.context_pack_id,
+        binding_id: run.binding_id,
+        digest: sha256(bytes, "artifact"),
+        content_reference: pathToFileURL(resolve(options.file)).href,
+        summary: options.summary
+      },
+      options
+    );
+    if (isDomainError(recorded)) return outputError(recorded, Boolean(options.json));
+    if (options.json) return outputJson(recorded, parseCommandResult);
+    if ("artifact" in recorded.data) stdout.write(`Artifact ${recorded.data.artifact.id}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const showArtifact = (artifactId: string, options: GlobalOptions): void => {
+  const context = openProject(options);
+  try {
+    const artifact = context.kernel.getArtifact(artifactId as InternalId);
+    if (isDomainError(artifact)) return outputError(artifact, Boolean(options.json));
+    if (options.json) return outputJson({ ok: true, artifact }, parseArtifactShowResult);
+    stdout.write(`${artifact.id} ${artifact.status} ${artifact.content_reference}\n`);
   } finally {
     context.store.close();
   }

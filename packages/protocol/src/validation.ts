@@ -62,6 +62,18 @@ import {
   type TimelineResult
 } from "./m1/results.js";
 import {
+  ArtifactShowResultSchema,
+  RunListResultSchema,
+  RunShowResultSchema,
+  WorkItemListResultSchema,
+  WorkItemShowResultSchema,
+  type ArtifactShowResult,
+  type RunListResult,
+  type RunShowResult,
+  type WorkItemListResult,
+  type WorkItemShowResult
+} from "./m2/results.js";
+import {
   ChangeListResultSchema,
   ChangeShowResultSchema,
   DoctorResultSchema,
@@ -133,6 +145,11 @@ export const parseGetDecisionRequestResult = compileValidator<GetDecisionRequest
 export const parseDecisionInboxResult = compileValidator<DecisionInboxResult>(DecisionInboxResultSchema);
 export const parseChangeRoomResult = compileValidator<ChangeRoomResult>(ChangeRoomResultSchema);
 export const parseTimelineResult = compileValidator<TimelineResult>(TimelineResultSchema);
+export const parseWorkItemListResult = compileValidator<WorkItemListResult>(WorkItemListResultSchema);
+export const parseWorkItemShowResult = compileValidator<WorkItemShowResult>(WorkItemShowResultSchema);
+export const parseRunListResult = compileValidator<RunListResult>(RunListResultSchema);
+export const parseRunShowResult = compileValidator<RunShowResult>(RunShowResultSchema);
+export const parseArtifactShowResult = compileValidator<ArtifactShowResult>(ArtifactShowResultSchema);
 
 export const formatValidationErrors = (errors: readonly ErrorObject[]): string[] =>
   errors.map((error) => `${error.instancePath || "/"} ${error.message ?? "校验失败"}`);

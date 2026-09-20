@@ -187,6 +187,9 @@ importers:
       '@cimiloop/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
+      '@cimiloop/runtime-claude-code':
+        specifier: workspace:*
+        version: link:../../packages/runtime-claude-code
       '@cimiloop/store-sqlite':
         specifier: workspace:*
         version: link:../../packages/store-sqlite
