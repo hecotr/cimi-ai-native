@@ -4,9 +4,9 @@
 
 ## 当前阶段
 
-- 当前里程碑：M0 Kernel 最小闭环已完成并冻结。
-- 当前状态：M0 工程骨架、首个可恢复纵向切片、Schema、Store Port 契约和可靠性场景均已实现，并已在 Node.js 24.15.0 + pnpm 12.4.2 基线上完成复验。
-- 下一里程碑：M1 意图、计划与人工决策。
+- 当前里程碑：M1 意图、计划与人工决策开发中。
+- 当前状态：M0 Kernel 最小闭环已冻结。M1 已建立固定时钟、确定性 ID、临时 SQLite 与 Human/Agent Command 夹具，以及 `Draft → Planned` 垂直切片失败基线；Contract、Plan、Decision 与 Gate 尚未实现。
+- 下一里程碑：完成 M1 后进入 M2 执行、上下文与不可变产物。
 - 实施基线：[CimiLoop M0 实施架构 v0.1](2026-09-19-cimiloop-m0实施架构-v0.1.md)。
 
 ## 已确认技术决策
