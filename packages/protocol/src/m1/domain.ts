@@ -248,7 +248,8 @@ export const DecisionRequestSchema = Type.Object(
     required_role_key: Type.Union([
       Type.Literal("intent_owner"),
       Type.Literal("technical_owner"),
-      Type.Literal("project_owner")
+      Type.Literal("project_owner"),
+      Type.Literal("release_owner")
     ]),
     candidate_id: InternalIdSchema,
     candidate_revision: Type.Integer({ minimum: 1 }),
@@ -325,7 +326,8 @@ export const DecisionInboxItemSchema = Type.Object(
     required_role_key: Type.Union([
       Type.Literal("intent_owner"),
       Type.Literal("technical_owner"),
-      Type.Literal("project_owner")
+      Type.Literal("project_owner"),
+      Type.Literal("release_owner")
     ]),
     status: Type.Literal("open"),
     created_at: ImmutableMetadata.created_at,

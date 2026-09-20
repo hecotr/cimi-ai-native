@@ -61,7 +61,8 @@ export const GovernanceRoleKeySchema = Type.Union([
   Type.Literal("project_owner"),
   Type.Literal("change_owner"),
   Type.Literal("intent_owner"),
-  Type.Literal("technical_owner")
+  Type.Literal("technical_owner"),
+  Type.Literal("release_owner")
 ]);
 
 export const DecisionRequestTypeSchema = Type.Union([

@@ -756,6 +756,49 @@ export const submitClaim = (
   }
 };
 
+export const promoteTestResult = (
+  idOrKey: string,
+  options: GlobalOptions & {
+    claim: string;
+    artifact: string;
+    digest: string;
+    file: string;
+    format: string;
+    expectedRevision?: string;
+  }
+): void => {
+  const context = openProject(options);
+  try {
+    const change = context.kernel.getChange(idOrKey);
+    if (isDomainError(change)) return outputError(change, Boolean(options.json));
+    const absolute = resolve(options.file);
+    if (!existsSync(absolute)) {
+      return outputError(inputError("ARTIFACT_REFERENCE_INVALID", "测试结果文件不存在"), Boolean(options.json));
+    }
+    const bytes = readFileSync(absolute);
+    const result = mutate(
+      context,
+      change.id,
+      "PromoteTestResult",
+      {
+        change_id: change.id,
+        claim_id: options.claim,
+        artifact_id: options.artifact,
+        artifact_digest: { algorithm: "sha256", value: options.digest, subject: "artifact" },
+        format: options.format,
+        content_reference: pathToFileURL(absolute).href,
+        digest: { algorithm: "sha256", value: createHash("sha256").update(bytes).digest("hex"), subject: "test_result" }
+      },
+      options
+    );
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    if ("evidence" in result.data) stdout.write(`Evidence ${result.data.evidence.id} ${result.data.evidence.stance}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
 export const showClaim = (claimId: string, options: GlobalOptions): void => {
   const context = openProject(options);
   try {

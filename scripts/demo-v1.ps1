@@ -46,6 +46,7 @@ $bootstrapped = Invoke-CimiLoop governance bootstrap-solo $created.data.change.i
 $intentRole = $bootstrapped.data.roles | Where-Object { $_.role_key -eq "intent_owner" }
 $technicalRole = $bootstrapped.data.roles | Where-Object { $_.role_key -eq "technical_owner" }
 $projectRole = $bootstrapped.data.roles | Where-Object { $_.role_key -eq "project_owner" }
+$releaseRole = $bootstrapped.data.roles | Where-Object { $_.role_key -eq "release_owner" }
 Invoke-CimiLoop contract submit CHG-0001 --file $contractFile | Out-Null
 $intentRequest = Invoke-CimiLoop contract request-review CHG-0001
 Invoke-CimiLoop decision submit $intentRequest.data.request.id --outcome approve --acting-role $intentRole.id --reason "Demo approve contract" | Out-Null
@@ -61,8 +62,12 @@ $runs = Invoke-CimiLoop run list $workItemId
 $artifact = Invoke-CimiLoop artifact record $runs.runs[0].id --file $artifactFile --summary "V1 demo artifact"
 $artifactId = $artifact.data.artifact.id
 $artifactDigest = $artifact.data.artifact.digest.value
-$claim = Invoke-CimiLoop claim submit CHG-0001 --key "AC-1" --statement "Acceptance passed." --category intent --obligation required --source acceptance
-$evidence = Invoke-CimiLoop evidence record CHG-0001 --claim $claim.data.claim.id --stance Supports --subject-type artifact --subject-id $artifactId --subject-digest $artifactDigest --reference "repo://docs/api.md#v1" --digest ("c" * 64) --producer human
+$junit = Join-Path $demoRoot "junit.xml"
+Set-Content -Path $junit -Value '<testsuite failures="0" tests="1"></testsuite>' -Encoding ASCII
+$claim = Invoke-CimiLoop claim submit CHG-0001 --key "AC-run" --statement "Claimed Work Item produced Run and Artifact." --category intent --obligation required --source acceptance
+$integrity = Invoke-CimiLoop claim submit CHG-0001 --key "integrity.digest" --statement "Artifact digest is independently verified." --category integrity --obligation required --source contract
+Invoke-CimiLoop evidence promote CHG-0001 --claim $claim.data.claim.id --artifact $artifactId --digest $artifactDigest --file $junit --format junit | Out-Null
+$evidence = Invoke-CimiLoop evidence promote CHG-0001 --claim $integrity.data.claim.id --artifact $artifactId --digest $artifactDigest --file $junit --format junit
 $evaluation = Invoke-CimiLoop evaluate complete CHG-0001 --evaluation-id "0199a000-0000-7000-8000-00000000e001" --artifact $artifactId --digest $artifactDigest --input-digest ("d" * 64) --result DENY --reason "evaluator self-score"
 if ($evaluation.data.evaluation.result -ne "ALLOW") {
   throw "Expected Kernel ALLOW, got $($evaluation.data.evaluation.result)"
@@ -81,7 +86,7 @@ Invoke-CimiLoop deployment record-result $verify.data.operation.id --key $verify
 $prodEnv = Invoke-CimiLoop environment register CHG-0001 --key "prod" --kind production --name "Production" --adapter "file://examples/acceptance-target"
 $prodRelease = Invoke-CimiLoop release create CHG-0001 --kind production --artifact $artifactId --digest $artifactDigest --environment $prodEnv.data.environment.id --scope "production.service" --window-start "2026-09-20T00:00:00.000Z" --window-end "2026-09-21T00:00:00.000Z" --recovery-file $prodRecoveryFile
 $releaseRequest = Invoke-CimiLoop release request-review $prodRelease.data.release.id
-Invoke-CimiLoop decision submit $releaseRequest.data.request.id --outcome approve --acting-role $projectRole.id --reason "Demo approve production release" | Out-Null
+Invoke-CimiLoop decision submit $releaseRequest.data.request.id --outcome approve --acting-role $releaseRole.id --reason "Demo approve production release" | Out-Null
 $prodDeploy = Invoke-CimiLoop release queue $prodRelease.data.release.id --environment $prodEnv.data.environment.id
 Invoke-CimiLoop deployment record-result $prodDeploy.data.operation.id --key $prodDeploy.data.operation.operation_key --state succeeded --log-reference "file://logs/v1-prod-deploy.log" --log-digest ("a" * 64) --summary "prod deploy" --actual-digest $artifactDigest | Out-Null
 $prodStatus = Invoke-CimiLoop release queue $prodRelease.data.release.id --environment $prodEnv.data.environment.id

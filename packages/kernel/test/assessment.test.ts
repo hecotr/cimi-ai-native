@@ -437,4 +437,108 @@ describe("CompleteEvaluation kernel command", () => {
     if (!("evaluation" in reused.data)) throw new Error("missing reused evaluation");
     expect(reused.data.evaluation.id).toBe(completed.data.evaluation.id);
   });
+
+  it("does not ALLOW when required requirement-set items are missing or only have human evidence", () => {
+    const directory = mkdtempSync(join(tmpdir(), "cimiloop-assess-incomplete-"));
+    temporaryDirectories.push(directory);
+    const store = new SqliteProjectStore(join(directory, "project.db"));
+    openStores.push(store);
+    const kernel = new CimiLoopKernel({ store, now: () => now });
+    const ctx = bootstrap(kernel);
+    const sourceWorkItem = createPlanningWorkItem({
+      id: createInternalId(),
+      projectId: ctx.projectId,
+      changeId: ctx.changeId,
+      contractId: createInternalId(),
+      contractVersion: 1,
+      policySnapshotId: createInternalId(),
+      now
+    });
+    const requirementSet: GateRequirementSet = {
+      schema_version: SCHEMA_VERSION,
+      id: createInternalId(),
+      project_id: ctx.projectId,
+      change_id: ctx.changeId,
+      version: 1,
+      profile_key: "feature",
+      policy_snapshot_id: createInternalId(),
+      contract_id: sourceWorkItem.contract_id,
+      contract_version: 1,
+      items: [
+        {
+          claim_key: "AC-run",
+          obligation: "required",
+          source: "acceptance",
+          accepted_evidence_kinds: ["evaluator", "deterministic_test"]
+        },
+        {
+          claim_key: "integrity.digest",
+          obligation: "required",
+          source: "contract",
+          accepted_evidence_kinds: ["deterministic_test"]
+        }
+      ],
+      digest: digest("requirement_set"),
+      created_at: now
+    };
+    const artifact: Artifact = {
+      schema_version: SCHEMA_VERSION,
+      id: createInternalId(),
+      project_id: ctx.projectId,
+      change_id: ctx.changeId,
+      work_item_id: sourceWorkItem.id,
+      run_id: createInternalId(),
+      context_pack_id: createInternalId(),
+      binding_id: createInternalId(),
+      source_snapshot_id: createInternalId(),
+      contract_id: requirementSet.contract_id,
+      contract_version: 1,
+      plan_id: createInternalId(),
+      plan_version: 1,
+      status: "candidate",
+      summary: "candidate artifact",
+      digest: digest("artifact"),
+      content_reference: "file://artifact.bin",
+      created_at: now
+    };
+    const unmatched = claim({
+      project_id: ctx.projectId,
+      change_id: ctx.changeId,
+      claim_key: "AC-1",
+      contract_id: requirementSet.contract_id,
+      requirement_set_id: requirementSet.id,
+      artifact_id: artifact.id,
+      artifact_digest: artifact.digest
+    });
+    store.transaction((transaction) => {
+      transaction.insertWorkItem(sourceWorkItem);
+      transaction.insertGateRequirementSet(requirementSet);
+      transaction.insertArtifact(artifact);
+      transaction.insertClaim(unmatched);
+      transaction.insertEvidence(evidence(unmatched, "Supports", "human"));
+    });
+    const completed = success(
+      kernel.execute(
+        envelope(
+          "CompleteEvaluation",
+          ctx.projectId,
+          ctx.actorId,
+          {
+            change_id: ctx.changeId,
+            evaluation_id: createInternalId(),
+            artifact_id: artifact.id,
+            artifact_digest: artifact.digest,
+            requirement_set_id: requirementSet.id,
+            input_digest: digest("ignored"),
+            result: "ALLOW",
+            reason: "human self-score"
+          },
+          ctx.revision,
+          ctx.changeId
+        )
+      )
+    );
+    if (!("evaluation" in completed.data)) throw new Error("missing evaluation");
+    expect(completed.data.evaluation.result).toBe("NEED_MORE_EVIDENCE");
+  });
 });

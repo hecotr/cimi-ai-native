@@ -13,9 +13,11 @@ export interface GovernanceIds {
   changeOwnerRoleId: InternalId;
   intentOwnerRoleId: InternalId;
   technicalOwnerRoleId: InternalId;
+  releaseOwnerRoleId: InternalId;
   changeOwnerAssignmentId: InternalId;
   intentOwnerAssignmentId: InternalId;
   technicalOwnerAssignmentId: InternalId;
+  releaseOwnerAssignmentId: InternalId;
   policyId: InternalId;
   snapshotId: InternalId;
   featureProfileId: InternalId;
@@ -45,6 +47,14 @@ export const createSoloRoles = (ids: GovernanceIds, now: string): Role[] => [
     id: ids.technicalOwnerRoleId,
     role_key: "technical_owner",
     display_name: "技术负责人",
+    created_at: now,
+    revision: 1
+  },
+  {
+    schema_version: SCHEMA_VERSION,
+    id: ids.releaseOwnerRoleId,
+    role_key: "release_owner",
+    display_name: "发布负责人",
     created_at: now,
     revision: 1
   }
@@ -86,6 +96,18 @@ export const createSoloAssignments = (
     project_id: projectId,
     actor_id: actorId,
     role_id: ids.technicalOwnerRoleId,
+    scope_type: "project",
+    scope_id: projectId,
+    effective_at: now,
+    created_at: now,
+    revision: 1
+  },
+  {
+    schema_version: SCHEMA_VERSION,
+    id: ids.releaseOwnerAssignmentId,
+    project_id: projectId,
+    actor_id: actorId,
+    role_id: ids.releaseOwnerRoleId,
     scope_type: "project",
     scope_id: projectId,
     effective_at: now,

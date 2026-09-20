@@ -7,7 +7,8 @@ const ROLE_SOURCES: Record<WorkItem["authorized_role_key"], readonly string[]> =
   project_owner: ["policy"],
   change_owner: ["contract", "plan", "policy"],
   intent_owner: ["contract", "policy"],
-  technical_owner: ["contract", "plan", "policy"]
+  technical_owner: ["contract", "plan", "policy"],
+  release_owner: ["contract", "plan", "policy"]
 };
 
 const canonicalize = (value: unknown): unknown => {

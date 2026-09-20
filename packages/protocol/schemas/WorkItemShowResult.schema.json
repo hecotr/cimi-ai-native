@@ -158,6 +158,10 @@
             {
               "type": "string",
               "const": "technical_owner"
+            },
+            {
+              "type": "string",
+              "const": "release_owner"
             }
           ]
         },

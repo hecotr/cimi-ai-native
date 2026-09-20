@@ -76,7 +76,7 @@ const recovery = {
   authorization: "preauthorized" as const
 };
 
-const bootstrap = (kernel: CimiLoopKernel) => {
+const bootstrap = (kernel: CimiLoopKernel, store: SqliteProjectStore) => {
   const initialized = success(
     kernel.execute({
       schema_version: SCHEMA_VERSION,
@@ -112,10 +112,35 @@ const bootstrap = (kernel: CimiLoopKernel) => {
     })
   );
   if (!("change" in created.data)) throw new Error("missing change");
+  const projectId = initialized.data.project.id;
+  const actorId = initialized.data.actor.id;
+  const releaseRoleId = createInternalId();
+  store.transaction((transaction) => {
+    transaction.insertRole({
+      schema_version: SCHEMA_VERSION,
+      id: releaseRoleId,
+      role_key: "release_owner",
+      display_name: "发布负责人",
+      created_at: now,
+      revision: 1
+    });
+    transaction.insertAssignment({
+      schema_version: SCHEMA_VERSION,
+      id: createInternalId(),
+      project_id: projectId,
+      actor_id: actorId,
+      role_id: releaseRoleId,
+      scope_type: "project",
+      scope_id: projectId,
+      effective_at: now,
+      created_at: now,
+      revision: 1
+    });
+  });
   return {
-    projectId: initialized.data.project.id,
-    actorId: initialized.data.actor.id,
-    roleId: initialized.data.assignment.role_id,
+    projectId,
+    actorId,
+    roleId: releaseRoleId,
     changeId: created.data.change.id,
     revision: created.data.change.revision
   };
@@ -433,7 +458,7 @@ describe("M4 production promotion", () => {
     const store = new SqliteProjectStore(join(directory, "project.db"));
     openStores.push(store);
     const kernel = new CimiLoopKernel({ store, now: () => now });
-    const ctx = bootstrap(kernel);
+    const ctx = bootstrap(kernel, store);
     const allowed = allowArtifact(store, kernel, ctx);
     const other = allowArtifact(store, kernel, ctx, "c".repeat(64));
     const testEnv = createEnvironment(kernel, ctx, other.revision, "acceptance-test", "test");
@@ -525,7 +550,7 @@ describe("M4 production promotion", () => {
     const store = new SqliteProjectStore(join(directory, "project.db"));
     openStores.push(store);
     const kernel = new CimiLoopKernel({ store, now: () => now });
-    const ctx = bootstrap(kernel);
+    const ctx = bootstrap(kernel, store);
     const allowed = allowArtifact(store, kernel, ctx);
     const testEnv = createEnvironment(kernel, ctx, allowed.revision, "acceptance-test", "test");
     const testRelease = success(

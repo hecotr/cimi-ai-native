@@ -115,9 +115,11 @@ describe("solo governance", () => {
     });
 
     const roles = harness.store.transaction((transaction) => transaction.listRoles().map((role) => role.role_key));
-    expect(roles).toEqual(expect.arrayContaining(["project_owner", "change_owner", "intent_owner", "technical_owner"]));
+    expect(roles).toEqual(
+      expect.arrayContaining(["project_owner", "change_owner", "intent_owner", "technical_owner", "release_owner"])
+    );
     const assignments = harness.store.transaction((transaction) => transaction.listAssignments(harness.projectId));
-    expect(assignments).toHaveLength(4);
+    expect(assignments).toHaveLength(5);
     expect(assignments.every((assignment) => assignment.actor_id === harness.actorId)).toBe(true);
     expect(harness.store.listEvents().some((event) => event.event_type === "SoloGovernanceBootstrapped")).toBe(true);
     expect(harness.store.listOutbox()).toHaveLength(harness.store.listEvents().length);
@@ -140,7 +142,7 @@ describe("solo governance", () => {
     const first = success(harness.kernel.execute(bootstrapCommand(harness, { commandId })));
     const second = success(harness.kernel.execute(bootstrapCommand(harness, { commandId })));
     expect(second).toEqual(first);
-    expect(harness.store.transaction((transaction) => transaction.listRoles())).toHaveLength(4);
+    expect(harness.store.transaction((transaction) => transaction.listRoles())).toHaveLength(5);
     expect(harness.store.listEvents().filter((event) => event.event_type === "SoloGovernanceBootstrapped")).toHaveLength(
       1
     );

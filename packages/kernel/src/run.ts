@@ -45,7 +45,11 @@ export const createContextPackForWorkItem = (input: {
       key: "contract",
       authority: "canonical" as const,
       location_ref: `cimi://contract/${input.workItem.contract_id}`,
-      digest: { algorithm: "sha256" as const, value: requestDigest(input.workItem.contract_id), subject: "contract" },
+      digest: {
+        algorithm: "sha256" as const,
+        value: requestDigest({ id: input.workItem.contract_id, version: input.workItem.contract_version }),
+        subject: "contract"
+      },
       freshness: "current" as const
     },
     {
@@ -54,7 +58,7 @@ export const createContextPackForWorkItem = (input: {
       location_ref: `cimi://policy/${input.workItem.policy_snapshot_id}`,
       digest: {
         algorithm: "sha256" as const,
-        value: requestDigest(input.workItem.policy_snapshot_id),
+        value: requestDigest({ id: input.workItem.policy_snapshot_id }),
         subject: "policy"
       },
       freshness: "current" as const
@@ -65,7 +69,11 @@ export const createContextPackForWorkItem = (input: {
             key: "plan",
             authority: "canonical" as const,
             location_ref: `cimi://plan/${input.workItem.plan_id}`,
-            digest: { algorithm: "sha256" as const, value: requestDigest(input.workItem.plan_id), subject: "plan" },
+            digest: {
+              algorithm: "sha256" as const,
+              value: requestDigest({ id: input.workItem.plan_id, version: input.workItem.plan_version }),
+              subject: "plan"
+            },
             freshness: "current" as const
           }
         ]

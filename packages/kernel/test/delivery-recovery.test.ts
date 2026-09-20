@@ -132,10 +132,35 @@ const prepareFailedProduction = (store: SqliteProjectStore, kernel: CimiLoopKern
     })
   );
   if (!("change" in created.data)) throw new Error("missing change");
+  const projectId = initialized.data.project.id;
+  const actorId = initialized.data.actor.id;
+  const releaseRoleId = createInternalId();
+  store.transaction((transaction) => {
+    transaction.insertRole({
+      schema_version: SCHEMA_VERSION,
+      id: releaseRoleId,
+      role_key: "release_owner",
+      display_name: "发布负责人",
+      created_at: now,
+      revision: 1
+    });
+    transaction.insertAssignment({
+      schema_version: SCHEMA_VERSION,
+      id: createInternalId(),
+      project_id: projectId,
+      actor_id: actorId,
+      role_id: releaseRoleId,
+      scope_type: "project",
+      scope_id: projectId,
+      effective_at: now,
+      created_at: now,
+      revision: 1
+    });
+  });
   const ctx = {
-    projectId: initialized.data.project.id,
-    actorId: initialized.data.actor.id,
-    roleId: initialized.data.assignment.role_id,
+    projectId,
+    actorId,
+    roleId: releaseRoleId,
     changeId: created.data.change.id
   };
   const sourceWorkItem = createPlanningWorkItem({

@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import {
   ProtocolValidationError,
@@ -132,7 +133,7 @@ import {
 import { evaluateIntentGate } from "./gates/intent-gate.js";
 import { evaluatePlanGate } from "./gates/plan-gate.js";
 import { resolveGateRequirementSet } from "./evidence/requirements.js";
-import { assessClaim } from "./evidence/assessment.js";
+import { assessRequirementSet } from "./evidence/assessment.js";
 import { evaluateEvidenceGate, evaluationInputDigest, findReusableEvaluation } from "./evidence/evaluation-gate.js";
 import { classifyImpact, projectValidity } from "./evidence/impact.js";
 import { createEvidenceFromCommand, producerRoleAllowedForOrigin } from "./evidence/ingest.js";
@@ -1076,9 +1077,11 @@ export class CimiLoopKernel {
       changeOwnerRoleId: this.#id(),
       intentOwnerRoleId: this.#id(),
       technicalOwnerRoleId: this.#id(),
+      releaseOwnerRoleId: this.#id(),
       changeOwnerAssignmentId: this.#id(),
       intentOwnerAssignmentId: this.#id(),
       technicalOwnerAssignmentId: this.#id(),
+      releaseOwnerAssignmentId: this.#id(),
       policyId: this.#id(),
       snapshotId: this.#id(),
       featureProfileId: this.#id(),
@@ -2668,14 +2671,16 @@ export class CimiLoopKernel {
         "validation"
       );
     }
-    const fileDigest = localReferenceDigest(command.payload.content_reference);
-    if (fileDigest && fileDigest !== command.payload.digest.value) {
-      return domainError(
-        command.correlation_id,
-        "ARTIFACT_DIGEST_MISMATCH",
-        "Artifact digest 必须等于本地文件字节的 sha256",
-        "validation"
-      );
+    if (command.payload.content_reference.startsWith("file:")) {
+      const fileDigest = localReferenceDigest(command.payload.content_reference);
+      if (!fileDigest || fileDigest !== command.payload.digest.value) {
+        return domainError(
+          command.correlation_id,
+          "ARTIFACT_DIGEST_MISMATCH",
+          "Artifact digest 必须等于本地文件字节的 sha256",
+          "validation"
+        );
+      }
     }
     const now = this.#now();
     const artifact = createArtifact({
@@ -2815,18 +2820,11 @@ export class CimiLoopKernel {
         .filter((impact) => impact.affected_ids.includes(item.id) || impact.subject_id === item.id);
       validity[item.id] = impacts.at(-1)?.new_validity ?? "Valid";
     }
-    const assessed = claims.map((claim) => {
-      const requirement = requirementSet.items.find((item) => item.claim_key === claim.claim_key);
-      const related = evidence.filter((item) => item.claim_id === claim.id);
-      return {
-        claim,
-        ...assessClaim({
-          claim,
-          ...(requirement ? { requirement } : {}),
-          evidence: related,
-          validity
-        })
-      };
+    const assessed = assessRequirementSet({
+      requirementSet,
+      claims,
+      evidence,
+      validity
     });
     const unresolvedRefutes = evidence.some(
       (item) => item.stance === "Refutes" && (validity[item.id] ?? "Valid") === "Valid"
@@ -2948,11 +2946,7 @@ export class CimiLoopKernel {
           subject_type: command.payload.subject_type,
           subject_id: command.payload.subject_id,
           old_digest: command.payload.old_input_digest,
-          new_digest: command.payload.new_input_digest,
-          replacement: command.payload.rule.includes("superseded"),
-          integrity_broken: command.payload.rule.includes("integrity"),
-          subject_mismatch: command.payload.rule.includes("mismatch"),
-          source_unverified: command.payload.rule.includes("unverified")
+          new_digest: command.payload.new_input_digest
         }
       });
       if (!classified.applies) {
@@ -3045,7 +3039,7 @@ export class CimiLoopKernel {
       projectId: loaded.project.id,
       changeId: loaded.change.id,
       requestType: "release",
-      requiredRoleKey: "project_owner",
+      requiredRoleKey: "release_owner",
       candidateId: release.id,
       candidateRevision: release.revision,
       profileId: release.policy_snapshot_id,
@@ -4846,7 +4840,12 @@ export class CimiLoopKernel {
       created_at: now
     };
     transaction.insertArchiveRecord(record);
-    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const nextChange = this.#touchChange(
+      transaction,
+      { ...loaded.change, operating_status: "Paused" },
+      loaded.expectedRevision,
+      now
+    );
     const event = this.#appendEvent(transaction, {
       event_type: "ChangeArchived",
       project_id: loaded.project.id,
@@ -5047,7 +5046,7 @@ export class CimiLoopKernel {
       });
       const report = {
         ...staged.report,
-        summary: `content_digest=${staged.historyDigest}; ${staged.report.summary}`
+        summary: `content_digest=${staged.historyDigest}; staging=${encodeURIComponent(staged.stagingPath)}; ${staged.report.summary}`
       };
       transaction.insertImportReport(report);
       const events = existing
@@ -5096,7 +5095,15 @@ export class CimiLoopKernel {
     if (!existing && command.expected_revision !== 1) {
       return domainError(command.correlation_id, "REVISION_CONFLICT", "空目标导入必须使用 expected_revision=1", "conflict");
     }
-    const incomingDigest = /content_digest=([0-9a-f]{64})/.exec(report.summary)?.[1] ?? "";
+    const incomingDigest = this.#stagedImportDigest(report.summary);
+    if (!incomingDigest) {
+      return domainError(
+        command.correlation_id,
+        "DIGEST_MISMATCH",
+        "CommitImport 必须重新核对 staging bundle 的 content_digest",
+        "validation"
+      );
+    }
     const history = classifyImportHistory({
       ...(existing ? { localProjectId: existing.id, localDigest: this.#currentContentDigest(existing.id) } : {}),
       incomingProjectId: report.project_id,
@@ -5293,7 +5300,41 @@ export class CimiLoopKernel {
         { current_revision: change.revision }
       );
     }
+    if (this.#changeIsTerminal(transaction, change.id) && command.command_type !== "ArchiveChange") {
+      return domainError(
+        command.correlation_id,
+        "CHANGE_ALREADY_TERMINAL",
+        "已关闭、取消、取代或归档的 Change 不能再创建执行或交付事实",
+        "conflict"
+      );
+    }
     return { ...context, change, expectedRevision: command.expected_revision };
+  }
+
+  #changeIsTerminal(transaction: StoreTransaction, changeId: InternalId): boolean {
+    if (transaction.listCancellationRecordsByChange(changeId).length > 0) return true;
+    if (transaction.listSupersessionRecordsByChange(changeId).length > 0) return true;
+    if (transaction.listArchiveRecordsByChange(changeId).length > 0) return true;
+    return this.#store
+      .listEvents()
+      .some((event) => event.event_type === "ChangeClosed" && event.aggregate.id === changeId);
+  }
+
+  #stagedImportDigest(summary: string): string {
+    const encoded = /staging=([^;]+)/.exec(summary)?.[1];
+    const claimed = /content_digest=([0-9a-f]{64})/.exec(summary)?.[1] ?? "";
+    if (!encoded) return claimed;
+    const stagingPath = decodeURIComponent(encoded);
+    if (!existsSync(stagingPath)) return "";
+    try {
+      const parsed = JSON.parse(readFileSync(stagingPath, "utf8")) as {
+        manifest?: { content_digest?: { value?: string } };
+      };
+      const live = parsed.manifest?.content_digest?.value ?? "";
+      return live === claimed ? live : "";
+    } catch {
+      return "";
+    }
   }
 
   #requireProjectActor(

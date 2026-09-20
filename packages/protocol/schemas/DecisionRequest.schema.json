@@ -80,6 +80,10 @@
         {
           "type": "string",
           "const": "project_owner"
+        },
+        {
+          "type": "string",
+          "const": "release_owner"
         }
       ]
     },

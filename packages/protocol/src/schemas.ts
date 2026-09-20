@@ -141,7 +141,8 @@ export const RoleSchema = Type.Object(
       Type.Literal("project_owner"),
       Type.Literal("change_owner"),
       Type.Literal("intent_owner"),
-      Type.Literal("technical_owner")
+      Type.Literal("technical_owner"),
+      Type.Literal("release_owner")
     ]),
     display_name: Type.String({ minLength: 1, maxLength: 200 })
   },

@@ -30,6 +30,7 @@ import {
   submitClaim,
   showClaim,
   recordEvidence,
+  promoteTestResult,
   showEvidence,
   requestEvaluation,
   completeEvaluation,
@@ -270,6 +271,16 @@ evidence
   .action((change, options, command) =>
     recordEvidence(change, { ...globals(command), ...options, subjectType: options.subjectType, subjectId: options.subjectId, subjectDigest: options.subjectDigest })
   );
+evidence
+  .command("promote <change>")
+  .description("提升白名单测试结果为 deterministic_test Evidence")
+  .requiredOption("--claim <id>", "Claim ID")
+  .requiredOption("--artifact <id>", "Artifact ID")
+  .requiredOption("--digest <hex>", "Artifact Digest")
+  .requiredOption("--file <path>", "junit/tap/cimiloop_test_v1 文件")
+  .requiredOption("--format <format>", "junit | tap | cimiloop_test_v1")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((change, options, command) => promoteTestResult(change, { ...globals(command), ...options }));
 evidence.command("show <id>").description("查看 Evidence").action((id, _options, command) =>
   showEvidence(id, globals(command))
 );

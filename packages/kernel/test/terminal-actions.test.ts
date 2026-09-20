@@ -375,6 +375,20 @@ describe("Close Cancel Supersede Archive commands", () => {
     expect(change.lifecycle_state).toBe("Draft");
     expect(closed.events.some((event) => event.event_type === "ChangeClosed")).toBe(true);
     expect(store.transaction((transaction) => transaction.getChange(ready.changeId))).toBeDefined();
+    expect(
+      failure(
+        kernel.execute(
+          envelope(
+            "CreateExecutionWorkItems",
+            ready.projectId,
+            ready.actorId,
+            { change_id: ready.changeId },
+            closed.revision,
+            ready.changeId
+          )
+        )
+      ).code
+    ).toBe("CHANGE_ALREADY_TERMINAL");
   });
 
   it("lets incident close from a verified test endpoint", () => {
@@ -567,7 +581,7 @@ describe("Close Cancel Supersede Archive commands", () => {
     const change = kernel.getChange(ctx.changeId);
     if ("code" in change) throw new Error(change.code);
     expect(change.lifecycle_state).toBe("Draft");
-    expect(change.operating_status).toBe("Active");
+    expect(change.operating_status).toBe("Paused");
     expect(
       failure(
         kernel.execute(

@@ -25,7 +25,10 @@ afterEach(() => {
   }
 });
 
-const roleId = (ctx: AcceptanceContext, key: "intent_owner" | "technical_owner" | "project_owner"): InternalId => {
+const roleId = (
+  ctx: AcceptanceContext,
+  key: "intent_owner" | "technical_owner" | "project_owner" | "release_owner"
+): InternalId => {
   const role = ctx.store.transaction((transaction) => transaction.getRoleByKey(key));
   if (!role) throw new Error(`missing role ${key}`);
   return role.id;
@@ -246,7 +249,7 @@ describe("V1 north-star Feature loop", () => {
     exec(ctx, "SubmitDecision", {
       request_id: releaseDecision.data.request.id,
       outcome: "approve",
-      acting_role_id: roleId(ctx, "project_owner"),
+      acting_role_id: roleId(ctx, "release_owner"),
       reason: "Approve production release of the evaluated digest."
     });
     verifyRelease(ctx, prodRelease.data.release.id, prodEnv.data.environment.id, artifactDigest);
