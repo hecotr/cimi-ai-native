@@ -3,6 +3,7 @@ export * from "./change.js";
 export * from "./contract.js";
 export * from "./decision.js";
 export * from "./gates/intent-gate.js";
+export * from "./gates/plan-gate.js";
 export * from "./governance.js";
 export * from "./kernel.js";
 export * from "./knowledge-impact.js";

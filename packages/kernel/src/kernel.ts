@@ -17,11 +17,14 @@ import {
   type InitializeProjectCommand,
   type InternalId,
   type Project,
+  type PlanVersion,
   type RequestIntentDecisionCommand,
+  type RequestPlanDecisionCommand,
   type Role,
   type SubmitContractCandidateCommand,
   type SubmitDecisionCommand,
-  type SubmitPlanCandidateCommand
+  type SubmitPlanCandidateCommand,
+  type Task
 } from "@cimiloop/protocol";
 import {
   StoreConflictError,
@@ -41,8 +44,9 @@ import {
   createFeedbackRecords
 } from "./decision.js";
 import { evaluateIntentGate } from "./gates/intent-gate.js";
+import { evaluatePlanGate } from "./gates/plan-gate.js";
 import { createKnowledgeImpactAssessment, validateKnowledgeImpact } from "./knowledge-impact.js";
-import { createPlanCandidate, validateKnowledgeTasks } from "./plan.js";
+import { createPlanCandidate, createPlanTasks, createPlanVersion, validateKnowledgeTasks } from "./plan.js";
 import { createRiskAssessment, createRiskProfile, validateRiskDimensions } from "./risk.js";
 import { validateTaskDag } from "./task-dag.js";
 import {
@@ -191,6 +195,8 @@ export class CimiLoopKernel {
         return this.#submitDecision(transaction, command);
       case "SubmitPlanCandidate":
         return this.#submitPlanCandidate(transaction, command);
+      case "RequestPlanDecision":
+        return this.#requestPlanDecision(transaction, command);
       default:
         return domainError(
           command.correlation_id,
@@ -645,7 +651,10 @@ export class CimiLoopKernel {
         "forbidden"
       );
     }
-    const facts = this.#collectIntentFacts(transaction, loaded.change, command.correlation_id);
+    const facts =
+      request.request_type === "plan"
+        ? this.#collectPlanFacts(transaction, loaded.change, command.correlation_id)
+        : this.#collectIntentFacts(transaction, loaded.change, command.correlation_id);
     if ("code" in facts) return facts;
     if (facts.digest !== request.digest.value) {
       transaction.updateDecisionRequest(
@@ -674,12 +683,14 @@ export class CimiLoopKernel {
       request.revision
     );
 
-    const gateResult = evaluateIntentGate({
+    const gateFacts = {
       hasCompleteCandidate: true,
       hasHumanApproval: command.payload.outcome === "approve",
       digestMatches: true,
       rejected: command.payload.outcome === "reject"
-    });
+    };
+    const gateResult =
+      request.request_type === "plan" ? evaluatePlanGate(gateFacts) : evaluateIntentGate(gateFacts);
     const gate = this.#recordGate(
       transaction,
       loaded.change,
@@ -694,6 +705,8 @@ export class CimiLoopKernel {
 
     let nextChange = loaded.change;
     let contract: ContractVersion | undefined;
+    let plan: PlanVersion | undefined;
+    let tasks: Task[] | undefined;
     if (command.payload.outcome === "reject") {
       nextChange = {
         ...loaded.change,
@@ -705,7 +718,7 @@ export class CimiLoopKernel {
       transaction.updateChange(nextChange, loaded.expectedRevision);
     } else if (command.payload.outcome === "request_changes") {
       nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
-    } else if (gateResult === "ALLOW") {
+    } else if (gateResult === "ALLOW" && request.request_type === "intent" && "profile_key" in facts.candidate) {
       contract = {
         schema_version: SCHEMA_VERSION,
         id: this.#id(),
@@ -748,6 +761,46 @@ export class CimiLoopKernel {
         actor_id: loaded.actorId,
         occurred_at: now
       });
+    } else if (gateResult === "ALLOW" && request.request_type === "plan" && "tasks" in facts.candidate) {
+      const planId = this.#id();
+      tasks = createPlanTasks(
+        facts.candidate.tasks,
+        () => this.#id(),
+        loaded.project.id,
+        loaded.change.id,
+        planId,
+        1,
+        now
+      );
+      plan = createPlanVersion(this.#id(), planId, facts.candidate, tasks, now);
+      for (const task of tasks) {
+        transaction.insertTask(task);
+      }
+      transaction.insertPlanVersion(plan);
+      nextChange = {
+        ...loaded.change,
+        lifecycle_state: "Planned",
+        operating_status: "Active",
+        updated_at: now,
+        revision: loaded.change.revision + 1
+      };
+      transaction.updateChange(nextChange, loaded.expectedRevision);
+      transaction.insertTransition({
+        schema_version: SCHEMA_VERSION,
+        id: this.#id(),
+        project_id: loaded.project.id,
+        change_id: loaded.change.id,
+        command_id: command.command_id,
+        transition_type: "lifecycle_changed",
+        from_lifecycle: "IntentReady",
+        to_lifecycle: "Planned",
+        from_status: loaded.change.operating_status,
+        to_status: "Active",
+        gate_evaluation_id: gate.id,
+        decision_id: decision.id,
+        actor_id: loaded.actorId,
+        occurred_at: now
+      });
     }
 
     const event = this.#appendEvent(transaction, {
@@ -762,7 +815,8 @@ export class CimiLoopKernel {
         decision_id: decision.id,
         outcome: decision.outcome,
         gate_result: gate.result,
-        contract_version: contract?.domain_version
+        contract_version: contract?.domain_version,
+        plan_version: plan?.domain_version
       },
       occurred_at: now
     });
@@ -770,8 +824,75 @@ export class CimiLoopKernel {
       decision,
       change: nextChange,
       gate,
-      ...(contract ? { contract } : {})
+      ...(contract ? { contract } : {}),
+      ...(plan ? { plan, tasks } : {})
     });
+  }
+
+  #requestPlanDecision(
+    transaction: StoreTransaction,
+    command: RequestPlanDecisionCommand
+  ): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
+    if ("code" in loaded) return loaded;
+    if (loaded.change.lifecycle_state !== "IntentReady") {
+      return domainError(
+        command.correlation_id,
+        "CHANGE_NOT_INTENT_READY",
+        "只有 IntentReady 的 Change 可以请求 Plan Decision",
+        "conflict"
+      );
+    }
+    const facts = this.#collectPlanFacts(transaction, loaded.change, command.correlation_id);
+    if ("code" in facts) return facts;
+    const now = this.#now();
+    for (const open of transaction.listOpenDecisionRequests()) {
+      if (open.change_id === loaded.change.id && open.request_type === "plan") {
+        transaction.updateDecisionRequest(
+          { ...open, status: "expired", updated_at: now, revision: open.revision + 1 },
+          open.revision
+        );
+      }
+    }
+    const request = createDecisionRequest({
+      id: this.#id(),
+      projectId: loaded.project.id,
+      changeId: loaded.change.id,
+      requestType: "plan",
+      requiredRoleKey: "technical_owner",
+      candidateId: facts.candidate.id,
+      candidateRevision: facts.candidate.revision,
+      profileId: facts.profile.id,
+      profileVersion: facts.profile.domain_version,
+      riskAssessmentId: facts.riskAssessment.id,
+      knowledgeAssessmentId: facts.knowledge.id,
+      policySnapshotId: facts.snapshot.id,
+      digest: facts.digest,
+      now
+    });
+    transaction.insertDecisionRequest(request);
+    const gate = this.#recordGate(
+      transaction,
+      loaded.change,
+      "plan",
+      "REQUIRE_HUMAN",
+      facts.snapshot.id,
+      facts.digest,
+      now,
+      request.id
+    );
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "PlanDecisionRequested",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "decision_request", id: request.id, domain_version: 1 },
+      aggregate_revision: request.revision,
+      actor_id: loaded.actorId,
+      command,
+      payload: { change_id: loaded.change.id, request_id: request.id, gate_id: gate.id },
+      occurred_at: now
+    });
+    return this.#success(command, event.aggregate, nextChange.revision, [event], { request });
   }
 
   #submitPlanCandidate(transaction: StoreTransaction, command: SubmitPlanCandidateCommand): KernelResult {
@@ -859,6 +980,79 @@ export class CimiLoopKernel {
       occurred_at: now
     });
     return this.#success(command, event.aggregate, nextChange.revision, [event], { candidate });
+  }
+
+  #collectPlanFacts(transaction: StoreTransaction, change: Change, correlationId: InternalId) {
+    const candidate = transaction.getPlanCandidateByChange(change.id);
+    const contract = transaction.getCurrentContract(change.id);
+    const knowledge = transaction.getKnowledgeImpactAssessmentByChange(change.id);
+    const snapshot = transaction.getLatestPolicySnapshot(change.project_id);
+    const policy = transaction.getProjectPolicy(change.project_id);
+    const latestRisk = transaction.getLatestRiskAssessment(change.id);
+    const profile = transaction
+      .listChangeProfiles(change.project_id)
+      .find((item) => item.profile_key === contract?.profile_key);
+    if (!candidate || !contract || !knowledge || !snapshot || !policy || !profile || !latestRisk) {
+      return domainError(
+        correlationId,
+        "PLAN_CANDIDATE_NOT_FOUND",
+        "Plan Decision 缺少完整 Plan/Contract/Risk/Knowledge/Policy 输入",
+        "validation"
+      );
+    }
+    if (candidate.contract_id !== contract.contract_id || candidate.contract_version !== contract.domain_version) {
+      return domainError(
+        correlationId,
+        "CURRENT_CONTRACT_NOT_FOUND",
+        "Plan Candidate 必须精确绑定当前 Contract Version",
+        "conflict"
+      );
+    }
+    const dag = validateTaskDag(candidate.tasks);
+    if (!dag.ok) {
+      return domainError(
+        correlationId,
+        dag.code,
+        "Plan Task DAG 不合法",
+        "validation",
+        false,
+        dag.cycle_task_ids ? { cycle_task_ids: dag.cycle_task_ids } : {}
+      );
+    }
+    try {
+      validateKnowledgeTasks(candidate.tasks, knowledge.sources);
+    } catch (error) {
+      return domainError(
+        correlationId,
+        "PLAN_KNOWLEDGE_TASK_REQUIRED",
+        error instanceof Error ? error.message : "非 NoImpact 知识来源必须由 knowledge Task 覆盖",
+        "validation"
+      );
+    }
+    const assignments = transaction.listAssignments(change.project_id);
+    const roles = transaction.listRoles();
+    const digest = computeDecisionRequestDigest({
+      change_id: change.id,
+      candidate_id: candidate.id,
+      candidate_revision: candidate.revision,
+      profile_id: profile.id,
+      profile_version: profile.domain_version,
+      risk_assessment_id: latestRisk.id,
+      knowledge_assessment_id: knowledge.id,
+      policy_snapshot_id: snapshot.id,
+      required_role_key: policy.plan_required_role,
+      scope: {
+        contract_id: contract.contract_id,
+        contract_version: contract.domain_version,
+        task_keys: candidate.tasks.map((task) => task.key).sort()
+      },
+      assignments: assignments.map((assignment) => ({
+        actor_id: assignment.actor_id,
+        role_key: roles.find((role) => role.id === assignment.role_id)?.role_key ?? "project_owner",
+        scope_type: assignment.scope_type
+      }))
+    });
+    return { candidate, knowledge, snapshot, policy, profile, riskAssessment: latestRisk, digest, contract };
   }
 
   #collectIntentFacts(transaction: StoreTransaction, change: Change, correlationId: InternalId) {
