@@ -403,7 +403,7 @@ export class CimiLoopKernel {
     aggregate: CommandSuccess["aggregate"],
     revision: number,
     events: EventEnvelope[],
-    data: Record<string, unknown>
+    data: CommandSuccess["data"]
   ): CommandSuccess {
     return {
       ok: true,

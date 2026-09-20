@@ -86,4 +86,4 @@ Agent 或脚本在命令中增加 `--json` 即可获得经过 Protocol Schema �
 
 ## 下一阶段
 
-继续完成 M0 的 Schema 覆盖和可靠性验收，然后进入 M1：真实 Contract、Risk、Profile、Decision、Gate、Plan 与 Knowledge Impact Assessment。实施边界见 [M0 实施架构](docs/implementation/2026-09-19-cimiloop-m0实施架构-v0.1.md)。
+M0 已补齐 CLI 机器输出 Schema、JSON Schema 制品同步与全量注册、共享 Store Port 契约，以及事务回滚、幂等重放、双客户端 Revision 竞争、响应丢失恢复、数据库重开与 Outbox Lease 恢复测试，并已在 Node.js 24.15.0 + pnpm 12.4.2 基线上完成复验。M0 现已冻结，下一步进入 M1：真实 Contract、Risk、Profile、Decision、Gate、Plan 与 Knowledge Impact Assessment。实施边界见 [M0 实施架构](docs/implementation/2026-09-19-cimiloop-m0实施架构-v0.1.md)。

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { Command } from "commander";
+import { Command, CommanderError } from "commander";
+import { createInternalId, type DomainError } from "@cimiloop/protocol";
 import {
   createChange,
   doctor,
@@ -10,8 +11,10 @@ import {
   showChange,
   type GlobalOptions
 } from "./commands.js";
+import { outputError } from "./output.js";
 
 const program = new Command();
+const jsonRequested = process.argv.includes("--json");
 
 program
   .name("cimiloop")
@@ -20,6 +23,11 @@ program
   .option("--json", "输出稳定 JSON")
   .option("--project-dir <path>", "显式指定 Project 目录")
   .option("--command-id <uuid>", "显式指定幂等 Command ID");
+
+program.exitOverride();
+if (jsonRequested) {
+  program.configureOutput({ writeErr: () => undefined });
+}
 
 const globals = (command: Command): GlobalOptions => command.optsWithGlobals<GlobalOptions>();
 
@@ -71,7 +79,28 @@ program
 try {
   await program.parseAsync(process.argv);
 } catch (error) {
+  if (error instanceof CommanderError && error.exitCode === 0) {
+    process.exitCode = 0;
+  } else if (jsonRequested) {
+    const argumentFailure = error instanceof CommanderError;
+    const domainError: DomainError = {
+      code: argumentFailure ? "CLI_ARGUMENT_INVALID" : "CLI_EXECUTION_FAILED",
+      message: argumentFailure
+        ? error instanceof Error
+          ? error.message
+          : "命令参数无效"
+        : "CLI 执行失败",
+      category: argumentFailure ? "validation" : "internal",
+      retryable: false,
+      details: argumentFailure ? { commander_code: error.code } : {},
+      correlation_id: createInternalId()
+    };
+    outputError(domainError, true);
+  } else if (error instanceof CommanderError) {
+    process.exitCode = error.exitCode;
+  } else {
   const message = error instanceof Error ? error.message : "未知错误";
   process.stderr.write(`错误：${message}\n`);
   process.exitCode = 1;
+  }
 }

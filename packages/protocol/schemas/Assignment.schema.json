@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "Assignment.v1",
   "type": "object",
   "required": [
     "schema_version",
@@ -55,6 +56,5 @@
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
     }
   },
-  "$id": "Assignment.v1",
   "additionalProperties": false
 }

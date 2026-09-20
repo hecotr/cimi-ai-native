@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -65,4 +65,33 @@ describe("cimiloop CLI", () => {
     const instance = JSON.parse(readFileSync(join(repository, ".git", "cimiloop", "instance.json"), "utf8"));
     expect(instance.project_id).toBeTruthy();
   }, 20_000);
+
+  it("returns schema-valid JSON for pre-kernel and argument failures", () => {
+    const root = mkdtempSync(join(tmpdir(), "cimiloop-cli-error-test-"));
+    temporaryDirectories.push(root);
+    const missingProject = spawnSync(
+      process.execPath,
+      ["--no-warnings", cli, "--json", "--project-dir", root, "change", "list"],
+      { encoding: "utf8" }
+    );
+    expect(missingProject.status).toBe(1);
+    expect(missingProject.stderr).toBe("");
+    expect(JSON.parse(missingProject.stdout)).toMatchObject({
+      ok: false,
+      error: { code: "CLI_EXECUTION_FAILED", category: "internal", message: "CLI 执行失败" }
+    });
+    expect(missingProject.stdout).not.toContain(root);
+
+    const missingTitle = spawnSync(
+      process.execPath,
+      ["--no-warnings", cli, "--json", "--project-dir", root, "change", "create"],
+      { encoding: "utf8" }
+    );
+    expect(missingTitle.status).toBe(2);
+    expect(missingTitle.stderr).toBe("");
+    expect(JSON.parse(missingTitle.stdout)).toMatchObject({
+      ok: false,
+      error: { code: "CLI_ARGUMENT_INVALID", category: "validation" }
+    });
+  });
 });

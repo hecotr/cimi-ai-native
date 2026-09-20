@@ -3,7 +3,16 @@ import { join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { CimiLoopKernel } from "@cimiloop/kernel";
-import { SCHEMA_VERSION, createInternalId, type AnyCommand, type InternalId } from "@cimiloop/protocol";
+import {
+  SCHEMA_VERSION,
+  createInternalId,
+  parseChangeListResult,
+  parseChangeShowResult,
+  parseCommandResult,
+  parseDoctorResult,
+  type AnyCommand,
+  type InternalId
+} from "@cimiloop/protocol";
 import { SqliteProjectRegistry, SqliteProjectStore } from "@cimiloop/store-sqlite";
 import { readInstance, writeInstance } from "./instance.js";
 import { locateProject, readGitIdentity, registryDatabasePath } from "./location.js";
@@ -93,8 +102,9 @@ export const initProject = async (options: InitOptions): Promise<void> => {
     };
     const result = kernel.execute(command);
     if (isDomainError(result)) return outputError(result, Boolean(options.json));
-    const project = result.data.project as { id: InternalId; instance_id: InternalId; name: string };
-    const actor = result.data.actor as { id: InternalId; display_name: string };
+    if (!("project" in result.data)) throw new Error("初始化命令返回了非 Project 结果");
+    const project = result.data.project;
+    const actor = result.data.actor;
     writeInstance(location.instancePath, {
       schema_version: SCHEMA_VERSION,
       instance_id: project.instance_id,
@@ -113,7 +123,7 @@ export const initProject = async (options: InitOptions): Promise<void> => {
     } finally {
       registry.close();
     }
-    if (options.json) outputJson(result);
+    if (options.json) outputJson(result, parseCommandResult);
     else {
       stdout.write(`CimiLoop Project 已初始化：${project.name}\n`);
       stdout.write(`Project ID：${project.id}\n`);
@@ -152,8 +162,9 @@ export const createChange = (title: string, options: GlobalOptions): void => {
       payload: { title }
     });
     if (isDomainError(result)) return outputError(result, Boolean(options.json));
-    const change = result.data.change as { display_key: string; title: string; id: string };
-    if (options.json) outputJson(result);
+    if (!("change" in result.data)) throw new Error("创建命令返回了非 Change 结果");
+    const change = result.data.change;
+    if (options.json) outputJson(result, parseCommandResult);
     else stdout.write(`已创建 ${change.display_key}：${change.title}\nInternal ID：${change.id}\n`);
   } finally {
     context.store.close();
@@ -164,7 +175,7 @@ export const listChanges = (options: GlobalOptions): void => {
   const context = openProject(options);
   try {
     const changes = context.kernel.listChanges();
-    if (options.json) return outputJson({ ok: true, changes });
+    if (options.json) return outputJson({ ok: true, changes }, parseChangeListResult);
     if (changes.length === 0) return void stdout.write("当前 Project 暂无 Change。\n");
     for (const change of changes) {
       stdout.write(`${change.display_key}\t${change.lifecycle_state}\t${change.operating_status}\t${change.title}\n`);
@@ -179,7 +190,7 @@ export const showChange = (idOrKey: string, options: GlobalOptions): void => {
   try {
     const result = context.kernel.getChange(idOrKey);
     if (isDomainError(result)) return outputError(result, Boolean(options.json));
-    if (options.json) return outputJson({ ok: true, change: result });
+    if (options.json) return outputJson({ ok: true, change: result }, parseChangeShowResult);
     stdout.write(`${result.display_key} ${result.title}\n`);
     stdout.write(`生命周期：${result.lifecycle_state}\n运行状态：${result.operating_status}\nRevision：${result.revision}\n`);
     if (result.pause_reason) stdout.write(`暂停原因：${result.pause_reason}\n`);
@@ -216,8 +227,9 @@ const transitionChange = (
     };
     const result = context.kernel.execute(command);
     if (isDomainError(result)) return outputError(result, Boolean(options.json));
-    const change = result.data.change as { display_key: string; operating_status: string; revision: number };
-    if (options.json) outputJson(result);
+    if (!("change" in result.data)) throw new Error("状态命令返回了非 Change 结果");
+    const change = result.data.change;
+    if (options.json) outputJson(result, parseCommandResult);
     else stdout.write(`${change.display_key} 当前状态：${change.operating_status}（Revision ${change.revision}）\n`);
   } finally {
     context.store.close();
@@ -249,7 +261,7 @@ export const doctor = (options: GlobalOptions): void => {
       events: context.kernel.listEvents().length,
       pending_outbox: context.store.listOutbox("pending").length
     };
-    if (options.json) outputJson(report);
+    if (options.json) outputJson(report, parseDoctorResult);
     else {
       stdout.write("CimiLoop Project 健康检查通过。\n");
       stdout.write(`Change：${report.changes}，Event：${report.events}，待投递 Outbox：${report.pending_outbox}\n`);

@@ -68,6 +68,7 @@ describe("M0 recoverable vertical slice", () => {
         }
       })
     );
+    if (!("project" in initialized.data)) throw new Error("Expected initialization result");
     const project = initialized.data.project as { id: InternalId };
     const actor = initialized.data.actor as { id: InternalId };
 
@@ -86,6 +87,7 @@ describe("M0 recoverable vertical slice", () => {
       payload: { title: "M0 first Change" }
     };
     const created = success(kernel.execute(createCommand));
+    if (!("change" in created.data)) throw new Error("Expected change result");
     const replayed = success(
       kernel.execute({
         ...createCommand,

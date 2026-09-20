@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "CreateChangeCommand.v1",
   "type": "object",
   "required": [
     "schema_version",

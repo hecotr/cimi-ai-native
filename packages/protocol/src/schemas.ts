@@ -54,7 +54,7 @@ export const ProjectSchema = Type.Object(
     repository_path: Type.String({ minLength: 1 }),
     instance_id: InternalIdSchema
   },
-  { $id: "Project.v1", additionalProperties: false }
+  { additionalProperties: false }
 );
 
 export const ActorSchema = Type.Object(
@@ -66,7 +66,7 @@ export const ActorSchema = Type.Object(
     email: Type.Optional(Type.String({ minLength: 3, maxLength: 320 })),
     identity_source: Type.Literal("git_config")
   },
-  { $id: "Actor.v1", additionalProperties: false }
+  { additionalProperties: false }
 );
 
 export const RoleSchema = Type.Object(
@@ -76,7 +76,7 @@ export const RoleSchema = Type.Object(
     role_key: Type.Literal("project_owner"),
     display_name: Type.Literal("项目负责人")
   },
-  { $id: "Role.v1", additionalProperties: false }
+  { additionalProperties: false }
 );
 
 export const AssignmentSchema = Type.Object(
@@ -90,7 +90,7 @@ export const AssignmentSchema = Type.Object(
     scope_id: InternalIdSchema,
     effective_at: UtcTimestampSchema
   },
-  { $id: "Assignment.v1", additionalProperties: false }
+  { additionalProperties: false }
 );
 
 export const ChangeSchema = Type.Object(
@@ -107,7 +107,7 @@ export const ChangeSchema = Type.Object(
     pause_reason: Type.Optional(Type.String({ minLength: 1, maxLength: 1000 })),
     updated_at: UtcTimestampSchema
   },
-  { $id: "Change.v1", additionalProperties: false }
+  { additionalProperties: false }
 );
 
 export const TransitionRecordSchema = Type.Object(
@@ -124,7 +124,7 @@ export const TransitionRecordSchema = Type.Object(
     actor_id: InternalIdSchema,
     occurred_at: UtcTimestampSchema
   },
-  { $id: "TransitionRecord.v1", additionalProperties: false }
+  { additionalProperties: false }
 );
 
 export const EventEnvelopeSchema = Type.Object(
@@ -142,7 +142,7 @@ export const EventEnvelopeSchema = Type.Object(
     correlation_id: InternalIdSchema,
     payload: Type.Record(Type.String(), Type.Unknown())
   },
-  { $id: "EventEnvelope.v1", additionalProperties: false }
+  { additionalProperties: false }
 );
 
 export const DomainErrorSchema = Type.Object(
@@ -161,7 +161,7 @@ export const DomainErrorSchema = Type.Object(
     details: Type.Record(Type.String(), Type.Unknown()),
     correlation_id: InternalIdSchema
   },
-  { $id: "DomainError.v1", additionalProperties: false }
+  { additionalProperties: false }
 );
 
 export const CommandEnvelopeBaseSchema = Type.Object(
@@ -178,7 +178,7 @@ export const CommandEnvelopeBaseSchema = Type.Object(
     source: SourceDescriptorSchema,
     payload: Type.Record(Type.String(), Type.Unknown())
   },
-  { $id: "CommandEnvelopeBase.v1", additionalProperties: false }
+  { additionalProperties: false }
 );
 
 const commandSchema = <const TCommandType extends string, T extends TSchema>(commandType: TCommandType, payload: T) =>
@@ -243,7 +243,56 @@ export const CommandSuccessSchema = Type.Object(
     aggregate: TypedReferenceSchema,
     revision: Type.Integer({ minimum: 1 }),
     events: Type.Array(EventEnvelopeSchema),
-    data: Type.Record(Type.String(), Type.Unknown())
+    data: Type.Union([
+      Type.Object(
+        {
+          project: ProjectSchema,
+          actor: ActorSchema,
+          assignment: AssignmentSchema
+        },
+        { additionalProperties: false }
+      ),
+      Type.Object({ change: ChangeSchema }, { additionalProperties: false })
+    ])
+  },
+  { additionalProperties: false }
+);
+
+export const CommandResultSchema = Type.Union([CommandSuccessSchema, DomainErrorSchema]);
+
+export const ChangeListResultSchema = Type.Object(
+  {
+    ok: Type.Literal(true),
+    changes: Type.Array(ChangeSchema)
+  },
+  { additionalProperties: false }
+);
+
+export const ChangeShowResultSchema = Type.Object(
+  {
+    ok: Type.Literal(true),
+    change: ChangeSchema
+  },
+  { additionalProperties: false }
+);
+
+export const DoctorResultSchema = Type.Object(
+  {
+    ok: Type.Literal(true),
+    project_id: InternalIdSchema,
+    repository_path: Type.String({ minLength: 1 }),
+    database_path: Type.String({ minLength: 1 }),
+    changes: Type.Integer({ minimum: 0 }),
+    events: Type.Integer({ minimum: 0 }),
+    pending_outbox: Type.Integer({ minimum: 0 })
+  },
+  { additionalProperties: false }
+);
+
+export const ErrorResultSchema = Type.Object(
+  {
+    ok: Type.Literal(false),
+    error: DomainErrorSchema
   },
   { additionalProperties: false }
 );
@@ -265,6 +314,11 @@ export type PauseChangeCommand = Static<typeof PauseChangeCommandSchema>;
 export type ResumeChangeCommand = Static<typeof ResumeChangeCommandSchema>;
 export type AnyCommand = Static<typeof AnyCommandSchema>;
 export type CommandSuccess = Static<typeof CommandSuccessSchema>;
+export type CommandResult = Static<typeof CommandResultSchema>;
+export type ChangeListResult = Static<typeof ChangeListResultSchema>;
+export type ChangeShowResult = Static<typeof ChangeShowResultSchema>;
+export type DoctorResult = Static<typeof DoctorResultSchema>;
+export type ErrorResult = Static<typeof ErrorResultSchema>;
 
 export const protocolSchemas = {
   Project: ProjectSchema,
@@ -279,5 +333,10 @@ export const protocolSchemas = {
   CreateChangeCommand: CreateChangeCommandSchema,
   PauseChangeCommand: PauseChangeCommandSchema,
   ResumeChangeCommand: ResumeChangeCommandSchema,
-  CommandSuccess: CommandSuccessSchema
+  CommandSuccess: CommandSuccessSchema,
+  CommandResult: CommandResultSchema,
+  ChangeListResult: ChangeListResultSchema,
+  ChangeShowResult: ChangeShowResultSchema,
+  DoctorResult: DoctorResultSchema,
+  ErrorResult: ErrorResultSchema
 } as const;

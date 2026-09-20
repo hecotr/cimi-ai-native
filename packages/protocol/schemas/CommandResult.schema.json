@@ -1,0 +1,577 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "CommandResult.v1",
+  "anyOf": [
+    {
+      "type": "object",
+      "required": [
+        "ok",
+        "command_id",
+        "correlation_id",
+        "aggregate",
+        "revision",
+        "events",
+        "data"
+      ],
+      "properties": {
+        "ok": {
+          "type": "boolean",
+          "const": true
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "aggregate": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "schema_version",
+              "event_id",
+              "event_type",
+              "project_id",
+              "aggregate",
+              "aggregate_revision",
+              "event_sequence",
+              "occurred_at",
+              "actor_id",
+              "command_id",
+              "correlation_id",
+              "payload"
+            ],
+            "properties": {
+              "schema_version": {
+                "type": "string",
+                "const": "1.0.0"
+              },
+              "event_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+              },
+              "event_type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "project_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+              },
+              "aggregate": {
+                "type": "object",
+                "required": [
+                  "object_type",
+                  "id"
+                ],
+                "properties": {
+                  "object_type": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "project"
+                      },
+                      {
+                        "type": "string",
+                        "const": "actor"
+                      },
+                      {
+                        "type": "string",
+                        "const": "role"
+                      },
+                      {
+                        "type": "string",
+                        "const": "assignment"
+                      },
+                      {
+                        "type": "string",
+                        "const": "change"
+                      },
+                      {
+                        "type": "string",
+                        "const": "transition_record"
+                      },
+                      {
+                        "type": "string",
+                        "const": "event"
+                      },
+                      {
+                        "type": "string",
+                        "const": "outbox_message"
+                      }
+                    ]
+                  },
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                  },
+                  "domain_version": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "additionalProperties": false
+              },
+              "aggregate_revision": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "event_sequence": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "occurred_at": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+              },
+              "actor_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+              },
+              "command_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+              },
+              "correlation_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+              },
+              "payload": {
+                "type": "object",
+                "patternProperties": {
+                  "^.*$": {}
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "data": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "project",
+                "actor",
+                "assignment"
+              ],
+              "properties": {
+                "project": {
+                  "type": "object",
+                  "required": [
+                    "schema_version",
+                    "created_at",
+                    "revision",
+                    "id",
+                    "name",
+                    "repository_kind",
+                    "repository_path",
+                    "instance_id"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "type": "string",
+                      "const": "1.0.0"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "repository_kind": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "git"
+                        },
+                        {
+                          "type": "string",
+                          "const": "directory"
+                        }
+                      ]
+                    },
+                    "repository_path": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "instance_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "actor": {
+                  "type": "object",
+                  "required": [
+                    "schema_version",
+                    "created_at",
+                    "revision",
+                    "id",
+                    "actor_type",
+                    "display_name",
+                    "identity_source"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "type": "string",
+                      "const": "1.0.0"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "actor_type": {
+                      "type": "string",
+                      "const": "human"
+                    },
+                    "display_name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "email": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 320
+                    },
+                    "identity_source": {
+                      "type": "string",
+                      "const": "git_config"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "assignment": {
+                  "type": "object",
+                  "required": [
+                    "schema_version",
+                    "created_at",
+                    "revision",
+                    "id",
+                    "project_id",
+                    "actor_id",
+                    "role_id",
+                    "scope_type",
+                    "scope_id",
+                    "effective_at"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "type": "string",
+                      "const": "1.0.0"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "project_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "actor_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "role_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "scope_type": {
+                      "type": "string",
+                      "const": "project"
+                    },
+                    "scope_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "effective_at": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "change"
+              ],
+              "properties": {
+                "change": {
+                  "type": "object",
+                  "required": [
+                    "schema_version",
+                    "created_at",
+                    "revision",
+                    "id",
+                    "project_id",
+                    "display_key",
+                    "title",
+                    "lifecycle_state",
+                    "operating_status",
+                    "owner_actor_id",
+                    "source",
+                    "updated_at"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "type": "string",
+                      "const": "1.0.0"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "project_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "display_key": {
+                      "type": "string",
+                      "pattern": "^CHG-\\d{4,}$"
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 300
+                    },
+                    "lifecycle_state": {
+                      "type": "string",
+                      "const": "Draft"
+                    },
+                    "operating_status": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "Active"
+                        },
+                        {
+                          "type": "string",
+                          "const": "Paused"
+                        }
+                      ]
+                    },
+                    "owner_actor_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "source": {
+                      "type": "object",
+                      "required": [
+                        "origin",
+                        "producer"
+                      ],
+                      "properties": {
+                        "origin": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "human_cli"
+                            },
+                            {
+                              "type": "string",
+                              "const": "agent"
+                            },
+                            {
+                              "type": "string",
+                              "const": "system"
+                            }
+                          ]
+                        },
+                        "producer": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "repository_path": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "pause_reason": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1000
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "code",
+        "message",
+        "category",
+        "retryable",
+        "details",
+        "correlation_id"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]+$"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "validation"
+            },
+            {
+              "type": "string",
+              "const": "not_found"
+            },
+            {
+              "type": "string",
+              "const": "conflict"
+            },
+            {
+              "type": "string",
+              "const": "forbidden"
+            },
+            {
+              "type": "string",
+              "const": "storage"
+            },
+            {
+              "type": "string",
+              "const": "internal"
+            }
+          ]
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "details": {
+          "type": "object",
+          "patternProperties": {
+            "^.*$": {}
+          }
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

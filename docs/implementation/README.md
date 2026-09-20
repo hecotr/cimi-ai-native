@@ -4,8 +4,9 @@
 
 ## 当前阶段
 
-- 当前里程碑：M0 Kernel 最小闭环设计。
-- 当前状态：M0 工程骨架和首个可恢复纵向切片已经实现；继续补齐 Schema 覆盖与里程碑验收。
+- 当前里程碑：M0 Kernel 最小闭环已完成并冻结。
+- 当前状态：M0 工程骨架、首个可恢复纵向切片、Schema、Store Port 契约和可靠性场景均已实现，并已在 Node.js 24.15.0 + pnpm 12.4.2 基线上完成复验。
+- 下一里程碑：M1 意图、计划与人工决策。
 - 实施基线：[CimiLoop M0 实施架构 v0.1](2026-09-19-cimiloop-m0实施架构-v0.1.md)。
 
 ## 已确认技术决策
@@ -50,11 +51,12 @@ tests/
 
 Workbench、Team Server 和具体 Agent Runtime Adapter 不进入 M0 工程骨架；它们在核心闭环成立后按里程碑加入。
 
-## M0 待完成的工程设计
+## M0 已实现的工程设计
 
-1. Kernel API、Command Handler 和错误模型；
-2. Store Port、SQLite 事务、Outbox 和幂等边界；
-3. 第一个纵向切片的 CLI 命令细节与验收测试。
+1. Kernel API、Command Handler 和稳定错误模型；
+2. Store Port、SQLite 事务、Outbox、Command Receipt 和幂等边界；
+3. CLI 人类/机器双输出，以及所有 `--json` 输出的 Protocol Schema 校验；
+4. 可复用 Store Port 契约，以及回滚、重开、响应丢失、Revision 竞争和 Outbox Lease 恢复验收。
 
 ## M0 纵向演示
 

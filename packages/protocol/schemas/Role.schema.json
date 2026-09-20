@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "Role.v1",
   "type": "object",
   "required": [
     "schema_version",
@@ -35,6 +36,5 @@
       "const": "项目负责人"
     }
   },
-  "$id": "Role.v1",
   "additionalProperties": false
 }

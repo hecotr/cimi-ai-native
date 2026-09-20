@@ -10,6 +10,7 @@ mkdirSync(outputDirectory, { recursive: true });
 for (const [name, schema] of Object.entries(protocolSchemas)) {
   const document = {
     $schema: "https://json-schema.org/draft/2020-12/schema",
+    $id: `${name}.v1`,
     ...schema
   };
   writeFileSync(join(outputDirectory, `${name}.schema.json`), `${JSON.stringify(document, null, 2)}\n`, "utf8");
