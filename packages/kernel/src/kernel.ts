@@ -11,6 +11,7 @@ import {
   type CommandSuccess,
   type DomainError,
   type EventEnvelope,
+  type BootstrapSoloGovernanceCommand,
   type InitializeProjectCommand,
   type InternalId,
   type Project,
@@ -25,6 +26,14 @@ import {
 } from "@cimiloop/store";
 import { commandDigest } from "./canonical.js";
 import { createDraftChange, pauseDraftChange, resumeDraftChange } from "./change.js";
+import {
+  createBuiltInChangeProfiles,
+  createSoloAssignments,
+  createSoloPolicy,
+  createSoloPolicySnapshot,
+  createSoloRoles,
+  type GovernanceIds
+} from "./governance.js";
 
 export type KernelResult = CommandSuccess | DomainError;
 
@@ -153,6 +162,8 @@ export class CimiLoopKernel {
         return this.#pauseChange(transaction, command);
       case "ResumeChange":
         return this.#resumeChange(transaction, command);
+      case "BootstrapSoloGovernance":
+        return this.#bootstrapSoloGovernance(transaction, command);
       default:
         return domainError(
           command.correlation_id,
@@ -324,6 +335,102 @@ export class CimiLoopKernel {
       occurred_at: now
     });
     return this.#success(command, event.aggregate, mutation.change.revision, [event], { change: mutation.change });
+  }
+
+  #bootstrapSoloGovernance(
+    transaction: StoreTransaction,
+    command: BootstrapSoloGovernanceCommand
+  ): KernelResult {
+    if (command.source.origin === "agent") {
+      return domainError(
+        command.correlation_id,
+        "HUMAN_ACTOR_REQUIRED",
+        "Agent Actor 不能承担 Human Owner 或初始化治理角色",
+        "forbidden"
+      );
+    }
+    const context = this.#requireProjectActor(transaction, command);
+    if ("code" in context) return context;
+    if (
+      command.payload.intent_owner_actor_id !== context.actorId ||
+      command.payload.technical_owner_actor_id !== context.actorId
+    ) {
+      return domainError(
+        command.correlation_id,
+        "SOLO_OWNER_MISMATCH",
+        "Solo 模式下 Intent Owner 与 Technical Owner 必须由当前 Human Actor 显式承担",
+        "forbidden"
+      );
+    }
+    const change = transaction.getChange(command.payload.change_id);
+    if (!change || change.project_id !== context.project.id) {
+      return domainError(command.correlation_id, "CHANGE_NOT_FOUND", "未找到指定 Change", "not_found");
+    }
+    if (command.expected_revision !== change.revision) {
+      return domainError(
+        command.correlation_id,
+        "REVISION_CONFLICT",
+        "目标对象已被其他命令修改，请刷新后重试",
+        "conflict",
+        false,
+        { current_revision: change.revision }
+      );
+    }
+    if (transaction.getProjectPolicy(context.project.id)) {
+      return domainError(
+        command.correlation_id,
+        "GOVERNANCE_ALREADY_INITIALIZED",
+        "当前项目已经完成 Solo 治理初始化",
+        "conflict"
+      );
+    }
+
+    const now = this.#now();
+    const ids: GovernanceIds = {
+      changeOwnerRoleId: this.#id(),
+      intentOwnerRoleId: this.#id(),
+      technicalOwnerRoleId: this.#id(),
+      changeOwnerAssignmentId: this.#id(),
+      intentOwnerAssignmentId: this.#id(),
+      technicalOwnerAssignmentId: this.#id(),
+      policyId: this.#id(),
+      snapshotId: this.#id(),
+      featureProfileId: this.#id(),
+      bugfixProfileId: this.#id(),
+      incidentProfileId: this.#id()
+    };
+    const roles = createSoloRoles(ids, now);
+    const assignments = createSoloAssignments(ids, context.project.id, context.actorId, now);
+    const policy = createSoloPolicy(ids.policyId, context.project.id, now);
+    const snapshot = createSoloPolicySnapshot(ids.snapshotId, policy, now);
+    for (const role of roles) transaction.insertRole(role);
+    for (const assignment of assignments) transaction.insertAssignment(assignment);
+    transaction.insertProjectPolicy(policy);
+    transaction.insertPolicySnapshot(snapshot);
+    for (const profile of createBuiltInChangeProfiles(ids, context.project.id, now)) {
+      transaction.insertChangeProfile(profile);
+    }
+    const event = this.#appendEvent(transaction, {
+      event_type: "SoloGovernanceBootstrapped",
+      project_id: context.project.id,
+      aggregate: { object_type: "project", id: context.project.id, domain_version: 1 },
+      aggregate_revision: context.project.revision,
+      actor_id: context.actorId,
+      command,
+      payload: {
+        change_id: change.id,
+        policy_id: policy.id,
+        policy_snapshot_id: snapshot.id,
+        role_keys: roles.map((role) => role.role_key)
+      },
+      occurred_at: now
+    });
+    return this.#success(command, event.aggregate, change.revision, [event], {
+      change,
+      roles,
+      assignments,
+      policy
+    });
   }
 
   #requireProjectActor(
