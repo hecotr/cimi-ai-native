@@ -154,6 +154,7 @@ import { evaluateCloseProposal, hasUnresolvedExternalSideEffects } from "./closu
 import { createKnowledgeImpactAssessment, validateKnowledgeImpact } from "./knowledge-impact.js";
 import { createPlanCandidate, createPlanTasks, createPlanVersion, validateKnowledgeTasks } from "./plan.js";
 import { ReadModelBuilder } from "./read-models.js";
+import { rebuildWorkbenchProjections } from "./read-model/builder.js";
 import { createRiskAssessment, createRiskProfile, validateRiskDimensions } from "./risk.js";
 import { selectReadyTasks } from "./scheduler.js";
 import { validateTaskDag } from "./task-dag.js";
@@ -574,6 +575,33 @@ export class CimiLoopKernel {
 
   listOpenAttentionItems(projectId: InternalId) {
     return this.#store.transaction((transaction) => transaction.listOpenAttentionItems(projectId));
+  }
+
+  rebuildReadModels(projectId: InternalId) {
+    return this.#store.transaction((transaction) =>
+      rebuildWorkbenchProjections(transaction, {
+        projectId,
+        now: this.#now(),
+        nextId: this.#id,
+        eventSequence: this.#store.listEvents().at(-1)?.event_sequence ?? 0
+      })
+    );
+  }
+
+  acknowledgeAttention(attentionId: InternalId, _actorId: InternalId): void {
+    this.#store.transaction((transaction) => {
+      const item = transaction.getAttentionItem(attentionId);
+      if (!item) return;
+      transaction.updateAttentionItem(
+        {
+          ...item,
+          status: "acknowledged",
+          updated_at: this.#now(),
+          revision: item.revision + 1
+        },
+        item.revision
+      );
+    });
   }
 
   getRelease(id: InternalId): Release | DomainError {

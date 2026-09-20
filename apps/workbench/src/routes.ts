@@ -35,6 +35,7 @@ export interface WorkbenchKernel {
   listUnknownExternalOperations(): import("@cimiloop/protocol").ExternalOperation[];
   listRecoveryExecutionsByRelease(releaseId: InternalId): import("@cimiloop/protocol").RecoveryExecution[];
   listOpenAttentionItems(projectId: InternalId): import("@cimiloop/protocol").AttentionItem[];
+  rebuildReadModels(projectId: InternalId): import("@cimiloop/protocol").AttentionItem[];
   getCurrentContract(changeId: InternalId): import("@cimiloop/protocol").ContractVersion | undefined;
   getTimeline(changeId: string): import("@cimiloop/protocol").TimelineResult | DomainError;
 }
@@ -56,6 +57,7 @@ export const renderHome = (context: WorkbenchContext): string => {
   const changes = context.kernel.listChanges();
   const inbox = context.kernel.listDecisionInbox(context.actorId);
   const items = isDomainError(inbox) ? [] : inbox.items;
+  context.kernel.rebuildReadModels(context.projectId);
   const attention = context.kernel.listOpenAttentionItems(context.projectId);
   const activeRuns = changes.flatMap((change) =>
     context.kernel

@@ -109,6 +109,7 @@ export interface StoreTransaction {
   insertAssignment(assignment: Assignment): void;
 
   getChange(idOrKey: string): Change | undefined;
+  listChanges(): Change[];
   nextChangeDisplayKey(projectId: InternalId): string;
   insertChange(change: Change): void;
   updateChange(change: Change, expectedRevision: number): void;
@@ -221,6 +222,7 @@ export interface StoreTransaction {
   updateAgentRun(run: AgentRunRecord, expectedRevision: number): void;
   getAgentRun(id: InternalId): AgentRunRecord | undefined;
   listAgentRuns(workItemId: InternalId): AgentRunRecord[];
+  listAgentRunsByChange(changeId: InternalId): AgentRunRecord[];
 
   insertSourceSnapshot(snapshot: SourceSnapshot): void;
   getSourceSnapshot(id: InternalId): SourceSnapshot | undefined;
@@ -332,7 +334,9 @@ export interface StoreTransaction {
 
   insertAttentionItem(item: AttentionItem): void;
   updateAttentionItem(item: AttentionItem, expectedRevision: number): void;
+  getAttentionItem(id: InternalId): AttentionItem | undefined;
   listOpenAttentionItems(projectId: InternalId): AttentionItem[];
+  deleteReadModels(): void;
 
   insertImportReport(report: ImportReport): void;
   getImportReport(id: InternalId): ImportReport | undefined;

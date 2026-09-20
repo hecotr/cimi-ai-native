@@ -287,6 +287,13 @@ class SqliteTransaction implements StoreTransaction {
     return row ? parseChange(parseJson(row.payload_json)) : undefined;
   }
 
+  listChanges(): Change[] {
+    return this.listPayload(
+      "SELECT payload_json FROM changes ORDER BY CAST(SUBSTR(display_key, 5) AS INTEGER)",
+      parseChange
+    );
+  }
+
   nextChangeDisplayKey(projectId: InternalId): string {
     const row = this.database
       .prepare("UPDATE project_counters SET change_number = change_number + 1 WHERE project_id = ? RETURNING change_number")
@@ -956,6 +963,14 @@ class SqliteTransaction implements StoreTransaction {
       "SELECT payload_json FROM agent_runs WHERE work_item_id = ? ORDER BY attempt, rowid",
       parseAgentRun,
       workItemId
+    );
+  }
+
+  listAgentRunsByChange(changeId: InternalId): AgentRunRecord[] {
+    return this.listPayload(
+      "SELECT payload_json FROM agent_runs WHERE change_id = ? ORDER BY attempt, rowid",
+      parseAgentRun,
+      changeId
     );
   }
 
@@ -1711,12 +1726,21 @@ class SqliteTransaction implements StoreTransaction {
     );
   }
 
+  getAttentionItem(id: InternalId): AttentionItem | undefined {
+    return this.getPayload("SELECT payload_json FROM attention_items WHERE id = ?", parseAttentionItem, id);
+  }
+
   listOpenAttentionItems(projectId: InternalId): AttentionItem[] {
     return this.listPayload(
       "SELECT payload_json FROM attention_items WHERE project_id = ? AND status = 'open' ORDER BY rowid",
       parseAttentionItem,
       projectId
     );
+  }
+
+  deleteReadModels(): void {
+    this.database.exec("DELETE FROM attention_items");
+    this.database.exec("DELETE FROM read_model_checkpoints");
   }
 
   insertImportReport(report: ImportReport): void {
