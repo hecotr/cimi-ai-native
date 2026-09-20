@@ -230,6 +230,21 @@ importers:
         specifier: 14.0.2
         version: 14.0.2
 
+  packages/runtime:
+    dependencies:
+      '@cimiloop/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+
+  packages/runtime-claude-code:
+    dependencies:
+      '@cimiloop/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@cimiloop/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+
   packages/store:
     dependencies:
       '@cimiloop/protocol':

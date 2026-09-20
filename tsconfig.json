@@ -6,6 +6,8 @@
     { "path": "packages/kernel" },
     { "path": "packages/context" },
     { "path": "packages/workspace-git" },
+    { "path": "packages/runtime" },
+    { "path": "packages/runtime-claude-code" },
     { "path": "packages/store-sqlite" },
     { "path": "apps/cli" },
     { "path": "apps/workbench" }
