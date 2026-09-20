@@ -10,8 +10,11 @@ $scanRoots = @(
 )
 $hits = @()
 foreach ($root in $scanRoots) {
-  $files = Get-ChildItem -Path $root -Recurse -Include *.ts,*.js,*.mjs,*.json |
-    Where-Object { $_.FullName -notmatch "\\(dist|node_modules|test)\\" }
+  $files = Get-ChildItem -Path $root -Recurse -File -ErrorAction SilentlyContinue |
+    Where-Object {
+      $_.FullName -notmatch "\\(dist|node_modules|test)\\" -and
+      @(".ts", ".js", ".mjs", ".json") -contains $_.Extension
+    }
   foreach ($file in $files) {
     $text = Get-Content -Raw -Encoding UTF8 $file.FullName
     foreach ($pattern in $forbidden) {
