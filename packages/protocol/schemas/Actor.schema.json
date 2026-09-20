@@ -29,8 +29,16 @@
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
     },
     "actor_type": {
-      "type": "string",
-      "const": "human"
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "human"
+        },
+        {
+          "type": "string",
+          "const": "agent"
+        }
+      ]
     },
     "display_name": {
       "type": "string",
@@ -43,8 +51,16 @@
       "maxLength": 320
     },
     "identity_source": {
-      "type": "string",
-      "const": "git_config"
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "git_config"
+        },
+        {
+          "type": "string",
+          "const": "local_agent"
+        }
+      ]
     }
   },
   "additionalProperties": false

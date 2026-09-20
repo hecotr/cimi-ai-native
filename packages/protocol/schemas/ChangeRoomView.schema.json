@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ChangeRoomView.v1",
+  "type": "object",
+  "required": [
+    "change_id",
+    "display_key",
+    "title",
+    "lifecycle_state",
+    "operating_status",
+    "focus",
+    "next_action",
+    "open_request_ids",
+    "decision_ids",
+    "feedback_ids",
+    "timeline_event_ids"
+  ],
+  "properties": {
+    "change_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "display_key": {
+      "type": "string",
+      "pattern": "^CHG-\\d{4,}$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "lifecycle_state": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "Draft"
+        },
+        {
+          "type": "string",
+          "const": "IntentReady"
+        },
+        {
+          "type": "string",
+          "const": "Planned"
+        }
+      ]
+    },
+    "operating_status": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "Active"
+        },
+        {
+          "type": "string",
+          "const": "Paused"
+        }
+      ]
+    },
+    "focus": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "next_action": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "contract": {
+      "type": "object",
+      "required": [
+        "domain_version",
+        "intent"
+      ],
+      "properties": {
+        "domain_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "intent": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      },
+      "additionalProperties": false
+    },
+    "plan": {
+      "type": "object",
+      "required": [
+        "domain_version",
+        "summary"
+      ],
+      "properties": {
+        "domain_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      },
+      "additionalProperties": false
+    },
+    "open_request_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      }
+    },
+    "decision_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      }
+    },
+    "feedback_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      }
+    },
+    "timeline_event_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      }
+    }
+  },
+  "additionalProperties": false
+}

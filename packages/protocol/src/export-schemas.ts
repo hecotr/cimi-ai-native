@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
-import { protocolSchemas } from "./schemas.js";
+import { protocolSchemas } from "./registry.js";
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 const outputDirectory = resolve(currentDirectory, "..", "schemas");

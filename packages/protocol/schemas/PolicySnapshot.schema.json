@@ -1,18 +1,15 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "Assignment.v1",
+  "$id": "PolicySnapshot.v1",
   "type": "object",
   "required": [
     "schema_version",
     "created_at",
-    "revision",
     "id",
     "project_id",
-    "actor_id",
-    "role_id",
-    "scope_type",
-    "scope_id",
-    "effective_at"
+    "policy_id",
+    "policy_revision",
+    "digest"
   ],
   "properties": {
     "schema_version": {
@@ -23,10 +20,6 @@
       "type": "string",
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
     },
-    "revision": {
-      "type": "integer",
-      "minimum": 1
-    },
     "id": {
       "type": "string",
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
@@ -35,33 +28,44 @@
       "type": "string",
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
     },
-    "actor_id": {
+    "policy_id": {
       "type": "string",
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
     },
-    "role_id": {
-      "type": "string",
-      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    "policy_revision": {
+      "type": "integer",
+      "minimum": 1
     },
-    "scope_type": {
-      "anyOf": [
-        {
+    "digest": {
+      "type": "object",
+      "required": [
+        "algorithm",
+        "value",
+        "subject"
+      ],
+      "properties": {
+        "algorithm": {
           "type": "string",
-          "const": "project"
+          "const": "sha256"
         },
-        {
+        "value": {
           "type": "string",
-          "const": "change"
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
         }
-      ]
+      },
+      "additionalProperties": false
     },
-    "scope_id": {
-      "type": "string",
-      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-    },
-    "effective_at": {
-      "type": "string",
-      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    "extensions": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

@@ -80,6 +80,74 @@
             {
               "type": "string",
               "const": "outbox_message"
+            },
+            {
+              "type": "string",
+              "const": "change_profile"
+            },
+            {
+              "type": "string",
+              "const": "project_policy"
+            },
+            {
+              "type": "string",
+              "const": "policy_snapshot"
+            },
+            {
+              "type": "string",
+              "const": "contract_candidate"
+            },
+            {
+              "type": "string",
+              "const": "contract_version"
+            },
+            {
+              "type": "string",
+              "const": "contract_amendment"
+            },
+            {
+              "type": "string",
+              "const": "risk_profile"
+            },
+            {
+              "type": "string",
+              "const": "risk_assessment"
+            },
+            {
+              "type": "string",
+              "const": "knowledge_impact_assessment"
+            },
+            {
+              "type": "string",
+              "const": "plan_candidate"
+            },
+            {
+              "type": "string",
+              "const": "plan_version"
+            },
+            {
+              "type": "string",
+              "const": "plan_amendment"
+            },
+            {
+              "type": "string",
+              "const": "task"
+            },
+            {
+              "type": "string",
+              "const": "decision_request"
+            },
+            {
+              "type": "string",
+              "const": "decision"
+            },
+            {
+              "type": "string",
+              "const": "feedback"
+            },
+            {
+              "type": "string",
+              "const": "gate_evaluation"
             }
           ]
         },

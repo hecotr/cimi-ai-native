@@ -28,12 +28,29 @@
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
     },
     "role_key": {
-      "type": "string",
-      "const": "project_owner"
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "project_owner"
+        },
+        {
+          "type": "string",
+          "const": "change_owner"
+        },
+        {
+          "type": "string",
+          "const": "intent_owner"
+        },
+        {
+          "type": "string",
+          "const": "technical_owner"
+        }
+      ]
     },
     "display_name": {
       "type": "string",
-      "const": "项目负责人"
+      "minLength": 1,
+      "maxLength": 200
     }
   },
   "additionalProperties": false

@@ -60,8 +60,20 @@
             "maxLength": 300
           },
           "lifecycle_state": {
-            "type": "string",
-            "const": "Draft"
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "Draft"
+              },
+              {
+                "type": "string",
+                "const": "IntentReady"
+              },
+              {
+                "type": "string",
+                "const": "Planned"
+              }
+            ]
           },
           "operating_status": {
             "anyOf": [

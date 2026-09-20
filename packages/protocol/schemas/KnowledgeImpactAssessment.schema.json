@@ -1,0 +1,449 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "KnowledgeImpactAssessment.v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "created_at",
+    "updated_at",
+    "revision",
+    "id",
+    "project_id",
+    "change_id",
+    "sources"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "created_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    },
+    "updated_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "change_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "sources": {
+      "type": "object",
+      "required": [
+        "product_business",
+        "technical",
+        "operations",
+        "communication"
+      ],
+      "properties": {
+        "product_business": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "conclusion",
+                "rationale"
+              ],
+              "properties": {
+                "conclusion": {
+                  "type": "string",
+                  "const": "NoImpact"
+                },
+                "rationale": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "conclusion",
+                "owner_role",
+                "gate",
+                "summary"
+              ],
+              "properties": {
+                "conclusion": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "Create"
+                    },
+                    {
+                      "type": "string",
+                      "const": "Update"
+                    },
+                    {
+                      "type": "string",
+                      "const": "Deprecate"
+                    },
+                    {
+                      "type": "string",
+                      "const": "Verify"
+                    }
+                  ]
+                },
+                "owner_role": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "change_owner"
+                    },
+                    {
+                      "type": "string",
+                      "const": "intent_owner"
+                    },
+                    {
+                      "type": "string",
+                      "const": "technical_owner"
+                    }
+                  ]
+                },
+                "gate": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "intent"
+                    },
+                    {
+                      "type": "string",
+                      "const": "plan"
+                    },
+                    {
+                      "type": "string",
+                      "const": "production_release"
+                    },
+                    {
+                      "type": "string",
+                      "const": "change_closure"
+                    }
+                  ]
+                },
+                "summary": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "technical": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "conclusion",
+                "rationale"
+              ],
+              "properties": {
+                "conclusion": {
+                  "type": "string",
+                  "const": "NoImpact"
+                },
+                "rationale": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "conclusion",
+                "owner_role",
+                "gate",
+                "summary"
+              ],
+              "properties": {
+                "conclusion": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "Create"
+                    },
+                    {
+                      "type": "string",
+                      "const": "Update"
+                    },
+                    {
+                      "type": "string",
+                      "const": "Deprecate"
+                    },
+                    {
+                      "type": "string",
+                      "const": "Verify"
+                    }
+                  ]
+                },
+                "owner_role": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "change_owner"
+                    },
+                    {
+                      "type": "string",
+                      "const": "intent_owner"
+                    },
+                    {
+                      "type": "string",
+                      "const": "technical_owner"
+                    }
+                  ]
+                },
+                "gate": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "intent"
+                    },
+                    {
+                      "type": "string",
+                      "const": "plan"
+                    },
+                    {
+                      "type": "string",
+                      "const": "production_release"
+                    },
+                    {
+                      "type": "string",
+                      "const": "change_closure"
+                    }
+                  ]
+                },
+                "summary": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "operations": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "conclusion",
+                "rationale"
+              ],
+              "properties": {
+                "conclusion": {
+                  "type": "string",
+                  "const": "NoImpact"
+                },
+                "rationale": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "conclusion",
+                "owner_role",
+                "gate",
+                "summary"
+              ],
+              "properties": {
+                "conclusion": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "Create"
+                    },
+                    {
+                      "type": "string",
+                      "const": "Update"
+                    },
+                    {
+                      "type": "string",
+                      "const": "Deprecate"
+                    },
+                    {
+                      "type": "string",
+                      "const": "Verify"
+                    }
+                  ]
+                },
+                "owner_role": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "change_owner"
+                    },
+                    {
+                      "type": "string",
+                      "const": "intent_owner"
+                    },
+                    {
+                      "type": "string",
+                      "const": "technical_owner"
+                    }
+                  ]
+                },
+                "gate": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "intent"
+                    },
+                    {
+                      "type": "string",
+                      "const": "plan"
+                    },
+                    {
+                      "type": "string",
+                      "const": "production_release"
+                    },
+                    {
+                      "type": "string",
+                      "const": "change_closure"
+                    }
+                  ]
+                },
+                "summary": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "communication": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "conclusion",
+                "rationale"
+              ],
+              "properties": {
+                "conclusion": {
+                  "type": "string",
+                  "const": "NoImpact"
+                },
+                "rationale": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "conclusion",
+                "owner_role",
+                "gate",
+                "summary"
+              ],
+              "properties": {
+                "conclusion": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "Create"
+                    },
+                    {
+                      "type": "string",
+                      "const": "Update"
+                    },
+                    {
+                      "type": "string",
+                      "const": "Deprecate"
+                    },
+                    {
+                      "type": "string",
+                      "const": "Verify"
+                    }
+                  ]
+                },
+                "owner_role": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "change_owner"
+                    },
+                    {
+                      "type": "string",
+                      "const": "intent_owner"
+                    },
+                    {
+                      "type": "string",
+                      "const": "technical_owner"
+                    }
+                  ]
+                },
+                "gate": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "intent"
+                    },
+                    {
+                      "type": "string",
+                      "const": "plan"
+                    },
+                    {
+                      "type": "string",
+                      "const": "production_release"
+                    },
+                    {
+                      "type": "string",
+                      "const": "change_closure"
+                    }
+                  ]
+                },
+                "summary": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "extensions": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

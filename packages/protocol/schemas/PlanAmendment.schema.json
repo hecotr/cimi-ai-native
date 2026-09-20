@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "PlanAmendment.v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "created_at",
+    "updated_at",
+    "revision",
+    "id",
+    "project_id",
+    "change_id",
+    "plan_id",
+    "base_version",
+    "contract_id",
+    "contract_version",
+    "status",
+    "summary",
+    "verification_strategy",
+    "recovery_considerations",
+    "tasks"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "created_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    },
+    "updated_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "change_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "plan_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "base_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "contract_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "contract_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "open"
+        },
+        {
+          "type": "string",
+          "const": "approved"
+        },
+        {
+          "type": "string",
+          "const": "rejected"
+        },
+        {
+          "type": "string",
+          "const": "withdrawn"
+        }
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "verification_strategy": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "recovery_considerations": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "key",
+          "title",
+          "kind",
+          "dependencies"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "governance"
+              },
+              {
+                "type": "string",
+                "const": "implementation"
+              },
+              {
+                "type": "string",
+                "const": "verification"
+              },
+              {
+                "type": "string",
+                "const": "knowledge"
+              }
+            ]
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          "knowledge_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "product_business"
+              },
+              {
+                "type": "string",
+                "const": "technical"
+              },
+              {
+                "type": "string",
+                "const": "operations"
+              },
+              {
+                "type": "string",
+                "const": "communication"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "extensions": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

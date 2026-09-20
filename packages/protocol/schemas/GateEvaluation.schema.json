@@ -1,20 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "Change.v1",
+  "$id": "GateEvaluation.v1",
   "type": "object",
   "required": [
     "schema_version",
     "created_at",
-    "revision",
     "id",
     "project_id",
-    "display_key",
-    "title",
-    "lifecycle_state",
-    "operating_status",
-    "owner_actor_id",
-    "source",
-    "updated_at"
+    "change_id",
+    "gate_type",
+    "result",
+    "policy_snapshot_id",
+    "digest"
   ],
   "properties": {
     "schema_version": {
@@ -25,10 +22,6 @@
       "type": "string",
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
     },
-    "revision": {
-      "type": "integer",
-      "minimum": 1
-    },
     "id": {
       "type": "string",
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
@@ -37,89 +30,84 @@
       "type": "string",
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
     },
-    "display_key": {
-      "type": "string",
-      "pattern": "^CHG-\\d{4,}$"
-    },
-    "title": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 300
-    },
-    "lifecycle_state": {
-      "anyOf": [
-        {
-          "type": "string",
-          "const": "Draft"
-        },
-        {
-          "type": "string",
-          "const": "IntentReady"
-        },
-        {
-          "type": "string",
-          "const": "Planned"
-        }
-      ]
-    },
-    "operating_status": {
-      "anyOf": [
-        {
-          "type": "string",
-          "const": "Active"
-        },
-        {
-          "type": "string",
-          "const": "Paused"
-        }
-      ]
-    },
-    "owner_actor_id": {
+    "change_id": {
       "type": "string",
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
     },
-    "source": {
+    "gate_type": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "intent"
+        },
+        {
+          "type": "string",
+          "const": "plan"
+        }
+      ]
+    },
+    "result": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "ALLOW"
+        },
+        {
+          "type": "string",
+          "const": "NEED_MORE_EVIDENCE"
+        },
+        {
+          "type": "string",
+          "const": "REQUIRE_HUMAN"
+        },
+        {
+          "type": "string",
+          "const": "DENY"
+        }
+      ]
+    },
+    "policy_snapshot_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "digest": {
       "type": "object",
       "required": [
-        "origin",
-        "producer"
+        "algorithm",
+        "value",
+        "subject"
       ],
       "properties": {
-        "origin": {
-          "anyOf": [
-            {
-              "type": "string",
-              "const": "human_cli"
-            },
-            {
-              "type": "string",
-              "const": "agent"
-            },
-            {
-              "type": "string",
-              "const": "system"
-            }
-          ]
-        },
-        "producer": {
+        "algorithm": {
           "type": "string",
-          "minLength": 1
+          "const": "sha256"
         },
-        "repository_path": {
+        "value": {
           "type": "string",
-          "minLength": 1
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
         }
       },
       "additionalProperties": false
     },
-    "pause_reason": {
+    "request_id": {
       "type": "string",
-      "minLength": 1,
-      "maxLength": 1000
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
     },
-    "updated_at": {
+    "decision_id": {
       "type": "string",
-      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "extensions": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

@@ -18,7 +18,24 @@ export const ObjectTypeSchema = Type.Union([
   Type.Literal("change"),
   Type.Literal("transition_record"),
   Type.Literal("event"),
-  Type.Literal("outbox_message")
+  Type.Literal("outbox_message"),
+  Type.Literal("change_profile"),
+  Type.Literal("project_policy"),
+  Type.Literal("policy_snapshot"),
+  Type.Literal("contract_candidate"),
+  Type.Literal("contract_version"),
+  Type.Literal("contract_amendment"),
+  Type.Literal("risk_profile"),
+  Type.Literal("risk_assessment"),
+  Type.Literal("knowledge_impact_assessment"),
+  Type.Literal("plan_candidate"),
+  Type.Literal("plan_version"),
+  Type.Literal("plan_amendment"),
+  Type.Literal("task"),
+  Type.Literal("decision_request"),
+  Type.Literal("decision"),
+  Type.Literal("feedback"),
+  Type.Literal("gate_evaluation")
 ]);
 
 export const TypedReferenceSchema = Type.Object(
@@ -61,10 +78,10 @@ export const ActorSchema = Type.Object(
   {
     ...CommonMetadata,
     id: InternalIdSchema,
-    actor_type: Type.Literal("human"),
+    actor_type: Type.Union([Type.Literal("human"), Type.Literal("agent")]),
     display_name: Type.String({ minLength: 1, maxLength: 200 }),
     email: Type.Optional(Type.String({ minLength: 3, maxLength: 320 })),
-    identity_source: Type.Literal("git_config")
+    identity_source: Type.Union([Type.Literal("git_config"), Type.Literal("local_agent")])
   },
   { additionalProperties: false }
 );
@@ -73,8 +90,13 @@ export const RoleSchema = Type.Object(
   {
     ...CommonMetadata,
     id: InternalIdSchema,
-    role_key: Type.Literal("project_owner"),
-    display_name: Type.Literal("项目负责人")
+    role_key: Type.Union([
+      Type.Literal("project_owner"),
+      Type.Literal("change_owner"),
+      Type.Literal("intent_owner"),
+      Type.Literal("technical_owner")
+    ]),
+    display_name: Type.String({ minLength: 1, maxLength: 200 })
   },
   { additionalProperties: false }
 );
@@ -86,7 +108,7 @@ export const AssignmentSchema = Type.Object(
     project_id: InternalIdSchema,
     actor_id: InternalIdSchema,
     role_id: InternalIdSchema,
-    scope_type: Type.Literal("project"),
+    scope_type: Type.Union([Type.Literal("project"), Type.Literal("change")]),
     scope_id: InternalIdSchema,
     effective_at: UtcTimestampSchema
   },
@@ -100,7 +122,11 @@ export const ChangeSchema = Type.Object(
     project_id: InternalIdSchema,
     display_key: Type.String({ pattern: "^CHG-\\d{4,}$" }),
     title: Type.String({ minLength: 1, maxLength: 300 }),
-    lifecycle_state: Type.Literal("Draft"),
+    lifecycle_state: Type.Union([
+      Type.Literal("Draft"),
+      Type.Literal("IntentReady"),
+      Type.Literal("Planned")
+    ]),
     operating_status: Type.Union([Type.Literal("Active"), Type.Literal("Paused")]),
     owner_actor_id: InternalIdSchema,
     source: SourceDescriptorSchema,
@@ -110,22 +136,49 @@ export const ChangeSchema = Type.Object(
   { additionalProperties: false }
 );
 
-export const TransitionRecordSchema = Type.Object(
-  {
-    schema_version: Type.Literal(SCHEMA_VERSION),
-    id: InternalIdSchema,
-    project_id: InternalIdSchema,
-    change_id: InternalIdSchema,
-    command_id: InternalIdSchema,
-    transition_type: Type.Union([Type.Literal("change_paused"), Type.Literal("change_resumed")]),
-    from_status: Type.Union([Type.Literal("Active"), Type.Literal("Paused")]),
-    to_status: Type.Union([Type.Literal("Active"), Type.Literal("Paused")]),
-    reason: Type.Optional(Type.String({ minLength: 1, maxLength: 1000 })),
-    actor_id: InternalIdSchema,
-    occurred_at: UtcTimestampSchema
-  },
-  { additionalProperties: false }
-);
+const TransitionRecordBase = {
+  schema_version: Type.Literal(SCHEMA_VERSION),
+  id: InternalIdSchema,
+  project_id: InternalIdSchema,
+  change_id: InternalIdSchema,
+  command_id: InternalIdSchema,
+  reason: Type.Optional(Type.String({ minLength: 1, maxLength: 1000 })),
+  actor_id: InternalIdSchema,
+  occurred_at: UtcTimestampSchema
+};
+
+export const TransitionRecordSchema = Type.Union([
+  Type.Object(
+    {
+      ...TransitionRecordBase,
+      transition_type: Type.Union([Type.Literal("change_paused"), Type.Literal("change_resumed")]),
+      from_status: Type.Union([Type.Literal("Active"), Type.Literal("Paused")]),
+      to_status: Type.Union([Type.Literal("Active"), Type.Literal("Paused")])
+    },
+    { additionalProperties: false }
+  ),
+  Type.Object(
+    {
+      ...TransitionRecordBase,
+      transition_type: Type.Literal("lifecycle_changed"),
+      from_lifecycle: Type.Union([
+        Type.Literal("Draft"),
+        Type.Literal("IntentReady"),
+        Type.Literal("Planned")
+      ]),
+      to_lifecycle: Type.Union([
+        Type.Literal("Draft"),
+        Type.Literal("IntentReady"),
+        Type.Literal("Planned")
+      ]),
+      from_status: Type.Union([Type.Literal("Active"), Type.Literal("Paused")]),
+      to_status: Type.Union([Type.Literal("Active"), Type.Literal("Paused")]),
+      gate_evaluation_id: Type.Optional(InternalIdSchema),
+      decision_id: Type.Optional(InternalIdSchema)
+    },
+    { additionalProperties: false }
+  )
+]);
 
 export const EventEnvelopeSchema = Type.Object(
   {
@@ -320,7 +373,7 @@ export type ChangeShowResult = Static<typeof ChangeShowResultSchema>;
 export type DoctorResult = Static<typeof DoctorResultSchema>;
 export type ErrorResult = Static<typeof ErrorResultSchema>;
 
-export const protocolSchemas = {
+export const m0ProtocolSchemas = {
   Project: ProjectSchema,
   Actor: ActorSchema,
   Role: RoleSchema,

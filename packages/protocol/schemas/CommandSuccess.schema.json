@@ -64,6 +64,74 @@
             {
               "type": "string",
               "const": "outbox_message"
+            },
+            {
+              "type": "string",
+              "const": "change_profile"
+            },
+            {
+              "type": "string",
+              "const": "project_policy"
+            },
+            {
+              "type": "string",
+              "const": "policy_snapshot"
+            },
+            {
+              "type": "string",
+              "const": "contract_candidate"
+            },
+            {
+              "type": "string",
+              "const": "contract_version"
+            },
+            {
+              "type": "string",
+              "const": "contract_amendment"
+            },
+            {
+              "type": "string",
+              "const": "risk_profile"
+            },
+            {
+              "type": "string",
+              "const": "risk_assessment"
+            },
+            {
+              "type": "string",
+              "const": "knowledge_impact_assessment"
+            },
+            {
+              "type": "string",
+              "const": "plan_candidate"
+            },
+            {
+              "type": "string",
+              "const": "plan_version"
+            },
+            {
+              "type": "string",
+              "const": "plan_amendment"
+            },
+            {
+              "type": "string",
+              "const": "task"
+            },
+            {
+              "type": "string",
+              "const": "decision_request"
+            },
+            {
+              "type": "string",
+              "const": "decision"
+            },
+            {
+              "type": "string",
+              "const": "feedback"
+            },
+            {
+              "type": "string",
+              "const": "gate_evaluation"
             }
           ]
         },
@@ -157,6 +225,74 @@
                   {
                     "type": "string",
                     "const": "outbox_message"
+                  },
+                  {
+                    "type": "string",
+                    "const": "change_profile"
+                  },
+                  {
+                    "type": "string",
+                    "const": "project_policy"
+                  },
+                  {
+                    "type": "string",
+                    "const": "policy_snapshot"
+                  },
+                  {
+                    "type": "string",
+                    "const": "contract_candidate"
+                  },
+                  {
+                    "type": "string",
+                    "const": "contract_version"
+                  },
+                  {
+                    "type": "string",
+                    "const": "contract_amendment"
+                  },
+                  {
+                    "type": "string",
+                    "const": "risk_profile"
+                  },
+                  {
+                    "type": "string",
+                    "const": "risk_assessment"
+                  },
+                  {
+                    "type": "string",
+                    "const": "knowledge_impact_assessment"
+                  },
+                  {
+                    "type": "string",
+                    "const": "plan_candidate"
+                  },
+                  {
+                    "type": "string",
+                    "const": "plan_version"
+                  },
+                  {
+                    "type": "string",
+                    "const": "plan_amendment"
+                  },
+                  {
+                    "type": "string",
+                    "const": "task"
+                  },
+                  {
+                    "type": "string",
+                    "const": "decision_request"
+                  },
+                  {
+                    "type": "string",
+                    "const": "decision"
+                  },
+                  {
+                    "type": "string",
+                    "const": "feedback"
+                  },
+                  {
+                    "type": "string",
+                    "const": "gate_evaluation"
                   }
                 ]
               },
@@ -301,8 +437,16 @@
                   "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
                 },
                 "actor_type": {
-                  "type": "string",
-                  "const": "human"
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "human"
+                    },
+                    {
+                      "type": "string",
+                      "const": "agent"
+                    }
+                  ]
                 },
                 "display_name": {
                   "type": "string",
@@ -315,8 +459,16 @@
                   "maxLength": 320
                 },
                 "identity_source": {
-                  "type": "string",
-                  "const": "git_config"
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "git_config"
+                    },
+                    {
+                      "type": "string",
+                      "const": "local_agent"
+                    }
+                  ]
                 }
               },
               "additionalProperties": false
@@ -365,8 +517,16 @@
                   "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
                 },
                 "scope_type": {
-                  "type": "string",
-                  "const": "project"
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "project"
+                    },
+                    {
+                      "type": "string",
+                      "const": "change"
+                    }
+                  ]
                 },
                 "scope_id": {
                   "type": "string",
@@ -435,8 +595,20 @@
                   "maxLength": 300
                 },
                 "lifecycle_state": {
-                  "type": "string",
-                  "const": "Draft"
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "Draft"
+                    },
+                    {
+                      "type": "string",
+                      "const": "IntentReady"
+                    },
+                    {
+                      "type": "string",
+                      "const": "Planned"
+                    }
+                  ]
                 },
                 "operating_status": {
                   "anyOf": [
