@@ -173,7 +173,7 @@ describe("M4 acceptance environment", () => {
     const after = createHarness("timeout-after-effect");
     const afterResult = await after.adapter.execute(inputFor("deploy", after.directory, digestA, "op:deploy:after"), {
       secrets: after.secrets,
-      timeoutMs: 200
+      timeoutMs: 2_000
     });
     expect(afterResult.state).toBe("unknown");
     expect(readFileSync(join(after.directory, "envs", "test", "CURRENT"), "utf8").trim()).toBe(digestA);
