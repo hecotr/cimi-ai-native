@@ -1,0 +1,14 @@
+{
+  "name": "@cimiloop/workbench",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "cimiloop-workbench": "./dist/bin.js"
+  },
+  "dependencies": {
+    "@cimiloop/kernel": "workspace:*",
+    "@cimiloop/protocol": "workspace:*",
+    "@cimiloop/store-sqlite": "workspace:*"
+  }
+}

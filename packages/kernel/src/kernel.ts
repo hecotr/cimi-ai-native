@@ -183,6 +183,10 @@ export class CimiLoopKernel {
     return this.#store.listChanges();
   }
 
+  listRoles(): Role[] {
+    return this.#store.transaction((transaction) => transaction.listRoles());
+  }
+
   listEvents(): EventEnvelope[] {
     return this.#store.listEvents();
   }

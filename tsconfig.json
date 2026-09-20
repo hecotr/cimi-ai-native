@@ -5,6 +5,7 @@
     { "path": "packages/store" },
     { "path": "packages/kernel" },
     { "path": "packages/store-sqlite" },
-    { "path": "apps/cli" }
+    { "path": "apps/cli" },
+    { "path": "apps/workbench" }
   ]
 }

@@ -14,7 +14,8 @@
     "schema:export": "pnpm build && node packages/protocol/dist/export-schemas.js",
     "test": "pnpm check && vitest run",
     "test:watch": "vitest",
-    "cimiloop": "node apps/cli/dist/bin.js"
+    "cimiloop": "node apps/cli/dist/bin.js",
+    "workbench": "node apps/workbench/dist/bin.js"
   },
   "devDependencies": {
     "@types/node": "24.13.6",
