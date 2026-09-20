@@ -192,6 +192,7 @@ export const optionalExtensions = {
 export type DecisionOutcome = Static<typeof DecisionOutcomeSchema>;
 export type ChangeProfileKey = Static<typeof ChangeProfileKeySchema>;
 export type KnowledgeConclusion = Static<typeof KnowledgeConclusionSchema>;
+export type KnowledgeSourceKey = Static<typeof KnowledgeSourceKeySchema>;
 export type GateResult = Static<typeof GateResultSchema>;
 export type Digest = Static<typeof DigestSchema>;
 export type LifecycleState = Static<typeof LifecycleStateSchema>;

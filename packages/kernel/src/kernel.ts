@@ -70,6 +70,7 @@ import {
   type RecordReconciliationCommand,
   type AuthorizeRecoveryCommand,
   type RecordRecoveryCommand,
+  type RecordKnowledgeUpdateCommand,
   type RequestReleaseDecisionCommand,
   type DecisionRequest,
   type Claim,
@@ -91,7 +92,8 @@ import {
   type Environment,
   type ExternalOperation,
   type RecoveryExecution,
-  type Release
+  type Release,
+  type KnowledgeUpdateEvidence
 } from "@cimiloop/protocol";
 import {
   StoreConflictError,
@@ -119,6 +121,7 @@ import { evaluateEvidenceGate, evaluationInputDigest, findReusableEvaluation } f
 import { classifyImpact, projectValidity } from "./evidence/impact.js";
 import { createEvidenceFromCommand } from "./evidence/ingest.js";
 import { parseWhitelistedTestResult, readPromotableReference } from "./evidence/promotion.js";
+import { evaluateKnowledgeObligation, isUnavailableReference } from "./closure/knowledge.js";
 import { createKnowledgeImpactAssessment, validateKnowledgeImpact } from "./knowledge-impact.js";
 import { createPlanCandidate, createPlanTasks, createPlanVersion, validateKnowledgeTasks } from "./plan.js";
 import { ReadModelBuilder } from "./read-models.js";
@@ -765,6 +768,7 @@ export class CimiLoopKernel {
       case "RecordRecovery":
         return this.#recordRecovery(transaction, command);
       case "RecordKnowledgeUpdate":
+        return this.#recordKnowledgeUpdate(transaction, command);
       case "ProposeClose":
       case "CloseChange":
       case "CancelChange":
@@ -4225,6 +4229,181 @@ export class CimiLoopKernel {
       nextChange.revision,
       [event],
       { evidence }
+    );
+  }
+
+  #recordKnowledgeUpdate(transaction: StoreTransaction, command: RecordKnowledgeUpdateCommand): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
+    if ("code" in loaded) return loaded;
+    if (command.payload.conclusion === "NoImpact") {
+      return domainError(
+        command.correlation_id,
+        "KNOWLEDGE_NO_IMPACT_UPDATE",
+        "NoImpact 知识来源不记录 Knowledge Update",
+        "validation"
+      );
+    }
+    const knowledge = transaction.getKnowledgeImpactAssessmentByChange(loaded.change.id);
+    if (!knowledge) {
+      return domainError(
+        command.correlation_id,
+        "KNOWLEDGE_OBLIGATION_NOT_FOUND",
+        "记录知识更新需要 Knowledge Impact Assessment",
+        "not_found"
+      );
+    }
+    const required = knowledge.sources[command.payload.knowledge_source];
+    if (required.conclusion !== command.payload.conclusion) {
+      return domainError(
+        command.correlation_id,
+        "KNOWLEDGE_CONCLUSION_MISMATCH",
+        "知识更新结论必须匹配 Mandatory Knowledge Impact",
+        "validation"
+      );
+    }
+    const plan = transaction.getCurrentPlan(loaded.change.id);
+    const task = plan
+      ? transaction.listTasks(plan.plan_id, plan.domain_version).find((item) => item.id === command.payload.task_id)
+      : undefined;
+    if (!task || task.kind !== "knowledge" || task.knowledge_source !== command.payload.knowledge_source) {
+      return domainError(
+        command.correlation_id,
+        "KNOWLEDGE_TASK_NOT_FOUND",
+        "知识更新必须绑定当前 Plan 的 Mandatory Knowledge Task",
+        "not_found"
+      );
+    }
+    const reference = transaction.getExternalReference(command.payload.external_reference_id);
+    if (!reference || reference.project_id !== loaded.project.id) {
+      return domainError(
+        command.correlation_id,
+        "KNOWLEDGE_REFERENCE_NOT_FOUND",
+        "知识更新必须引用已存在的版本化 External Reference",
+        "not_found"
+      );
+    }
+    const evidence = transaction.getEvidence(command.payload.evidence_id);
+    if (!evidence || evidence.change_id !== loaded.change.id) {
+      return domainError(
+        command.correlation_id,
+        "KNOWLEDGE_EVIDENCE_NOT_FOUND",
+        "知识更新必须引用已存在的 Evidence",
+        "not_found"
+      );
+    }
+    if (command.payload.exception_id) {
+      const decision = transaction.getDecision(command.payload.exception_id);
+      if (!decision || decision.change_id !== loaded.change.id || decision.outcome !== "approve") {
+        return domainError(
+          command.correlation_id,
+          "KNOWLEDGE_EXCEPTION_INVALID",
+          "知识例外必须是同一 Change 上已批准的 Human Decision",
+          "forbidden"
+        );
+      }
+    } else if (isUnavailableReference(reference.reference)) {
+      return domainError(
+        command.correlation_id,
+        "KNOWLEDGE_REFERENCE_UNAVAILABLE",
+        "不可访问的知识引用不能自动视为完成",
+        "conflict"
+      );
+    } else {
+      const validity = projectValidity(transaction.listImpactAssessmentsBySubject(evidence.id));
+      const assessed = evaluateKnowledgeObligation({
+        source: command.payload.knowledge_source,
+        requiredConclusion: required.conclusion,
+        task,
+        updates: [
+          {
+            schema_version: SCHEMA_VERSION,
+            id: command.command_id,
+            project_id: loaded.project.id,
+            change_id: loaded.change.id,
+            task_id: command.payload.task_id,
+            knowledge_source: command.payload.knowledge_source,
+            conclusion: command.payload.conclusion,
+            external_reference_id: command.payload.external_reference_id,
+            evidence_id: command.payload.evidence_id,
+            digest: { algorithm: "sha256", value: "0".repeat(64), subject: "knowledge_update_preview" },
+            created_at: this.#now()
+          }
+        ],
+        references: { [reference.id]: { id: reference.id, reference: reference.reference } },
+        evidenceById: {
+          [evidence.id]: {
+            id: evidence.id,
+            stance: evidence.stance,
+            ...(evidence.external_reference_id ? { external_reference_id: evidence.external_reference_id } : {})
+          }
+        },
+        validityByEvidenceId: { [evidence.id]: validity }
+      });
+      if (!assessed.complete) {
+        const codes = {
+          missing_evidence: "KNOWLEDGE_EVIDENCE_INSUFFICIENT",
+          stale_reference: "KNOWLEDGE_REFERENCE_STALE",
+          unavailable_reference: "KNOWLEDGE_REFERENCE_UNAVAILABLE",
+          conclusion_mismatch: "KNOWLEDGE_CONCLUSION_MISMATCH",
+          invalid_exception: "KNOWLEDGE_EXCEPTION_INVALID"
+        } as const;
+        return domainError(
+          command.correlation_id,
+          codes[assessed.reason],
+          assessed.gap.summary,
+          assessed.reason === "conclusion_mismatch" ? "validation" : "conflict"
+        );
+      }
+    }
+    const now = this.#now();
+    const knowledgeUpdate: KnowledgeUpdateEvidence = {
+      schema_version: SCHEMA_VERSION,
+      id: this.#id(),
+      project_id: loaded.project.id,
+      change_id: loaded.change.id,
+      task_id: command.payload.task_id,
+      knowledge_source: command.payload.knowledge_source,
+      conclusion: command.payload.conclusion,
+      external_reference_id: command.payload.external_reference_id,
+      evidence_id: command.payload.evidence_id,
+      digest: {
+        algorithm: "sha256",
+        value: requestDigest({
+          change_id: loaded.change.id,
+          task_id: command.payload.task_id,
+          knowledge_source: command.payload.knowledge_source,
+          conclusion: command.payload.conclusion,
+          external_reference_id: command.payload.external_reference_id,
+          evidence_id: command.payload.evidence_id,
+          ...(command.payload.exception_id ? { exception_id: command.payload.exception_id } : {})
+        }),
+        subject: "knowledge_update_evidence"
+      },
+      created_at: now,
+      ...(command.payload.exception_id ? { exception_id: command.payload.exception_id } : {})
+    };
+    transaction.insertKnowledgeUpdateEvidence(knowledgeUpdate);
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "KnowledgeUpdateRecorded",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "knowledge_update_evidence", id: knowledgeUpdate.id, domain_version: 1 },
+      aggregate_revision: 1,
+      actor_id: loaded.actorId,
+      command,
+      payload: {
+        knowledge_update_id: knowledgeUpdate.id,
+        task_id: knowledgeUpdate.task_id,
+        conclusion: knowledgeUpdate.conclusion
+      },
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "knowledge_update_evidence", id: knowledgeUpdate.id, domain_version: 1 },
+      nextChange.revision,
+      [event],
+      { knowledge_update: knowledgeUpdate }
     );
   }
 

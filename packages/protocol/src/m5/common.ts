@@ -64,6 +64,7 @@ export const ExportExclusionSchema = Type.Object(
 );
 
 export type ClosureDisposition = Static<typeof ClosureDispositionSchema>;
+export type ClosureGap = Static<typeof ClosureGapSchema>;
 export type LearningSourceKind = Static<typeof LearningSourceKindSchema>;
 export type LearningCandidateStatus = Static<typeof LearningCandidateStatusSchema>;
 export type AttentionKind = Static<typeof AttentionKindSchema>;
