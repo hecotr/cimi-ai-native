@@ -258,6 +258,110 @@ CREATE INDEX IF NOT EXISTS idx_feedback_decision ON feedback(decision_id);
 CREATE INDEX IF NOT EXISTS idx_gate_evaluations_change ON gate_evaluations(change_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_plan ON tasks(plan_id, plan_version);
 `
+  },
+  {
+    version: 3,
+    sql: `
+CREATE TABLE IF NOT EXISTS work_items (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  kind TEXT NOT NULL,
+  status TEXT NOT NULL,
+  task_id TEXT,
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS leases (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  work_item_id TEXT NOT NULL REFERENCES work_items(id),
+  owner_actor_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  acquired_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS resource_locks (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  resource_type TEXT NOT NULL,
+  resource_key TEXT NOT NULL,
+  holder_work_item_id TEXT NOT NULL REFERENCES work_items(id),
+  status TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS provider_descriptors (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  provider_type TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS context_pack_manifests (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  work_item_id TEXT NOT NULL REFERENCES work_items(id),
+  digest TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS capability_bindings (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  work_item_id TEXT NOT NULL REFERENCES work_items(id),
+  run_id TEXT NOT NULL,
+  digest TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS agent_runs (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  work_item_id TEXT NOT NULL REFERENCES work_items(id),
+  status TEXT NOT NULL,
+  attempt INTEGER NOT NULL,
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS source_snapshots (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  work_item_id TEXT NOT NULL REFERENCES work_items(id),
+  run_id TEXT NOT NULL,
+  digest TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS artifacts (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  work_item_id TEXT NOT NULL REFERENCES work_items(id),
+  run_id TEXT NOT NULL,
+  digest TEXT NOT NULL,
+  status TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_leases_active_work_item ON leases(work_item_id) WHERE status = 'active';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_locks_held_resource ON resource_locks(resource_type, resource_key) WHERE status = 'held';
+CREATE INDEX IF NOT EXISTS idx_work_items_ready ON work_items(change_id, status) WHERE status = 'ready';
+CREATE INDEX IF NOT EXISTS idx_work_items_change ON work_items(change_id, status);
+CREATE INDEX IF NOT EXISTS idx_leases_expires ON leases(status, expires_at);
+CREATE INDEX IF NOT EXISTS idx_agent_runs_work_item ON agent_runs(work_item_id, attempt);
+CREATE INDEX IF NOT EXISTS idx_artifacts_change ON artifacts(change_id, status);
+CREATE INDEX IF NOT EXISTS idx_artifacts_digest ON artifacts(digest);
+`
   }
 ];
 

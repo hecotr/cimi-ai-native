@@ -1,9 +1,13 @@
 import type {
   Actor,
+  AgentRunRecord,
+  Artifact,
   Assignment,
+  CapabilityBinding,
   Change,
   ChangeProfile,
   CommandSuccess,
+  ContextPackManifest,
   ContractAmendment,
   ContractCandidate,
   ContractVersion,
@@ -14,18 +18,23 @@ import type {
   GateEvaluation,
   InternalId,
   KnowledgeImpactAssessment,
+  Lease,
   PlanAmendment,
   PlanCandidate,
   PlanVersion,
   PolicySnapshot,
   Project,
   ProjectPolicy,
+  ProviderDescriptor,
+  ResourceLock,
   RiskAssessment,
   RiskProfile,
   Role,
+  SourceSnapshot,
   Task,
   TransitionRecord,
-  TypedReference
+  TypedReference,
+  WorkItem
 } from "@cimiloop/protocol";
 
 export interface ProposedEvent {
@@ -155,6 +164,43 @@ export interface StoreTransaction {
   insertGateEvaluation(evaluation: GateEvaluation): void;
   getGateEvaluation(id: InternalId): GateEvaluation | undefined;
   listGateEvaluations(changeId: InternalId): GateEvaluation[];
+
+  insertWorkItem(workItem: WorkItem): void;
+  updateWorkItem(workItem: WorkItem, expectedRevision: number): void;
+  getWorkItem(id: InternalId): WorkItem | undefined;
+  listWorkItemsByChange(changeId: InternalId): WorkItem[];
+  listReadyWorkItems(changeId: InternalId): WorkItem[];
+
+  insertLease(lease: Lease): void;
+  updateLease(lease: Lease, expectedRevision: number): void;
+  getLease(id: InternalId): Lease | undefined;
+  getActiveLeaseByWorkItem(workItemId: InternalId): Lease | undefined;
+
+  insertResourceLock(lock: ResourceLock): void;
+  updateResourceLock(lock: ResourceLock, expectedRevision: number): void;
+  getHeldResourceLock(resourceType: ResourceLock["resource_type"], resourceKey: string): ResourceLock | undefined;
+
+  insertProviderDescriptor(descriptor: ProviderDescriptor): void;
+  getProviderDescriptor(id: InternalId): ProviderDescriptor | undefined;
+
+  insertContextPackManifest(manifest: ContextPackManifest): void;
+  getContextPackManifest(id: InternalId): ContextPackManifest | undefined;
+
+  insertCapabilityBinding(binding: CapabilityBinding): void;
+  getCapabilityBinding(id: InternalId): CapabilityBinding | undefined;
+
+  insertAgentRun(run: AgentRunRecord): void;
+  updateAgentRun(run: AgentRunRecord, expectedRevision: number): void;
+  getAgentRun(id: InternalId): AgentRunRecord | undefined;
+  listAgentRuns(workItemId: InternalId): AgentRunRecord[];
+
+  insertSourceSnapshot(snapshot: SourceSnapshot): void;
+  getSourceSnapshot(id: InternalId): SourceSnapshot | undefined;
+
+  insertArtifact(artifact: Artifact): void;
+  updateArtifact(artifact: Artifact): void;
+  getArtifact(id: InternalId): Artifact | undefined;
+  listArtifactsByChange(changeId: InternalId): Artifact[];
 }
 
 export interface ProjectStore {

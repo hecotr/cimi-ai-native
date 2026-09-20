@@ -10,7 +10,8 @@ import {
   type InternalId,
   type Project,
   type Role,
-  type TransitionRecord
+  type TransitionRecord,
+  type WorkItem
 } from "../../packages/protocol/dist/index.js";
 import {
   StoreConflictError,
@@ -310,6 +311,62 @@ export const projectStoreContract = (
       store.markOutboxDelivered(reclaimed.id, "2026-09-20T00:02:01.000Z");
       expect(store.claimOutbox("2026-09-20T00:04:00.000Z", "2026-09-20T00:05:00.000Z")).toBeUndefined();
       expect(store.listOutbox("delivered")).toHaveLength(1);
+      store.close();
+    });
+
+    it("persists ready work items and rolls them back with events", () => {
+      const factory = createFactory();
+      const store = factory.create();
+      const project = createProject();
+      const change = createChange(project.id);
+      const item: WorkItem = {
+        schema_version: SCHEMA_VERSION,
+        id: createInternalId(),
+        project_id: project.id,
+        change_id: change.id,
+        kind: "execution",
+        status: "ready",
+        contract_id: createInternalId(),
+        contract_version: 1,
+        policy_snapshot_id: createInternalId(),
+        authorized_role_key: "technical_owner",
+        permission_scope: ["workspace.write"],
+        budget: { max_duration_ms: 1000, max_retries: 0 },
+        stop_conditions: ["timeout"],
+        authorization_digest: {
+          algorithm: "sha256",
+          value: "a".repeat(64),
+          subject: "work_item_authorization"
+        },
+        created_at: timestamp,
+        updated_at: timestamp,
+        revision: 1
+      };
+
+      store.transaction((transaction) => {
+        transaction.insertProject(project);
+        transaction.insertChange(change);
+      });
+      expect(() =>
+        store.transaction((transaction) => {
+          transaction.insertWorkItem(item);
+          transaction.appendEvent({
+            event_id: createInternalId(),
+            event_type: "WorkItemCreated",
+            project_id: project.id,
+            aggregate: { object_type: "work_item", id: item.id, domain_version: 1 },
+            aggregate_revision: 1,
+            occurred_at: timestamp,
+            actor_id: change.owner_actor_id,
+            command_id: createInternalId(),
+            correlation_id: createInternalId(),
+            payload: {}
+          });
+          throw new Error("contract rollback");
+        })
+      ).toThrow("contract rollback");
+      expect(store.transaction((transaction) => transaction.getWorkItem(item.id))).toBeUndefined();
+      expect(store.listEvents()).toEqual([]);
       store.close();
     });
   });

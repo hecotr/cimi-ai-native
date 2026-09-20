@@ -2,10 +2,14 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import {
+  AgentRunRecordSchema,
+  ArtifactSchema,
   AssignmentSchema,
+  CapabilityBindingSchema,
   ChangeProfileSchema,
   ChangeSchema,
   CommandSuccessSchema,
+  ContextPackManifestSchema,
   ContractAmendmentSchema,
   ContractCandidateSchema,
   ContractVersionSchema,
@@ -15,23 +19,32 @@ import {
   FeedbackSchema,
   GateEvaluationSchema,
   KnowledgeImpactAssessmentSchema,
+  LeaseSchema,
   PlanAmendmentSchema,
   PlanCandidateSchema,
   PlanVersionSchema,
   PolicySnapshotSchema,
   ProjectPolicySchema,
   ProjectSchema,
+  ProviderDescriptorSchema,
+  ResourceLockSchema,
   RiskAssessmentSchema,
   RiskProfileSchema,
   RoleSchema,
   SCHEMA_VERSION,
+  SourceSnapshotSchema,
   TaskSchema,
+  WorkItemSchema,
   compileValidator,
   type Actor,
+  type AgentRunRecord,
+  type Artifact,
   type Assignment,
+  type CapabilityBinding,
   type Change,
   type ChangeProfile,
   type CommandSuccess,
+  type ContextPackManifest,
   type ContractAmendment,
   type ContractCandidate,
   type ContractVersion,
@@ -42,17 +55,22 @@ import {
   type GateEvaluation,
   type InternalId,
   type KnowledgeImpactAssessment,
+  type Lease,
   type PlanAmendment,
   type PlanCandidate,
   type PlanVersion,
   type PolicySnapshot,
   type Project,
   type ProjectPolicy,
+  type ProviderDescriptor,
+  type ResourceLock,
   type RiskAssessment,
   type RiskProfile,
   type Role,
+  type SourceSnapshot,
   type Task,
-  type TransitionRecord
+  type TransitionRecord,
+  type WorkItem
 } from "@cimiloop/protocol";
 import {
   StoreConflictError,
@@ -87,6 +105,18 @@ const parseDecisionRequest = compileValidator<DecisionRequest>(DecisionRequestSc
 const parseDecision = compileValidator<Decision>(DecisionSchema);
 const parseFeedback = compileValidator<Feedback>(FeedbackSchema);
 const parseGateEvaluation = compileValidator<GateEvaluation>(GateEvaluationSchema);
+const parseWorkItem = compileValidator<WorkItem>(WorkItemSchema);
+const parseLease = compileValidator<Lease>(LeaseSchema);
+const parseResourceLock = compileValidator<ResourceLock>(ResourceLockSchema);
+const parseProviderDescriptor = compileValidator<ProviderDescriptor>(ProviderDescriptorSchema);
+const parseContextPack = compileValidator<ContextPackManifest>(ContextPackManifestSchema);
+const parseCapabilityBinding = compileValidator<CapabilityBinding>(CapabilityBindingSchema);
+const parseAgentRun = compileValidator<AgentRunRecord>(AgentRunRecordSchema);
+const parseSourceSnapshot = compileValidator<SourceSnapshot>(SourceSnapshotSchema);
+const parseArtifact = compileValidator<Artifact>(ArtifactSchema);
+
+const isUniqueConstraint = (error: unknown): boolean =>
+  error instanceof Error && /UNIQUE constraint failed/i.test(error.message);
 
 type SqlRow = Record<string, unknown>;
 type SqlValue = string | number | bigint | null;
@@ -648,6 +678,266 @@ class SqliteTransaction implements StoreTransaction {
       parseGateEvaluation,
       changeId
     );
+  }
+
+  insertWorkItem(workItem: WorkItem): void {
+    this.database
+      .prepare(
+        "INSERT INTO work_items(id, project_id, change_id, kind, status, task_id, revision, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+      )
+      .run(
+        workItem.id,
+        workItem.project_id,
+        workItem.change_id,
+        workItem.kind,
+        workItem.status,
+        workItem.task_id ?? null,
+        workItem.revision,
+        json(workItem)
+      );
+  }
+
+  updateWorkItem(workItem: WorkItem, expectedRevision: number): void {
+    this.updateRevision(
+      "work_items",
+      workItem.id,
+      workItem.revision,
+      expectedRevision,
+      workItem,
+      ", status = ?, task_id = ?",
+      [workItem.status, workItem.task_id ?? null]
+    );
+  }
+
+  getWorkItem(id: InternalId): WorkItem | undefined {
+    return this.getPayload("SELECT payload_json FROM work_items WHERE id = ?", parseWorkItem, id);
+  }
+
+  listWorkItemsByChange(changeId: InternalId): WorkItem[] {
+    return this.listPayload(
+      "SELECT payload_json FROM work_items WHERE change_id = ? ORDER BY rowid",
+      parseWorkItem,
+      changeId
+    );
+  }
+
+  listReadyWorkItems(changeId: InternalId): WorkItem[] {
+    return this.listPayload(
+      "SELECT payload_json FROM work_items WHERE change_id = ? AND status = 'ready' ORDER BY rowid",
+      parseWorkItem,
+      changeId
+    );
+  }
+
+  insertLease(lease: Lease): void {
+    this.insertUnique(
+      "INSERT INTO leases(id, project_id, work_item_id, owner_actor_id, status, acquired_at, expires_at, revision, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [
+        lease.id,
+        lease.project_id,
+        lease.work_item_id,
+        lease.owner_actor_id,
+        lease.status,
+        lease.acquired_at,
+        lease.expires_at,
+        lease.revision,
+        json(lease)
+      ],
+      "Lease already held for work item"
+    );
+  }
+
+  updateLease(lease: Lease, expectedRevision: number): void {
+    this.updateRevision(
+      "leases",
+      lease.id,
+      lease.revision,
+      expectedRevision,
+      lease,
+      ", status = ?, owner_actor_id = ?, expires_at = ?",
+      [lease.status, lease.owner_actor_id, lease.expires_at]
+    );
+  }
+
+  getLease(id: InternalId): Lease | undefined {
+    return this.getPayload("SELECT payload_json FROM leases WHERE id = ?", parseLease, id);
+  }
+
+  getActiveLeaseByWorkItem(workItemId: InternalId): Lease | undefined {
+    return this.getPayload(
+      "SELECT payload_json FROM leases WHERE work_item_id = ? AND status = 'active' LIMIT 1",
+      parseLease,
+      workItemId
+    );
+  }
+
+  insertResourceLock(lock: ResourceLock): void {
+    this.insertUnique(
+      "INSERT INTO resource_locks(id, project_id, resource_type, resource_key, holder_work_item_id, status, revision, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [
+        lock.id,
+        lock.project_id,
+        lock.resource_type,
+        lock.resource_key,
+        lock.holder_work_item_id,
+        lock.status,
+        lock.revision,
+        json(lock)
+      ],
+      "Resource lock already held"
+    );
+  }
+
+  updateResourceLock(lock: ResourceLock, expectedRevision: number): void {
+    this.updateRevision(
+      "resource_locks",
+      lock.id,
+      lock.revision,
+      expectedRevision,
+      lock,
+      ", status = ?",
+      [lock.status]
+    );
+  }
+
+  getHeldResourceLock(resourceType: ResourceLock["resource_type"], resourceKey: string): ResourceLock | undefined {
+    return this.getPayload(
+      "SELECT payload_json FROM resource_locks WHERE resource_type = ? AND resource_key = ? AND status = 'held' LIMIT 1",
+      parseResourceLock,
+      resourceType,
+      resourceKey
+    );
+  }
+
+  insertProviderDescriptor(descriptor: ProviderDescriptor): void {
+    this.database
+      .prepare("INSERT INTO provider_descriptors(id, project_id, provider_type, payload_json) VALUES (?, ?, ?, ?)")
+      .run(descriptor.id, descriptor.project_id, descriptor.provider_type, json(descriptor));
+  }
+
+  getProviderDescriptor(id: InternalId): ProviderDescriptor | undefined {
+    return this.getPayload("SELECT payload_json FROM provider_descriptors WHERE id = ?", parseProviderDescriptor, id);
+  }
+
+  insertContextPackManifest(manifest: ContextPackManifest): void {
+    this.database
+      .prepare(
+        "INSERT INTO context_pack_manifests(id, project_id, change_id, work_item_id, digest, payload_json) VALUES (?, ?, ?, ?, ?, ?)"
+      )
+      .run(manifest.id, manifest.project_id, manifest.change_id, manifest.work_item_id, manifest.digest.value, json(manifest));
+  }
+
+  getContextPackManifest(id: InternalId): ContextPackManifest | undefined {
+    return this.getPayload("SELECT payload_json FROM context_pack_manifests WHERE id = ?", parseContextPack, id);
+  }
+
+  insertCapabilityBinding(binding: CapabilityBinding): void {
+    this.database
+      .prepare(
+        "INSERT INTO capability_bindings(id, project_id, work_item_id, run_id, digest, payload_json) VALUES (?, ?, ?, ?, ?, ?)"
+      )
+      .run(binding.id, binding.project_id, binding.work_item_id, binding.run_id, binding.digest.value, json(binding));
+  }
+
+  getCapabilityBinding(id: InternalId): CapabilityBinding | undefined {
+    return this.getPayload("SELECT payload_json FROM capability_bindings WHERE id = ?", parseCapabilityBinding, id);
+  }
+
+  insertAgentRun(run: AgentRunRecord): void {
+    this.database
+      .prepare(
+        "INSERT INTO agent_runs(id, project_id, change_id, work_item_id, status, attempt, revision, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+      )
+      .run(run.id, run.project_id, run.change_id, run.work_item_id, run.status, run.attempt, run.revision, json(run));
+  }
+
+  updateAgentRun(run: AgentRunRecord, expectedRevision: number): void {
+    this.updateRevision(
+      "agent_runs",
+      run.id,
+      run.revision,
+      expectedRevision,
+      run,
+      ", status = ?, attempt = ?",
+      [run.status, run.attempt]
+    );
+  }
+
+  getAgentRun(id: InternalId): AgentRunRecord | undefined {
+    return this.getPayload("SELECT payload_json FROM agent_runs WHERE id = ?", parseAgentRun, id);
+  }
+
+  listAgentRuns(workItemId: InternalId): AgentRunRecord[] {
+    return this.listPayload(
+      "SELECT payload_json FROM agent_runs WHERE work_item_id = ? ORDER BY attempt, rowid",
+      parseAgentRun,
+      workItemId
+    );
+  }
+
+  insertSourceSnapshot(snapshot: SourceSnapshot): void {
+    this.database
+      .prepare(
+        "INSERT INTO source_snapshots(id, project_id, change_id, work_item_id, run_id, digest, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      )
+      .run(
+        snapshot.id,
+        snapshot.project_id,
+        snapshot.change_id,
+        snapshot.work_item_id,
+        snapshot.run_id,
+        snapshot.digest.value,
+        json(snapshot)
+      );
+  }
+
+  getSourceSnapshot(id: InternalId): SourceSnapshot | undefined {
+    return this.getPayload("SELECT payload_json FROM source_snapshots WHERE id = ?", parseSourceSnapshot, id);
+  }
+
+  insertArtifact(artifact: Artifact): void {
+    this.database
+      .prepare(
+        "INSERT INTO artifacts(id, project_id, change_id, work_item_id, run_id, digest, status, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+      )
+      .run(
+        artifact.id,
+        artifact.project_id,
+        artifact.change_id,
+        artifact.work_item_id,
+        artifact.run_id,
+        artifact.digest.value,
+        artifact.status,
+        json(artifact)
+      );
+  }
+
+  updateArtifact(artifact: Artifact): void {
+    const result = this.database
+      .prepare("UPDATE artifacts SET status = ?, payload_json = ? WHERE id = ?")
+      .run(artifact.status, json(artifact), artifact.id);
+    if (Number(result.changes) !== 1) throw new StoreConflictError("Artifact not found");
+  }
+
+  getArtifact(id: InternalId): Artifact | undefined {
+    return this.getPayload("SELECT payload_json FROM artifacts WHERE id = ?", parseArtifact, id);
+  }
+
+  listArtifactsByChange(changeId: InternalId): Artifact[] {
+    return this.listPayload(
+      "SELECT payload_json FROM artifacts WHERE change_id = ? ORDER BY rowid",
+      parseArtifact,
+      changeId
+    );
+  }
+
+  private insertUnique(sql: string, values: SqlValue[], conflictMessage: string): void {
+    try {
+      this.database.prepare(sql).run(...values);
+    } catch (error) {
+      if (isUniqueConstraint(error)) throw new StoreConflictError(conflictMessage);
+      throw error;
+    }
   }
 
   private getPayload<T>(sql: string, parser: (value: unknown) => T, ...params: SqlValue[]): T | undefined {
