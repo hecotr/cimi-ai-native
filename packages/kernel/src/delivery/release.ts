@@ -7,6 +7,8 @@ export const releaseAuthorizationDigest = (input: {
   scope: { in: string[]; out: string[] };
   window: ReleaseWindow;
   recovery: RecoveryStrategyDraft;
+  evidenceFingerprint: string;
+  evaluationInputDigest?: Digest;
 }): Digest =>
   authorizationDigest(
     {
@@ -14,7 +16,9 @@ export const releaseAuthorizationDigest = (input: {
       environment_id: input.environmentId,
       scope: input.scope,
       window: input.window,
-      recovery: input.recovery
+      recovery: input.recovery,
+      evidence_fingerprint: input.evidenceFingerprint,
+      evaluation_input_digest: input.evaluationInputDigest?.value ?? ""
     },
     "release_authorization"
   );

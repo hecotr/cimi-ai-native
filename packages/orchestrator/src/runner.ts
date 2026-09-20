@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildContextPack, resolveCapabilities } from "@cimiloop/context";
@@ -174,9 +175,9 @@ export class RunOrchestrator {
   }
 
   #sources(workItem: WorkItem) {
-    const digest = (subject: string, value: string) => ({
+    const digest = (subject: string, parts: unknown) => ({
       algorithm: "sha256" as const,
-      value: "d".repeat(64),
+      value: createHash("sha256").update(JSON.stringify(parts)).digest("hex"),
       subject
     });
     return [
@@ -184,14 +185,14 @@ export class RunOrchestrator {
         key: "contract",
         authority: "canonical" as const,
         location_ref: `cimi://contract/${workItem.contract_id}`,
-        digest: digest("contract", workItem.contract_id),
+        digest: digest("contract", { id: workItem.contract_id, version: workItem.contract_version }),
         freshness: "current" as const
       },
       {
         key: "policy",
         authority: "canonical" as const,
         location_ref: `cimi://policy/${workItem.policy_snapshot_id}`,
-        digest: digest("policy", workItem.policy_snapshot_id),
+        digest: digest("policy", { id: workItem.policy_snapshot_id }),
         freshness: "current" as const
       },
       ...(workItem.plan_id
@@ -200,7 +201,7 @@ export class RunOrchestrator {
               key: "plan",
               authority: "canonical" as const,
               location_ref: `cimi://plan/${workItem.plan_id}`,
-              digest: digest("plan", workItem.plan_id),
+              digest: digest("plan", { id: workItem.plan_id, version: workItem.plan_version }),
               freshness: "current" as const
             }
           ]

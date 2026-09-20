@@ -91,7 +91,12 @@ export const TypedReferenceSchema = Type.Object(
 
 export const SourceDescriptorSchema = Type.Object(
   {
-    origin: Type.Union([Type.Literal("human_cli"), Type.Literal("agent"), Type.Literal("system")]),
+    origin: Type.Union([
+      Type.Literal("human_cli"),
+      Type.Literal("human_workbench"),
+      Type.Literal("agent"),
+      Type.Literal("system")
+    ]),
     producer: Type.String({ minLength: 1 }),
     repository_path: Type.Optional(Type.String({ minLength: 1 }))
   },

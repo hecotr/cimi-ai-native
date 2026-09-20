@@ -105,6 +105,7 @@ export interface StoreTransaction {
   getProject(projectId: InternalId): Project | undefined;
   insertProject(project: Project): void;
   insertActor(actor: Actor): void;
+  getActor(id: InternalId): Actor | undefined;
   insertRole(role: Role): void;
   insertAssignment(assignment: Assignment): void;
 

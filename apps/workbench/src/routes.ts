@@ -381,7 +381,7 @@ export const submitDecisionForm = (
     project_id: context.projectId,
     actor_id: context.actorId,
     expected_revision: expectedRevision,
-    source: { origin: "human_cli", producer: "cimiloop-workbench" },
+    source: { origin: "human_workbench", producer: "cimiloop-workbench" },
     payload: {
       request_id: request.request.id,
       outcome,

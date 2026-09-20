@@ -42,6 +42,7 @@ export const evaluateCloseProposal = (input: {
   releases: readonly { kind: ReleaseKind; status: ReleaseStatus }[];
   residualRisk: string;
   knownIssues: readonly string[];
+  unresolvedExternal?: boolean;
 }): KnowledgeClosureGateResult & { delivery_ready: boolean } => {
   const notes = classifyCloseNotes(input.residualRisk, input.knownIssues);
   const delivery = deliveryCloseReady(input.profileKey, input.releases);
@@ -60,8 +61,18 @@ export const evaluateCloseProposal = (input: {
       blocking: true
     });
   }
+  if (input.unresolvedExternal) {
+    gaps.push({
+      obligation_key: "external_side_effects",
+      summary: "关闭前必须核对未知或未完成的外部副作用。",
+      blocking: true
+    });
+  }
   return {
-    result: notes.classified ? combineCloseResult(input.knowledge, delivery.ready) : "REQUIRE_HUMAN",
+    result:
+      input.unresolvedExternal || !notes.classified
+        ? "REQUIRE_HUMAN"
+        : combineCloseResult(input.knowledge, delivery.ready),
     knowledge_complete: input.knowledge.knowledge_complete,
     gaps,
     delivery_ready: delivery.ready

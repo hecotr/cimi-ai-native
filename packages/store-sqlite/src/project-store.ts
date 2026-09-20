@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import {
+  ActorSchema,
   AgentRunRecordSchema,
   ArchiveRecordSchema,
   ArtifactSchema,
@@ -138,6 +139,7 @@ import {
 } from "@cimiloop/store";
 import { applyProjectStoreMigrations } from "./migrations.js";
 
+const parseActor = compileValidator<Actor>(ActorSchema);
 const parseProject = compileValidator<Project>(ProjectSchema);
 const parseChange = compileValidator<Change>(ChangeSchema);
 const parseEvent = compileValidator<EventEnvelope>(EventEnvelopeSchema);
@@ -257,6 +259,11 @@ class SqliteTransaction implements StoreTransaction {
     this.database
       .prepare("INSERT INTO actors(id, revision, payload_json) VALUES (?, ?, ?)")
       .run(actor.id, actor.revision, json(actor));
+  }
+
+  getActor(id: InternalId): Actor | undefined {
+    const row = this.database.prepare("SELECT payload_json FROM actors WHERE id = ?").get(id) as SqlRow | undefined;
+    return row ? parseActor(parseJson(row.payload_json)) : undefined;
   }
 
   insertRole(role: Role): void {

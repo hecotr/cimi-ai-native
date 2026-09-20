@@ -263,4 +263,100 @@ describe("AssessImpact kernel command", () => {
     expect(unchanged.digest.value).toBe(recorded.digest.value);
     expect(unchanged.content_reference).toBe(recorded.content_reference);
   });
+
+  it("rejects a caller-supplied validity that disagrees with the classifier", () => {
+    const directory = mkdtempSync(join(tmpdir(), "cimiloop-impact-mismatch-"));
+    temporaryDirectories.push(directory);
+    const store = new SqliteProjectStore(join(directory, "project.db"));
+    openStores.push(store);
+    const kernel = new CimiLoopKernel({ store, now: () => now });
+    const initialized = success(
+      kernel.execute({
+        schema_version: SCHEMA_VERSION,
+        command_id: createInternalId(),
+        correlation_id: createInternalId(),
+        command_type: "InitializeProject",
+        requested_at: now,
+        actor_id: createInternalId(),
+        project_id: createInternalId(),
+        source: { origin: "human_cli" as const, producer: "m3-impact-test" },
+        payload: {
+          name: "M3 Impact Mismatch",
+          repository_kind: "directory",
+          repository_path: "/tmp/m3-impact-mismatch",
+          owner_name: "Owner"
+        }
+      })
+    );
+    if (!("project" in initialized.data) || !("actor" in initialized.data)) throw new Error("missing project");
+    const created = success(
+      kernel.execute({
+        schema_version: SCHEMA_VERSION,
+        command_id: createInternalId(),
+        correlation_id: createInternalId(),
+        command_type: "CreateChange",
+        requested_at: now,
+        actor_id: initialized.data.actor.id,
+        project_id: initialized.data.project.id,
+        source: { origin: "human_cli" as const, producer: "m3-impact-test" },
+        payload: { title: "Impact mismatch" }
+      })
+    );
+    if (!("change" in created.data)) throw new Error("missing change");
+    const claim: Claim = {
+      schema_version: SCHEMA_VERSION,
+      id: createInternalId(),
+      project_id: initialized.data.project.id,
+      change_id: created.data.change.id,
+      claim_key: "AC-1",
+      statement: "验收通过。",
+      category: "intent",
+      obligation: "required",
+      source: "acceptance",
+      contract_id: createInternalId(),
+      contract_version: 1,
+      created_at: now
+    };
+    const recorded: Evidence = {
+      schema_version: SCHEMA_VERSION,
+      id: createInternalId(),
+      project_id: initialized.data.project.id,
+      change_id: created.data.change.id,
+      claim_id: claim.id,
+      stance: "Refutes",
+      subject_type: "artifact",
+      subject_id: createInternalId(),
+      subject_digest: digest("artifact"),
+      content_reference: "cimi-object://evidence/refute",
+      digest: digest("evidence"),
+      producer_role: "evaluator",
+      created_at: now
+    };
+    store.transaction((transaction) => {
+      transaction.insertClaim(claim);
+      transaction.insertEvidence(recorded);
+    });
+    const assessed = kernel.execute(
+      envelope(
+        "AssessImpact",
+        initialized.data.project.id,
+        initialized.data.actor.id,
+        {
+          change_id: created.data.change.id,
+          trigger: "artifact",
+          subject_type: "artifact",
+          subject_id: recorded.subject_id,
+          rule: "artifact_digest_changed",
+          old_input_digest: recorded.subject_digest,
+          new_input_digest: digest("artifact", "b".repeat(64)),
+          old_validity: "Valid",
+          new_validity: "Valid",
+          affected_ids: [recorded.id]
+        },
+        created.data.change.revision,
+        created.data.change.id
+      )
+    );
+    expect(assessed).toMatchObject({ code: "IMPACT_CONCLUSION_MISMATCH" });
+  });
 });

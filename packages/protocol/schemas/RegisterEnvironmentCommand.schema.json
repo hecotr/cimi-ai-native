@@ -352,6 +352,10 @@
             },
             {
               "type": "string",
+              "const": "human_workbench"
+            },
+            {
+              "type": "string",
               "const": "agent"
             },
             {

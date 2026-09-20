@@ -192,4 +192,101 @@ describe("StageImport and CommitImport", () => {
     const project = kernel.getProject();
     expect("code" in project).toBe(true);
   });
+
+  it("treats a re-imported export of the same project as identical history", () => {
+    const directory = mkdtempSync(join(tmpdir(), "cimiloop-import-identical-"));
+    temporaryDirectories.push(directory);
+    const store = new SqliteProjectStore(join(directory, "project.db"));
+    openStores.push(store);
+    const kernel = new CimiLoopKernel({ store, now: () => now });
+    const initialized = success(
+      kernel.execute({
+        schema_version: SCHEMA_VERSION,
+        command_id: createInternalId(),
+        correlation_id: createInternalId(),
+        command_type: "InitializeProject",
+        requested_at: now,
+        actor_id: createInternalId(),
+        project_id: createInternalId(),
+        source: { origin: "human_cli" as const, producer: "m5-import-test" },
+        payload: {
+          name: "Identical",
+          repository_kind: "directory",
+          repository_path: directory,
+          owner_name: "Owner"
+        }
+      })
+    );
+    if (!("project" in initialized.data) || !("actor" in initialized.data)) throw new Error("missing project");
+    success(
+      kernel.execute({
+        schema_version: SCHEMA_VERSION,
+        command_id: createInternalId(),
+        correlation_id: createInternalId(),
+        command_type: "CreateChange",
+        requested_at: now,
+        actor_id: initialized.data.actor.id,
+        project_id: initialized.data.project.id,
+        source: { origin: "human_cli" as const, producer: "m5-import-test" },
+        payload: { title: "Same history" }
+      })
+    );
+    const project = kernel.getProject();
+    if ("code" in project) throw new Error(project.code);
+    const exported = success(
+      kernel.execute({
+        schema_version: SCHEMA_VERSION,
+        command_id: createInternalId(),
+        correlation_id: createInternalId(),
+        command_type: "ExportProject",
+        requested_at: now,
+        actor_id: initialized.data.actor.id,
+        project_id: initialized.data.project.id,
+        expected_revision: project.revision,
+        source: { origin: "human_cli" as const, producer: "m5-import-test" },
+        payload: { scope: "project" }
+      })
+    );
+    if (!("export_manifest" in exported.data)) throw new Error("missing export");
+    const bytes = JSON.stringify({ manifest: exported.data.export_manifest, facts: exported.data.export_manifest.entries });
+    const bundlePath = join(directory, "same.json");
+    writeFileSync(bundlePath, bytes);
+    const afterExport = kernel.getProject();
+    if ("code" in afterExport) throw new Error(afterExport.code);
+    const staged = success(
+      kernel.execute({
+        schema_version: SCHEMA_VERSION,
+        command_id: createInternalId(),
+        correlation_id: createInternalId(),
+        command_type: "StageImport",
+        requested_at: now,
+        actor_id: initialized.data.actor.id,
+        project_id: initialized.data.project.id,
+        expected_revision: afterExport.revision,
+        source: { origin: "human_cli" as const, producer: "m5-import-test" },
+        payload: {
+          bundle_reference: `file://${bundlePath.replaceAll("\\", "/")}`,
+          bundle_digest: digestOf(bytes)
+        }
+      })
+    );
+    if (!("import_report" in staged.data)) throw new Error("missing report");
+    const committed = success(
+      kernel.execute({
+        schema_version: SCHEMA_VERSION,
+        command_id: createInternalId(),
+        correlation_id: createInternalId(),
+        command_type: "CommitImport",
+        requested_at: now,
+        actor_id: initialized.data.actor.id,
+        project_id: initialized.data.project.id,
+        expected_revision: afterExport.revision,
+        source: { origin: "human_cli" as const, producer: "m5-import-test" },
+        payload: { import_report_id: staged.data.import_report.id }
+      })
+    );
+    if (!("import_report" in committed.data)) throw new Error("missing commit");
+    expect(committed.data.import_report.status).toBe("accepted");
+    expect(committed.data.import_report.summary).toMatch(/idempotent/i);
+  });
 });

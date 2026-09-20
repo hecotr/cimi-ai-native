@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -17,11 +18,13 @@ const temporaryDirectories: string[] = [];
 const openStores: SqliteProjectStore[] = [];
 const now = "2026-09-20T00:00:00.000Z";
 const sha = "a".repeat(40);
-const digest = (subject: string) => ({
+const digest = (subject: string, value = "e".repeat(64)) => ({
   algorithm: "sha256" as const,
-  value: "e".repeat(64),
+  value,
   subject
 });
+const bytesDigest = (bytes: string, subject = "artifact") =>
+  digest(subject, createHash("sha256").update(bytes).digest("hex"));
 const logDigest = {
   algorithm: "sha256" as const,
   value: "b".repeat(64),
@@ -67,7 +70,7 @@ const envelope = (
   project_id: projectId,
   expected_revision: expectedRevision,
   target: { object_type: "change" as const, id: changeId, domain_version: 1 },
-  source: { origin: "system" as const, producer: "m2-artifact-test" },
+  source: { origin: "human_cli" as const, producer: "m2-artifact-test" },
   payload
 });
 
@@ -273,7 +276,7 @@ describe("M2 source snapshot and artifact", () => {
             source_snapshot_id: snapshot.data.snapshot.id,
             context_pack_id: ctx.run.context_pack_id,
             binding_id: ctx.run.binding_id,
-            digest: digest("artifact"),
+            digest: bytesDigest("hello"),
             content_reference: pathToFileURL(artifactFile).href,
             summary: "candidate output"
           },
@@ -289,7 +292,7 @@ describe("M2 source snapshot and artifact", () => {
     expect(recorded.data.artifact.source_snapshot_id).toBe(snapshot.data.snapshot.id);
     expect(recorded.data.artifact.context_pack_id).toBe(ctx.run.context_pack_id);
     expect(recorded.data.artifact.binding_id).toBe(ctx.run.binding_id);
-    expect(recorded.data.artifact.digest.value).toBe("e".repeat(64));
+    expect(recorded.data.artifact.digest.value).toBe(bytesDigest("hello").value);
   });
 
   it("shares digest across provenance and supersedes previous candidates without changing digest", () => {
@@ -329,7 +332,7 @@ describe("M2 source snapshot and artifact", () => {
             source_snapshot_id: snapshot.data.snapshot.id,
             context_pack_id: ctx.run.context_pack_id,
             binding_id: ctx.run.binding_id,
-            digest: digest("artifact"),
+            digest: bytesDigest("same"),
             content_reference: pathToFileURL(firstFile).href,
             summary: "first candidate"
           },
@@ -350,7 +353,7 @@ describe("M2 source snapshot and artifact", () => {
             source_snapshot_id: snapshot.data.snapshot.id,
             context_pack_id: ctx.run.context_pack_id,
             binding_id: ctx.run.binding_id,
-            digest: digest("artifact"),
+            digest: bytesDigest("same"),
             content_reference: pathToFileURL(secondFile).href,
             summary: "second candidate"
           },
@@ -369,7 +372,7 @@ describe("M2 source snapshot and artifact", () => {
   });
 
   it("rejects missing provenance and missing local files", () => {
-    const { kernel } = openKernel();
+    const { kernel, directory } = openKernel();
     const ctx = bootstrapRunning(kernel);
     const missingSnapshot = failure(
       kernel.execute(
@@ -435,6 +438,29 @@ describe("M2 source snapshot and artifact", () => {
       )
     );
     expect(missingFile.code).toBe("ARTIFACT_REFERENCE_INVALID");
+    const mismatchFile = join(directory, "mismatch.bin");
+    writeFileSync(mismatchFile, "bytes");
+    const mismatched = failure(
+      kernel.execute(
+        envelope(
+          "RecordArtifact",
+          ctx.projectId,
+          ctx.actorId,
+          {
+            run_id: ctx.run.id,
+            source_snapshot_id: snapshot.data.snapshot.id,
+            context_pack_id: ctx.run.context_pack_id,
+            binding_id: ctx.run.binding_id,
+            digest: digest("artifact"),
+            content_reference: pathToFileURL(mismatchFile).href,
+            summary: "wrong digest"
+          },
+          revisionOf(kernel, ctx.changeId),
+          ctx.changeId
+        )
+      )
+    );
+    expect(mismatched.code).toBe("ARTIFACT_DIGEST_MISMATCH");
 
     const invalidKind = failure(
       kernel.execute(

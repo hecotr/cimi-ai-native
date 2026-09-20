@@ -1,4 +1,5 @@
-import { existsSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { SCHEMA_VERSION, type AgentRunRecord, type Artifact, type Digest, type SourceSnapshot, type WorkItem } from "@cimiloop/protocol";
 
@@ -11,6 +12,15 @@ export const localReferenceExists = (reference: string): boolean => {
     return existsSync(fileURLToPath(reference));
   } catch {
     return false;
+  }
+};
+
+export const localReferenceDigest = (reference: string): string | undefined => {
+  if (!reference.startsWith("file:")) return undefined;
+  try {
+    return createHash("sha256").update(readFileSync(fileURLToPath(reference))).digest("hex");
+  } catch {
+    return undefined;
   }
 };
 

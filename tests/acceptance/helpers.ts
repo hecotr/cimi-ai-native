@@ -30,7 +30,8 @@ export const envelope = (
   actorId: InternalId,
   payload: Record<string, unknown>,
   revision: number,
-  changeId: InternalId
+  changeId: InternalId,
+  origin: "human_cli" | "system" = "human_cli"
 ) => ({
   schema_version: SCHEMA_VERSION,
   command_id: createInternalId(),
@@ -41,7 +42,7 @@ export const envelope = (
   project_id: projectId,
   expected_revision: revision,
   target: { object_type: "change" as const, id: changeId, domain_version: 1 },
-  source: { origin: "human_cli" as const, producer: "v1-acceptance" },
+  source: { origin, producer: "v1-acceptance" },
   payload
 });
 
@@ -155,9 +156,12 @@ export const exec = (
   ctx: AcceptanceContext,
   type: string,
   payload: Record<string, unknown>,
-  revision = ctx.revision
+  revision = ctx.revision,
+  origin: "human_cli" | "system" = "human_cli"
 ) => {
-  const result = success(ctx.kernel.execute(envelope(type, ctx.projectId, ctx.actorId, payload, revision, ctx.changeId)));
+  const result = success(
+    ctx.kernel.execute(envelope(type, ctx.projectId, ctx.actorId, payload, revision, ctx.changeId, origin))
+  );
   ctx.revision = result.revision;
   return result;
 };

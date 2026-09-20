@@ -97,7 +97,7 @@ describe("cimiloop M3 CLI", () => {
         "--digest",
         "b".repeat(64),
         "--producer",
-        "evaluator"
+        "human"
       ])
     );
     expect("evidence" in recorded.data).toBe(true);

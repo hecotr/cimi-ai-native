@@ -444,4 +444,55 @@ describe("M4 production release decision", () => {
     expect(other?.status).toBe("drafted");
     expect("decision" in approved.data).toBe(true);
   });
+
+  it("does not authorize or queue after later evidence no longer allows the artifact", () => {
+    const directory = mkdtempSync(join(tmpdir(), "cimiloop-m4-stale-eval-"));
+    temporaryDirectories.push(directory);
+    const store = new SqliteProjectStore(join(directory, "project.db"));
+    openStores.push(store);
+    const kernel = new CimiLoopKernel({ store, now: () => now });
+    const ctx = bootstrap(kernel);
+    const allowed = allowArtifact(store, kernel, ctx);
+    const created = createProductionRelease(kernel, store, ctx, allowed.artifact, allowed.revision);
+    const requested = success(
+      kernel.execute(
+        envelope("RequestReleaseDecision", ctx.projectId, ctx.actorId, { release_id: created.release.id }, created.revision, ctx.changeId)
+      )
+    );
+    if (!("request" in requested.data)) throw new Error("missing request");
+    store.transaction((transaction) => {
+      const previous = transaction.listIndependentEvaluationsByChange(ctx.changeId).at(-1);
+      if (!previous) throw new Error("missing evaluation");
+      transaction.insertIndependentEvaluation({
+        schema_version: SCHEMA_VERSION,
+        id: createInternalId(),
+        project_id: ctx.projectId,
+        change_id: ctx.changeId,
+        artifact_id: allowed.artifact.id,
+        artifact_digest: allowed.artifact.digest,
+        requirement_set_id: previous.requirement_set_id,
+        input_digest: digest("later_eval", "2".repeat(64)),
+        result: "DENY",
+        reason: "new refutes after release drafted",
+        created_at: now
+      });
+    });
+    const approved = kernel.execute(
+      envelope(
+        "SubmitDecision",
+        ctx.projectId,
+        ctx.actorId,
+        {
+          request_id: requested.data.request.id,
+          outcome: "approve",
+          acting_role_id: ctx.roleId,
+          reason: "approve after evidence changed"
+        },
+        requested.revision,
+        ctx.changeId
+      )
+    );
+    expect(approved).toMatchObject({ code: "DECISION_REQUEST_EXPIRED" });
+    expect(store.transaction((transaction) => transaction.getRelease(created.release.id))?.status).toBe("drafted");
+  });
 });

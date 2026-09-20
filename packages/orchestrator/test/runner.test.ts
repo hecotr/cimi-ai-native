@@ -62,7 +62,7 @@ const envelope = (
   project_id: projectId,
   expected_revision: expectedRevision,
   target: changeId ? { object_type: "change" as const, id: changeId, domain_version: 1 } : undefined,
-  source: { origin: "system" as const, producer: "m2-orchestrator-test" },
+  source: { origin: "human_cli" as const, producer: "m2-orchestrator-test" },
   payload
 });
 

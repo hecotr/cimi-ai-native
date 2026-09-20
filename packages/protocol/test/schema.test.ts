@@ -24,6 +24,21 @@ describe("Cimi Change Protocol command validation", () => {
     expect(parseCommand(command)).toEqual(command);
   });
 
+  it("accepts a Human Workbench origin on commands", () => {
+    const command = {
+      schema_version: SCHEMA_VERSION,
+      command_id: createInternalId(),
+      correlation_id: createInternalId(),
+      command_type: "CreateChange",
+      requested_at: "2026-09-19T00:00:00.000Z",
+      project_id: createInternalId(),
+      actor_id: createInternalId(),
+      source: { origin: "human_workbench", producer: "workbench" },
+      payload: { title: "Workbench origin" }
+    };
+    expect(parseCommand(command)).toEqual(command);
+  });
+
   it("rejects unknown fields and invalid IDs", () => {
     expect(() =>
       parseCommand({

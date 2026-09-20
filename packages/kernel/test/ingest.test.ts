@@ -209,7 +209,7 @@ describe("evidence ingestion commands", () => {
             subject_digest: digest("artifact"),
             content_reference: "cimi-object://evidence/rewrite",
             digest: digest("evidence"),
-            producer_role: "human"
+            producer_role: "evaluator"
           },
           revisionOf(kernel, ctx.changeId),
           ctx.changeId
@@ -280,5 +280,39 @@ describe("evidence ingestion commands", () => {
       transaction.listImpactAssessmentsBySubject(evidenceOf(invalid).id)
     );
     expect(impacts[0]?.new_validity).toBe("Invalid");
+  });
+
+  it("rejects a human origin that claims an evaluator producer role", () => {
+    const directory = mkdtempSync(join(tmpdir(), "cimiloop-ingest-role-"));
+    temporaryDirectories.push(directory);
+    const store = new SqliteProjectStore(join(directory, "project.db"));
+    openStores.push(store);
+    const kernel = new CimiLoopKernel({ store, now: () => now });
+    const ctx = bootstrap(kernel);
+    const claim = seedClaim(store, ctx.projectId, ctx.changeId);
+    const rejected = failure(
+      kernel.execute({
+        ...envelope(
+          "RecordEvidence",
+          ctx.projectId,
+          ctx.actorId,
+          {
+            change_id: ctx.changeId,
+            claim_id: claim.id,
+            stance: "Supports",
+            subject_type: "artifact",
+            subject_id: createInternalId(),
+            subject_digest: digest("artifact"),
+            content_reference: "cimi-object://evidence/claimed",
+            digest: digest("evidence"),
+            producer_role: "evaluator"
+          },
+          revisionOf(kernel, ctx.changeId),
+          ctx.changeId
+        ),
+        source: { origin: "human_cli" as const, producer: "m3-ingest-test" }
+      })
+    );
+    expect(rejected.code).toBe("PRODUCER_ROLE_MISMATCH");
   });
 });

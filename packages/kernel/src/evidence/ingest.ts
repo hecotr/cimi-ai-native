@@ -4,6 +4,16 @@ import type { Claim } from "@cimiloop/protocol";
 export const isIndependentProducer = (role: EvidenceProducerRole): boolean =>
   role === "evaluator" || role === "deterministic_test" || role === "system";
 
+export const producerRoleAllowedForOrigin = (
+  origin: string,
+  role: EvidenceProducerRole
+): boolean => {
+  if (origin === "human_cli" || origin === "human_workbench") return role === "human";
+  if (origin === "agent") return role === "executor";
+  if (origin === "system") return role === "system" || role === "deterministic_test" || role === "evaluator";
+  return false;
+};
+
 export const createEvidenceFromCommand = (input: {
   id: Evidence["id"];
   claim: Claim;

@@ -97,6 +97,8 @@ import {
   type PolicySnapshot,
   type ResourceLock,
   type SourceSnapshot,
+  type Digest,
+  type RecoveryStrategyDraft,
   type Deployment,
   type DeploymentAttempt,
   type Environment,
@@ -133,7 +135,7 @@ import { resolveGateRequirementSet } from "./evidence/requirements.js";
 import { assessClaim } from "./evidence/assessment.js";
 import { evaluateEvidenceGate, evaluationInputDigest, findReusableEvaluation } from "./evidence/evaluation-gate.js";
 import { classifyImpact, projectValidity } from "./evidence/impact.js";
-import { createEvidenceFromCommand } from "./evidence/ingest.js";
+import { createEvidenceFromCommand, producerRoleAllowedForOrigin } from "./evidence/ingest.js";
 import { parseWhitelistedTestResult, readPromotableReference } from "./evidence/promotion.js";
 import {
   classifyImportHistory,
@@ -170,7 +172,7 @@ import {
   isOpenExecutionStatus,
   nextRunAttempt
 } from "./run.js";
-import { createArtifact, localReferenceExists } from "./artifact.js";
+import { createArtifact, localReferenceDigest, localReferenceExists } from "./artifact.js";
 import { createSourceSnapshot, snapshotKindValid } from "./source-snapshot.js";
 import { createRepairWorkItem, createRepairWorkItemLink } from "./repair.js";
 import { recoveryStrategyDigest, releaseAuthorizationDigest } from "./delivery/release.js";
@@ -1271,14 +1273,8 @@ export class CimiLoopKernel {
   }
 
   #submitDecision(transaction: StoreTransaction, command: SubmitDecisionCommand): KernelResult {
-    if (command.source.origin === "agent") {
-      return domainError(
-        command.correlation_id,
-        "HUMAN_ACTOR_REQUIRED",
-        "Agent Actor 不能提交正式 Human Decision",
-        "forbidden"
-      );
-    }
+    const human = this.#requireHumanActor(transaction, command);
+    if (human) return human;
     const context = this.#requireProjectActor(transaction, command);
     if ("code" in context) return context;
     const request = transaction.getDecisionRequest(command.payload.request_id);
@@ -2672,6 +2668,15 @@ export class CimiLoopKernel {
         "validation"
       );
     }
+    const fileDigest = localReferenceDigest(command.payload.content_reference);
+    if (fileDigest && fileDigest !== command.payload.digest.value) {
+      return domainError(
+        command.correlation_id,
+        "ARTIFACT_DIGEST_MISMATCH",
+        "Artifact digest 必须等于本地文件字节的 sha256",
+        "validation"
+      );
+    }
     const now = this.#now();
     const artifact = createArtifact({
       id: this.#id(),
@@ -2924,6 +2929,7 @@ export class CimiLoopKernel {
     const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
     if ("code" in loaded) return loaded;
     const affected: Evidence[] = [];
+    let conclusion: { new_validity: ImpactAssessment["new_validity"]; rule: string } | undefined;
     for (const id of command.payload.affected_ids) {
       const evidence = transaction.getEvidence(id);
       if (!evidence || evidence.change_id !== loaded.change.id) {
@@ -2957,7 +2963,19 @@ export class CimiLoopKernel {
           "conflict"
         );
       }
+      if (command.payload.new_validity !== classified.new_validity) {
+        return domainError(
+          command.correlation_id,
+          "IMPACT_CONCLUSION_MISMATCH",
+          "Impact validity 必须由 Kernel 分类器决定，不能由调用方覆盖",
+          "conflict"
+        );
+      }
+      conclusion = { new_validity: classified.new_validity, rule: classified.rule };
       affected.push(evidence);
+    }
+    if (!conclusion) {
+      return domainError(command.correlation_id, "EVIDENCE_NOT_FOUND", "影响评估只能针对已存在的 Evidence", "not_found");
     }
     const now = this.#now();
     const first = affected[0];
@@ -2970,11 +2988,11 @@ export class CimiLoopKernel {
       trigger: command.payload.trigger,
       subject_type: command.payload.subject_type,
       subject_id: command.payload.subject_id,
-      rule: command.payload.rule,
+      rule: conclusion.rule,
       old_input_digest: command.payload.old_input_digest,
       new_input_digest: command.payload.new_input_digest,
       old_validity: command.payload.old_validity ?? previous,
-      new_validity: command.payload.new_validity,
+      new_validity: conclusion.new_validity,
       affected_ids: command.payload.affected_ids,
       created_at: now
     };
@@ -3005,6 +3023,8 @@ export class CimiLoopKernel {
   }
 
   #requestReleaseDecision(transaction: StoreTransaction, command: RequestReleaseDecisionCommand): KernelResult {
+    const human = this.#requireHumanActor(transaction, command);
+    if (human) return human;
     const release = transaction.getRelease(command.payload.release_id);
     if (!release) {
       return domainError(command.correlation_id, "RELEASE_NOT_FOUND", "未找到指定 Release", "not_found");
@@ -3076,7 +3096,8 @@ export class CimiLoopKernel {
       return domainError(command.correlation_id, "ROLE_NOT_ALLOWED", "当前 acting role 无权提交该 Decision", "forbidden");
     }
     const release = transaction.getRelease(request.candidate_id);
-    if (!release || !releaseDecisionIsCurrent(request, release)) {
+    const liveDigest = release ? this.#releaseLiveDigest(transaction, release) : undefined;
+    if (!release || !liveDigest || !releaseDecisionIsCurrent(request, release, liveDigest)) {
       transaction.updateDecisionRequest(
         { ...request, status: "expired", updated_at: this.#now(), revision: request.revision + 1 },
         request.revision
@@ -3256,7 +3277,7 @@ export class CimiLoopKernel {
       id: command.payload.evidence_package_id ?? this.#id(),
       project_id: loaded.project.id,
       change_id: loaded.change.id,
-      package_kind: "test" as const,
+      package_kind: command.payload.kind === "production" ? ("release" as const) : ("test" as const),
       claim_ids: claims.map((item) => item.id),
       evidence_ids: evidence.map((item) => item.id),
       evaluation_ids: evaluations.map((item) => item.id),
@@ -3285,13 +3306,18 @@ export class CimiLoopKernel {
           artifact.contract_id)
         : artifact.contract_id,
       status: command.payload.kind === "test" ? ("authorized" as const) : ("drafted" as const),
-      authorization_digest: releaseAuthorizationDigest({
-        artifactDigest: artifact.digest,
-        environmentId: environment.id,
-        scope: command.payload.scope,
-        window: command.payload.window,
-        recovery: command.payload.recovery
-      }),
+      authorization_digest: this.#liveReleaseAuthorizationDigest(
+        transaction,
+        {
+          change_id: loaded.change.id,
+          artifact_id: artifact.id,
+          artifact_digest: artifact.digest,
+          environment_id: environment.id
+        },
+        command.payload.scope,
+        command.payload.window,
+        command.payload.recovery
+      ),
       created_at: now,
       updated_at: now,
       revision: 1
@@ -3377,6 +3403,20 @@ export class CimiLoopKernel {
         command.correlation_id,
         "ARTIFACT_DIGEST_MISMATCH",
         "生产部署前必须再次核对已验证测试 Artifact digest",
+        "conflict"
+      );
+    }
+    if (
+      !latestEvaluationAllowsArtifact(
+        transaction.listIndependentEvaluationsByChange(loaded.change.id),
+        release.artifact_id,
+        release.artifact_digest
+      )
+    ) {
+      return domainError(
+        command.correlation_id,
+        "ARTIFACT_EVALUATION_NOT_ALLOWED",
+        "部署前最新 Independent Evaluation 必须仍为 ALLOW",
         "conflict"
       );
     }
@@ -3852,6 +3892,8 @@ export class CimiLoopKernel {
   }
 
   #authorizeRecovery(transaction: StoreTransaction, command: AuthorizeRecoveryCommand): KernelResult {
+    const human = this.#requireHumanActor(transaction, command);
+    if (human) return human;
     const release = transaction.getRelease(command.payload.release_id);
     if (!release) {
       return domainError(command.correlation_id, "RELEASE_NOT_FOUND", "未找到指定 Release", "not_found");
@@ -4209,6 +4251,14 @@ export class CimiLoopKernel {
     if (!claim || claim.change_id !== loaded.change.id) {
       return domainError(command.correlation_id, "EVIDENCE_CLAIM_NOT_FOUND", "记录 Evidence 需要已存在的 Claim", "not_found");
     }
+    if (!producerRoleAllowedForOrigin(command.source.origin, command.payload.producer_role)) {
+      return domainError(
+        command.correlation_id,
+        "PRODUCER_ROLE_MISMATCH",
+        "Evidence producer_role 必须与 Actor origin 一致，Human 不能自称 evaluator",
+        "forbidden"
+      );
+    }
     const now = this.#now();
     let evidence = createEvidenceFromCommand({ id: this.#id(), claim, command, now });
     if (!evidence.external_reference_id) {
@@ -4548,6 +4598,8 @@ export class CimiLoopKernel {
   }
 
   #proposeClose(transaction: StoreTransaction, command: ProposeCloseCommand): KernelResult {
+    const human = this.#requireHumanActor(transaction, command);
+    if (human) return human;
     const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
     if ("code" in loaded) return loaded;
     const now = this.#now();
@@ -4556,7 +4608,10 @@ export class CimiLoopKernel {
       profileKey: transaction.getCurrentContract(loaded.change.id)?.profile_key ?? "feature",
       releases: transaction.listReleasesByChange(loaded.change.id),
       residualRisk: command.payload.residual_risk,
-      knownIssues: command.payload.known_issues
+      knownIssues: command.payload.known_issues,
+      unresolvedExternal: hasUnresolvedExternalSideEffects(
+        transaction.listExternalOperationsByChange(loaded.change.id)
+      )
     });
     const evaluation: ClosureEvaluation = {
       schema_version: SCHEMA_VERSION,
@@ -4604,6 +4659,8 @@ export class CimiLoopKernel {
   }
 
   #closeChange(transaction: StoreTransaction, command: CloseChangeCommand): KernelResult {
+    const human = this.#requireHumanActor(transaction, command);
+    if (human) return human;
     const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
     if ("code" in loaded) return loaded;
     const evaluation = transaction.getClosureEvaluation(command.payload.closure_evaluation_id);
@@ -4615,12 +4672,21 @@ export class CimiLoopKernel {
         "not_found"
       );
     }
+    if (hasUnresolvedExternalSideEffects(transaction.listExternalOperationsByChange(loaded.change.id))) {
+      return domainError(
+        command.correlation_id,
+        "EXTERNAL_OPERATION_UNKNOWN",
+        "关闭前必须核对未知或未完成的外部副作用",
+        "conflict"
+      );
+    }
     const current = evaluateCloseProposal({
       knowledge: this.#assessKnowledgeClosure(transaction, loaded.change),
       profileKey: transaction.getCurrentContract(loaded.change.id)?.profile_key ?? "feature",
       releases: transaction.listReleasesByChange(loaded.change.id),
       residualRisk: evaluation.residual_risk,
-      knownIssues: evaluation.known_issues
+      knownIssues: evaluation.known_issues,
+      unresolvedExternal: false
     });
     if (evaluation.result !== "ALLOW" || current.result !== "ALLOW") {
       return domainError(
@@ -4661,6 +4727,8 @@ export class CimiLoopKernel {
   }
 
   #cancelChange(transaction: StoreTransaction, command: CancelChangeCommand): KernelResult {
+    const human = this.#requireHumanActor(transaction, command);
+    if (human) return human;
     const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
     if ("code" in loaded) return loaded;
     if (transaction.listCancellationRecordsByChange(loaded.change.id).length > 0) {
@@ -4708,6 +4776,8 @@ export class CimiLoopKernel {
   }
 
   #supersedeChange(transaction: StoreTransaction, command: SupersedeChangeCommand): KernelResult {
+    const human = this.#requireHumanActor(transaction, command);
+    if (human) return human;
     const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
     if ("code" in loaded) return loaded;
     if (command.payload.successor_change_id === loaded.change.id) {
@@ -4758,6 +4828,8 @@ export class CimiLoopKernel {
   }
 
   #archiveChange(transaction: StoreTransaction, command: ArchiveChangeCommand): KernelResult {
+    const human = this.#requireHumanActor(transaction, command);
+    if (human) return human;
     const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
     if ("code" in loaded) return loaded;
     if (transaction.listArchiveRecordsByChange(loaded.change.id).length > 0) {
@@ -4819,14 +4891,16 @@ export class CimiLoopKernel {
     const changes = this.#store
       .listChanges()
       .filter((item) => !command.payload.change_id || item.id === command.payload.change_id);
-    const events = this.#store.listEvents().filter((event) => {
-      if (event.project_id !== context.project.id) return false;
-      if (!command.payload.change_id) return true;
-      return (
-        event.aggregate.id === command.payload.change_id ||
-        event.payload.change_id === command.payload.change_id
-      );
-    });
+    const events = this.#historyEvents(
+      this.#store.listEvents().filter((event) => {
+        if (event.project_id !== context.project.id) return false;
+        if (!command.payload.change_id) return true;
+        return (
+          event.aggregate.id === command.payload.change_id ||
+          event.payload.change_id === command.payload.change_id
+        );
+      })
+    );
     const facts = [
       {
         object_type: "project",
@@ -4859,7 +4933,7 @@ export class CimiLoopKernel {
         manifestId: this.#id(),
         facts,
         events: events.map((event) => ({ event_id: event.event_id, event_sequence: event.event_sequence })),
-        outbox: this.#store.listOutbox().map((item) => ({ id: item.id, status: item.status })),
+        outbox: this.#historyOutbox(events),
         ownershipState: "active",
         latestRevision: Math.max(context.project.revision, ...changes.map((item) => item.revision))
       });
@@ -5077,11 +5151,28 @@ export class CimiLoopKernel {
     );
   }
 
+  #historyEvents(events: EventEnvelope[]): EventEnvelope[] {
+    return events.filter(
+      (event) =>
+        event.event_type !== "ProjectExported" &&
+        event.event_type !== "ImportStaged" &&
+        event.event_type !== "ImportCommitted"
+    );
+  }
+
+  #historyOutbox(events: EventEnvelope[]): Array<{ id: InternalId; status: string }> {
+    const historyIds = new Set(events.map((event) => event.event_id));
+    return this.#store
+      .listOutbox()
+      .filter((item) => historyIds.has(item.event_id))
+      .map((item) => ({ id: item.id, status: item.status }));
+  }
+
   #currentContentDigest(projectId: string): string {
     const project = this.#store.getProject();
     if (!project) return "";
     const changes = this.#store.listChanges();
-    const events = this.#store.listEvents();
+    const events = this.#historyEvents(this.#store.listEvents().filter((event) => event.project_id === projectId));
     return exportProjectBundle({
       projectId,
       exporterActorId: project.id,
@@ -5102,12 +5193,19 @@ export class CimiLoopKernel {
           id: change.id,
           domain_version: change.revision,
           payload: { ...change }
+        })),
+        ...events.map((event) => ({
+          object_type: "event",
+          schema_version: SCHEMA_VERSION,
+          id: event.event_id,
+          domain_version: event.event_sequence,
+          payload: { ...event }
         }))
       ],
       events: events.map((event) => ({ event_id: event.event_id, event_sequence: event.event_sequence })),
-      outbox: this.#store.listOutbox().map((item) => ({ id: item.id, status: item.status })),
+      outbox: this.#historyOutbox(events),
       ownershipState: "active",
-      latestRevision: project.revision
+      latestRevision: Math.max(project.revision, ...changes.map((item) => item.revision))
     }).content_digest.value;
   }
 
@@ -5115,6 +5213,55 @@ export class CimiLoopKernel {
     const next = { ...change, updated_at: now, revision: change.revision + 1 };
     transaction.updateChange(next, expectedRevision);
     return next;
+  }
+
+  #evidenceFingerprint(transaction: StoreTransaction, changeId: InternalId): string {
+    return requestDigest(
+      transaction.listEvidenceByChange(changeId).map((item) => ({
+        id: item.id,
+        stance: item.stance,
+        digest: item.digest.value,
+        validity: projectValidity(transaction.listImpactAssessmentsBySubject(item.id))
+      }))
+    );
+  }
+
+  #liveReleaseAuthorizationDigest(
+    transaction: StoreTransaction,
+    release: { change_id: InternalId; artifact_id: InternalId; artifact_digest: Digest; environment_id: InternalId },
+    scope: { in: string[]; out: string[] },
+    window: { starts_at: string; ends_at: string },
+    recovery: RecoveryStrategyDraft
+  ) {
+    const latest = [...transaction.listIndependentEvaluationsByChange(release.change_id)]
+      .reverse()
+      .find((item) => item.artifact_id === release.artifact_id);
+    return releaseAuthorizationDigest({
+      artifactDigest: release.artifact_digest,
+      environmentId: release.environment_id,
+      scope,
+      window,
+      recovery,
+      evidenceFingerprint: this.#evidenceFingerprint(transaction, release.change_id),
+      ...(latest ? { evaluationInputDigest: latest.input_digest } : {})
+    });
+  }
+
+  #releaseLiveDigest(transaction: StoreTransaction, release: Release) {
+    const pack = release.package_id ? transaction.getReleasePackage(release.package_id) : undefined;
+    const strategy = release.recovery_strategy_id
+      ? transaction.getRecoveryStrategy(release.recovery_strategy_id)
+      : undefined;
+    if (!pack || !strategy) return release.authorization_digest;
+    return this.#liveReleaseAuthorizationDigest(transaction, release, pack.scope, pack.window, {
+      trigger: strategy.trigger,
+      kind: strategy.kind,
+      target_digest: strategy.target_digest,
+      scope: strategy.scope,
+      steps: strategy.steps,
+      verify_checks: strategy.verify_checks,
+      authorization: strategy.authorization
+    });
   }
 
   #requireChangeForMutation(
@@ -5165,7 +5312,36 @@ export class CimiLoopKernel {
     if (!project) {
       return domainError(command.correlation_id, "PROJECT_NOT_FOUND", "未找到指定 Project", "not_found");
     }
+    const actor = transaction.getActor(command.actor_id);
+    if (!actor) {
+      return domainError(command.correlation_id, "ACTOR_NOT_FOUND", "命令必须绑定已持久化的 Actor", "not_found");
+    }
     return { project, actorId: command.actor_id };
+  }
+
+  #requireHumanActor(
+    transaction: StoreTransaction,
+    command: Exclude<AnyCommand, InitializeProjectCommand>
+  ): DomainError | undefined {
+    const origin = command.source.origin as string;
+    if (origin !== "human_cli" && origin !== "human_workbench") {
+      return domainError(
+        command.correlation_id,
+        "HUMAN_ACTOR_REQUIRED",
+        "该操作必须由 Human Actor 通过 CLI 或 Workbench 提交",
+        "forbidden"
+      );
+    }
+    const actor = command.actor_id ? transaction.getActor(command.actor_id) : undefined;
+    if (!actor || actor.actor_type !== "human") {
+      return domainError(
+        command.correlation_id,
+        "HUMAN_ACTOR_REQUIRED",
+        "该操作必须绑定 Human Actor",
+        "forbidden"
+      );
+    }
+    return undefined;
   }
 
   #requireChangeContext(

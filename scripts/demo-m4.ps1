@@ -61,7 +61,7 @@ $artifact = Invoke-CimiLoop artifact record $runs.runs[0].id --file $artifactFil
 $artifactId = $artifact.data.artifact.id
 $artifactDigest = $artifact.data.artifact.digest.value
 $claim = Invoke-CimiLoop claim submit CHG-0001 --key "AC-1" --statement "Acceptance passed." --category intent --obligation required --source acceptance
-Invoke-CimiLoop evidence record CHG-0001 --claim $claim.data.claim.id --stance Supports --subject-type artifact --subject-id $artifactId --subject-digest $artifactDigest --reference "cimi-object://evidence/m4-demo" --digest ("c" * 64) --producer evaluator | Out-Null
+Invoke-CimiLoop evidence record CHG-0001 --claim $claim.data.claim.id --stance Supports --subject-type artifact --subject-id $artifactId --subject-digest $artifactDigest --reference "cimi-object://evidence/m4-demo" --digest ("c" * 64) --producer human | Out-Null
 $evaluation = Invoke-CimiLoop evaluate complete CHG-0001 --evaluation-id "0199a000-0000-7000-8000-00000000e001" --artifact $artifactId --digest $artifactDigest --input-digest ("d" * 64) --result DENY --reason "evaluator self-score"
 if ($evaluation.data.evaluation.result -ne "ALLOW") {
   throw "Expected Kernel ALLOW, got $($evaluation.data.evaluation.result)"

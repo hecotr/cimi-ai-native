@@ -55,7 +55,7 @@ const envelope = (
   project_id: projectId,
   expected_revision: expectedRevision,
   target: { object_type: "change" as const, id: changeId, domain_version: 1 },
-  source: { origin: "system" as const, producer: "m2-run-test" },
+  source: { origin: "human_cli" as const, producer: "m2-run-test" },
   payload
 });
 

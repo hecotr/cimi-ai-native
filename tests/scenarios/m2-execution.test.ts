@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -50,7 +51,7 @@ const envelope = (
   project_id: projectId,
   expected_revision: revision,
   target: { object_type: "change" as const, id: changeId, domain_version: 1 },
-  source: { origin: "system" as const, producer: "m2-execution-scenario" },
+  source: { origin: "human_cli" as const, producer: "m2-execution-scenario" },
   payload
 });
 
@@ -206,7 +207,11 @@ describe("M2 execution scenarios", () => {
       source_snapshot_id: snapshot.data.snapshot.id,
       context_pack_id: started.data.run.context_pack_id,
       binding_id: started.data.run.binding_id,
-      digest: { algorithm: "sha256", value: "e".repeat(64), subject: "artifact" },
+      digest: {
+        algorithm: "sha256",
+        value: createHash("sha256").update("payload").digest("hex"),
+        subject: "artifact"
+      },
       content_reference: pathToFileURL(file).href,
       summary: "candidate"
     });

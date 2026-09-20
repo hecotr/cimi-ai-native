@@ -165,17 +165,23 @@ describe("V1 north-star Feature loop", () => {
       artifact_digest: artifactDigest
     });
     if (!("claim" in claim.data)) throw new Error("missing claim");
-    const evidence = exec(ctx, "RecordEvidence", {
-      change_id: ctx.changeId,
-      claim_id: claim.data.claim.id,
-      stance: "Supports",
-      subject_type: "artifact",
-      subject_id: artifactId,
-      subject_digest: artifactDigest,
-      content_reference: "repo://docs/api.md#v1",
-      digest: digest("knowledge-evidence"),
-      producer_role: "evaluator"
-    });
+    const evidence = exec(
+      ctx,
+      "RecordEvidence",
+      {
+        change_id: ctx.changeId,
+        claim_id: claim.data.claim.id,
+        stance: "Supports",
+        subject_type: "artifact",
+        subject_id: artifactId,
+        subject_digest: artifactDigest,
+        content_reference: "repo://docs/api.md#v1",
+        digest: digest("knowledge-evidence"),
+        producer_role: "evaluator"
+      },
+      ctx.revision,
+      "system"
+    );
     if (!("evidence" in evidence.data)) throw new Error("missing evidence");
     expect(evidence.data.evidence.external_reference_id).toMatch(/^[0-9a-f-]{36}$/i);
     const evaluation = exec(ctx, "CompleteEvaluation", {

@@ -983,6 +983,10 @@
                             },
                             {
                               "type": "string",
+                              "const": "human_workbench"
+                            },
+                            {
+                              "type": "string",
                               "const": "agent"
                             },
                             {
@@ -1122,6 +1126,10 @@
                         {
                           "type": "string",
                           "const": "human_cli"
+                        },
+                        {
+                          "type": "string",
+                          "const": "human_workbench"
                         },
                         {
                           "type": "string",
@@ -2565,6 +2573,10 @@
                         },
                         {
                           "type": "string",
+                          "const": "human_workbench"
+                        },
+                        {
+                          "type": "string",
                           "const": "agent"
                         },
                         {
@@ -3778,6 +3790,10 @@
                             {
                               "type": "string",
                               "const": "human_cli"
+                            },
+                            {
+                              "type": "string",
+                              "const": "human_workbench"
                             },
                             {
                               "type": "string",
