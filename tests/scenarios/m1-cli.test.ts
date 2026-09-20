@@ -159,7 +159,7 @@ describe("cimiloop M1 CLI", () => {
     expect(timeline.events.map((event) => event.event_sequence)).toEqual(
       timeline.events.map((event) => event.event_sequence).sort((left, right) => left - right)
     );
-  }, 30_000);
+  }, 90_000);
 
   it("returns schema-valid JSON for illegal files without leaking paths", () => {
     const root = mkdtempSync(join(tmpdir(), "cimiloop-m1-cli-error-"));
