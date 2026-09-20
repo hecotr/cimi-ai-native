@@ -5,6 +5,7 @@ import {
   AgentRunRecordSchema,
   ArtifactSchema,
   AssignmentSchema,
+  BlockerSchema,
   CapabilityBindingSchema,
   ChangeProfileSchema,
   ChangeSchema,
@@ -40,6 +41,7 @@ import {
   type AgentRunRecord,
   type Artifact,
   type Assignment,
+  type Blocker,
   type CapabilityBinding,
   type Change,
   type ChangeProfile,
@@ -114,6 +116,7 @@ const parseCapabilityBinding = compileValidator<CapabilityBinding>(CapabilityBin
 const parseAgentRun = compileValidator<AgentRunRecord>(AgentRunRecordSchema);
 const parseSourceSnapshot = compileValidator<SourceSnapshot>(SourceSnapshotSchema);
 const parseArtifact = compileValidator<Artifact>(ArtifactSchema);
+const parseBlocker = compileValidator<Blocker>(BlockerSchema);
 
 const isUniqueConstraint = (error: unknown): boolean =>
   error instanceof Error && /UNIQUE constraint failed/i.test(error.message);
@@ -927,6 +930,42 @@ class SqliteTransaction implements StoreTransaction {
     return this.listPayload(
       "SELECT payload_json FROM artifacts WHERE change_id = ? ORDER BY rowid",
       parseArtifact,
+      changeId
+    );
+  }
+
+  insertBlocker(blocker: Blocker): void {
+    this.database
+      .prepare(
+        "INSERT INTO blockers(id, project_id, change_id, work_item_id, status, revision, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      )
+      .run(
+        blocker.id,
+        blocker.project_id,
+        blocker.change_id,
+        blocker.work_item_id ?? null,
+        blocker.status,
+        blocker.revision,
+        json(blocker)
+      );
+  }
+
+  updateBlocker(blocker: Blocker, expectedRevision: number): void {
+    this.updateRevision(
+      "blockers",
+      blocker.id,
+      blocker.revision,
+      expectedRevision,
+      blocker,
+      ", status = ?",
+      [blocker.status]
+    );
+  }
+
+  listOpenBlockers(changeId: InternalId): Blocker[] {
+    return this.listPayload(
+      "SELECT payload_json FROM blockers WHERE change_id = ? AND status = 'open' ORDER BY rowid",
+      parseBlocker,
       changeId
     );
   }

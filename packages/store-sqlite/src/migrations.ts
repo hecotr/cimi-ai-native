@@ -361,6 +361,18 @@ CREATE INDEX IF NOT EXISTS idx_leases_expires ON leases(status, expires_at);
 CREATE INDEX IF NOT EXISTS idx_agent_runs_work_item ON agent_runs(work_item_id, attempt);
 CREATE INDEX IF NOT EXISTS idx_artifacts_change ON artifacts(change_id, status);
 CREATE INDEX IF NOT EXISTS idx_artifacts_digest ON artifacts(digest);
+
+CREATE TABLE IF NOT EXISTS blockers (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  work_item_id TEXT,
+  status TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE INDEX IF NOT EXISTS idx_blockers_open ON blockers(change_id, status) WHERE status = 'open';
 `
   }
 ];

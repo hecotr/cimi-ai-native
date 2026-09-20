@@ -3,6 +3,7 @@ import type {
   AgentRunRecord,
   Artifact,
   Assignment,
+  Blocker,
   CapabilityBinding,
   Change,
   ChangeProfile,
@@ -201,6 +202,10 @@ export interface StoreTransaction {
   updateArtifact(artifact: Artifact): void;
   getArtifact(id: InternalId): Artifact | undefined;
   listArtifactsByChange(changeId: InternalId): Artifact[];
+
+  insertBlocker(blocker: Blocker): void;
+  updateBlocker(blocker: Blocker, expectedRevision: number): void;
+  listOpenBlockers(changeId: InternalId): Blocker[];
 }
 
 export interface ProjectStore {

@@ -138,7 +138,8 @@ export const ChangeSchema = Type.Object(
     lifecycle_state: Type.Union([
       Type.Literal("Draft"),
       Type.Literal("IntentReady"),
-      Type.Literal("Planned")
+      Type.Literal("Planned"),
+      Type.Literal("Executing")
     ]),
     operating_status: Type.Union([Type.Literal("Active"), Type.Literal("Paused")]),
     owner_actor_id: InternalIdSchema,
@@ -177,12 +178,14 @@ export const TransitionRecordSchema = Type.Union([
       from_lifecycle: Type.Union([
         Type.Literal("Draft"),
         Type.Literal("IntentReady"),
-        Type.Literal("Planned")
+        Type.Literal("Planned"),
+        Type.Literal("Executing")
       ]),
       to_lifecycle: Type.Union([
         Type.Literal("Draft"),
         Type.Literal("IntentReady"),
-        Type.Literal("Planned")
+        Type.Literal("Planned"),
+        Type.Literal("Executing")
       ]),
       from_status: Type.Union([Type.Literal("Active"), Type.Literal("Paused")]),
       to_status: Type.Union([Type.Literal("Active"), Type.Literal("Paused")]),

@@ -34,7 +34,13 @@ import {
   type SubmitPlanAmendmentCommand,
   type SubmitPlanCandidateCommand,
   type Task,
-  type TimelineResult
+  type TimelineResult,
+  type WorkItem,
+  type ClaimWorkItemCommand,
+  type CreateExecutionWorkItemsCommand,
+  type CreatePlanningWorkItemCommand,
+  type Lease,
+  type ResourceLock
 } from "@cimiloop/protocol";
 import {
   StoreConflictError,
@@ -60,7 +66,9 @@ import { createKnowledgeImpactAssessment, validateKnowledgeImpact } from "./know
 import { createPlanCandidate, createPlanTasks, createPlanVersion, validateKnowledgeTasks } from "./plan.js";
 import { ReadModelBuilder } from "./read-models.js";
 import { createRiskAssessment, createRiskProfile, validateRiskDimensions } from "./risk.js";
+import { selectReadyTasks } from "./scheduler.js";
 import { validateTaskDag } from "./task-dag.js";
+import { createExecutionWorkItem, createPlanningWorkItem } from "./work-item.js";
 import {
   createBuiltInChangeProfiles,
   createSoloAssignments,
@@ -152,6 +160,12 @@ export class CimiLoopKernel {
       });
     } catch (error) {
       if (error instanceof StoreConflictError) {
+        if (error.message === "Lease already held for work item") {
+          return domainError(command.correlation_id, "LEASE_CONFLICT", "Work Item 已被领取", "conflict");
+        }
+        if (error.message === "Resource lock already held") {
+          return domainError(command.correlation_id, "RESOURCE_LOCK_CONFLICT", "资源锁已被占用", "conflict");
+        }
         return domainError(
           command.correlation_id,
           "REVISION_CONFLICT",
@@ -338,8 +352,11 @@ export class CimiLoopKernel {
       case "SubmitPlanAmendment":
         return this.#submitPlanAmendment(transaction, command);
       case "CreatePlanningWorkItem":
+        return this.#createPlanningWorkItem(transaction, command);
       case "CreateExecutionWorkItems":
+        return this.#createExecutionWorkItems(transaction, command);
       case "ClaimWorkItem":
+        return this.#claimWorkItem(transaction, command);
       case "StartRun":
       case "HeartbeatRun":
       case "CompleteRun":
@@ -1572,6 +1589,239 @@ export class CimiLoopKernel {
         amendment.revision
       );
     }
+  }
+
+  #createPlanningWorkItem(
+    transaction: StoreTransaction,
+    command: CreatePlanningWorkItemCommand
+  ): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
+    if ("code" in loaded) return loaded;
+    const existing = transaction
+      .listWorkItemsByChange(loaded.change.id)
+      .find((item) => item.kind === "planning");
+    if (existing) {
+      return this.#success(
+        command,
+        { object_type: "work_item", id: existing.id, domain_version: 1 },
+        loaded.change.revision,
+        [],
+        { work_item: existing }
+      );
+    }
+    if (loaded.change.lifecycle_state === "Planned" || loaded.change.lifecycle_state === "Executing") {
+      return this.#success(
+        command,
+        { object_type: "change", id: loaded.change.id, domain_version: 1 },
+        loaded.change.revision,
+        [],
+        { work_items: [] }
+      );
+    }
+    if (loaded.change.lifecycle_state !== "IntentReady") {
+      return domainError(command.correlation_id, "CHANGE_NOT_INTENT_READY", "只有 IntentReady Change 可以创建 Planning Work Item", "conflict");
+    }
+    const contract = transaction.getCurrentContract(loaded.change.id);
+    const policy = transaction.getLatestPolicySnapshot(loaded.project.id);
+    if (!contract || !policy) {
+      return domainError(command.correlation_id, "GOVERNANCE_REQUIRED", "创建 Planning Work Item 需要当前 Contract 与 Policy Snapshot", "conflict");
+    }
+    const now = this.#now();
+    const workItem = createPlanningWorkItem({
+      id: this.#id(),
+      projectId: loaded.project.id,
+      changeId: loaded.change.id,
+      contractId: contract.contract_id,
+      contractVersion: contract.domain_version,
+      policySnapshotId: policy.id,
+      now
+    });
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    transaction.insertWorkItem(workItem);
+    const event = this.#appendEvent(transaction, {
+      event_type: "PlanningWorkItemCreated",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "work_item", id: workItem.id, domain_version: 1 },
+      aggregate_revision: 1,
+      actor_id: loaded.actorId,
+      command,
+      payload: { work_item_id: workItem.id, change_id: loaded.change.id },
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "work_item", id: workItem.id, domain_version: 1 },
+      nextChange.revision,
+      [event],
+      { work_item: workItem }
+    );
+  }
+
+  #createExecutionWorkItems(
+    transaction: StoreTransaction,
+    command: CreateExecutionWorkItemsCommand
+  ): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
+    if ("code" in loaded) return loaded;
+    if (loaded.change.lifecycle_state !== "Planned" && loaded.change.lifecycle_state !== "Executing") {
+      return domainError(command.correlation_id, "CHANGE_NOT_PLANNED", "只有 Planned 或 Executing Change 可以创建 Execution Work Item", "conflict");
+    }
+    const contract = transaction.getCurrentContract(loaded.change.id);
+    const plan = transaction.getCurrentPlan(loaded.change.id);
+    const policy = transaction.getLatestPolicySnapshot(loaded.project.id);
+    if (!contract || !plan || !policy) {
+      return domainError(command.correlation_id, "CURRENT_PLAN_NOT_FOUND", "创建 Execution Work Item 需要当前 Contract、Plan 与 Policy Snapshot", "not_found");
+    }
+    const tasks = transaction.listTasks(plan.plan_id, plan.domain_version);
+    const existing = transaction.listWorkItemsByChange(loaded.change.id);
+    const readyTasks = selectReadyTasks(loaded.change.lifecycle_state, tasks, existing, {
+      has_open_blocker: transaction.listOpenBlockers(loaded.change.id).length > 0,
+      has_contract: true,
+      has_plan: true,
+      has_policy_snapshot: true
+    });
+    const now = this.#now();
+    const events: EventEnvelope[] = [];
+    const created: WorkItem[] = readyTasks.map((task) => {
+      const workItem = createExecutionWorkItem({
+        id: this.#id(),
+        projectId: loaded.project.id,
+        changeId: loaded.change.id,
+        contractId: contract.contract_id,
+        contractVersion: contract.domain_version,
+        planId: plan.plan_id,
+        planVersion: plan.domain_version,
+        taskId: task.id,
+        policySnapshotId: policy.id,
+        now
+      });
+      transaction.insertWorkItem(workItem);
+      return workItem;
+    });
+    let nextChange = loaded.change;
+    if (created.length > 0 && loaded.change.lifecycle_state === "Planned") {
+      nextChange = {
+        ...loaded.change,
+        lifecycle_state: "Executing",
+        operating_status: "Active",
+        updated_at: now,
+        revision: loaded.change.revision + 1
+      };
+      transaction.updateChange(nextChange, loaded.expectedRevision);
+      transaction.insertTransition({
+        schema_version: SCHEMA_VERSION,
+        id: this.#id(),
+        project_id: loaded.project.id,
+        change_id: loaded.change.id,
+        command_id: command.command_id,
+        transition_type: "lifecycle_changed",
+        from_lifecycle: "Planned",
+        to_lifecycle: "Executing",
+        from_status: loaded.change.operating_status,
+        to_status: "Active",
+        actor_id: loaded.actorId,
+        occurred_at: now
+      });
+    } else {
+      nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    }
+    if (created.length > 0) {
+      events.push(
+        this.#appendEvent(transaction, {
+          event_type: "ExecutionWorkItemsCreated",
+          project_id: loaded.project.id,
+          aggregate: { object_type: "change", id: loaded.change.id, domain_version: 1 },
+          aggregate_revision: nextChange.revision,
+          actor_id: loaded.actorId,
+          command,
+          payload: { work_item_ids: created.map((item) => item.id) },
+          occurred_at: now
+        })
+      );
+    }
+    return this.#success(
+      command,
+      { object_type: "change", id: loaded.change.id, domain_version: 1 },
+      nextChange.revision,
+      events,
+      { work_items: created, change: nextChange }
+    );
+  }
+
+  #claimWorkItem(transaction: StoreTransaction, command: ClaimWorkItemCommand): KernelResult {
+    const workItem = transaction.getWorkItem(command.payload.work_item_id);
+    if (!workItem) {
+      return domainError(command.correlation_id, "WORK_ITEM_NOT_FOUND", "未找到指定 Work Item", "not_found");
+    }
+    const loaded = this.#requireChangeForMutation(transaction, command, workItem.change_id);
+    if ("code" in loaded) return loaded;
+    if (transaction.getActiveLeaseByWorkItem(workItem.id)) {
+      return domainError(command.correlation_id, "LEASE_CONFLICT", "Work Item 已被领取", "conflict");
+    }
+    if (workItem.status !== "ready") {
+      return domainError(command.correlation_id, "WORK_ITEM_NOT_READY", "只有 ready Work Item 可以被领取", "conflict");
+    }
+    const resourceKey = `change/${loaded.change.id}`;
+    const held = transaction.getHeldResourceLock("worktree", resourceKey);
+    if (held && held.holder_work_item_id !== workItem.id) {
+      return domainError(command.correlation_id, "RESOURCE_LOCK_CONFLICT", "资源锁已被占用", "conflict");
+    }
+    const now = this.#now();
+    const expires = new Date(now);
+    expires.setUTCMinutes(expires.getUTCMinutes() + 10);
+    const lease: Lease = {
+      schema_version: SCHEMA_VERSION,
+      id: this.#id(),
+      project_id: loaded.project.id,
+      work_item_id: workItem.id,
+      owner_actor_id: loaded.actorId,
+      status: "active",
+      acquired_at: now,
+      expires_at: expires.toISOString(),
+      created_at: now,
+      updated_at: now,
+      revision: 1
+    };
+    const lock: ResourceLock = {
+      schema_version: SCHEMA_VERSION,
+      id: this.#id(),
+      project_id: loaded.project.id,
+      resource_type: "worktree",
+      resource_key: resourceKey,
+      holder_work_item_id: workItem.id,
+      status: "held",
+      acquired_at: now,
+      created_at: now,
+      updated_at: now,
+      revision: 1
+    };
+    const claimed: WorkItem = {
+      ...workItem,
+      status: "claimed",
+      updated_at: now,
+      revision: workItem.revision + 1
+    };
+    transaction.insertLease(lease);
+    if (!held) transaction.insertResourceLock(lock);
+    transaction.updateWorkItem(claimed, workItem.revision);
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "WorkItemClaimed",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "work_item", id: workItem.id, domain_version: 1 },
+      aggregate_revision: claimed.revision,
+      actor_id: loaded.actorId,
+      command,
+      payload: { work_item_id: workItem.id, lease_id: lease.id },
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "work_item", id: workItem.id, domain_version: 1 },
+      nextChange.revision,
+      [event],
+      { work_item: claimed, lease }
+    );
   }
 
   #touchChange(transaction: StoreTransaction, change: Change, expectedRevision: number, now: string): Change {

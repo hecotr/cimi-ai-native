@@ -156,6 +156,10 @@
             {
               "type": "string",
               "const": "Planned"
+            },
+            {
+              "type": "string",
+              "const": "Executing"
             }
           ]
         },
@@ -172,6 +176,10 @@
             {
               "type": "string",
               "const": "Planned"
+            },
+            {
+              "type": "string",
+              "const": "Executing"
             }
           ]
         },

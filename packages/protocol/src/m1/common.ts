@@ -89,7 +89,8 @@ export const TaskKindSchema = Type.Union([
 export const LifecycleStateSchema = Type.Union([
   Type.Literal("Draft"),
   Type.Literal("IntentReady"),
-  Type.Literal("Planned")
+  Type.Literal("Planned"),
+  Type.Literal("Executing")
 ]);
 
 export const DigestSchema = Type.Object(

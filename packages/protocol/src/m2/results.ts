@@ -1,4 +1,5 @@
 import { Type, type Static } from "typebox";
+import { ChangeSchema } from "../schemas.js";
 import {
   AgentRunRecordSchema,
   ArtifactSchema,
@@ -16,7 +17,13 @@ export const M2CommandSuccessDataSchema = Type.Union([
     },
     { additionalProperties: false }
   ),
-  Type.Object({ work_items: Type.Array(WorkItemSchema) }, { additionalProperties: false }),
+  Type.Object(
+    {
+      work_items: Type.Array(WorkItemSchema),
+      change: Type.Optional(ChangeSchema)
+    },
+    { additionalProperties: false }
+  ),
   Type.Object({ run: AgentRunRecordSchema }, { additionalProperties: false }),
   Type.Object(
     {
