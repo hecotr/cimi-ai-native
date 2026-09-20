@@ -1,14 +1,18 @@
 import type {
   Actor,
   AgentRunRecord,
+  ArchiveRecord,
   Artifact,
   Assignment,
+  AttentionItem,
   Blocker,
+  CancellationRecord,
   CapabilityBinding,
   Change,
   ChangeProfile,
   Claim,
   ClaimAssessment,
+  ClosureEvaluation,
   CommandSuccess,
   ContextPackManifest,
   ContractAmendment,
@@ -21,16 +25,19 @@ import type {
   Environment,
   EventEnvelope,
   Evidence,
-  ExternalOperation,
   EvidencePackageManifest,
+  ExternalOperation,
   ExternalReference,
   Feedback,
   GateEvaluation,
   GateRequirementSet,
   ImpactAssessment,
+  ImportReport,
   IndependentEvaluation,
   InternalId,
   KnowledgeImpactAssessment,
+  KnowledgeUpdateEvidence,
+  LearningCandidate,
   Lease,
   PlanAmendment,
   PlanCandidate,
@@ -45,12 +52,13 @@ import type {
   Release,
   ReleasePackage,
   RepairWorkItemLink,
-  VerificationResult,
   ResourceLock,
   RiskAssessment,
   RiskProfile,
   Role,
   SourceSnapshot,
+  SupersessionRecord,
+  VerificationResult,
   Task,
   TransitionRecord,
   TypedReference,
@@ -301,6 +309,36 @@ export interface StoreTransaction {
   getExternalOperationByKey(operationKey: string): ExternalOperation | undefined;
   listExternalOperationsByChange(changeId: InternalId): ExternalOperation[];
   listUnknownExternalOperations(): ExternalOperation[];
+
+  insertLearningCandidate(candidate: LearningCandidate): void;
+  getLearningCandidate(id: InternalId): LearningCandidate | undefined;
+  listLearningCandidatesByChange(changeId: InternalId): LearningCandidate[];
+
+  insertKnowledgeUpdateEvidence(evidence: KnowledgeUpdateEvidence): void;
+  listKnowledgeUpdateEvidenceByChange(changeId: InternalId): KnowledgeUpdateEvidence[];
+
+  insertClosureEvaluation(evaluation: ClosureEvaluation): void;
+  getClosureEvaluation(id: InternalId): ClosureEvaluation | undefined;
+  listClosureEvaluationsByChange(changeId: InternalId): ClosureEvaluation[];
+
+  insertArchiveRecord(record: ArchiveRecord): void;
+  listArchiveRecordsByChange(changeId: InternalId): ArchiveRecord[];
+
+  insertCancellationRecord(record: CancellationRecord): void;
+  listCancellationRecordsByChange(changeId: InternalId): CancellationRecord[];
+
+  insertSupersessionRecord(record: SupersessionRecord): void;
+  listSupersessionRecordsByChange(changeId: InternalId): SupersessionRecord[];
+
+  insertAttentionItem(item: AttentionItem): void;
+  updateAttentionItem(item: AttentionItem, expectedRevision: number): void;
+  listOpenAttentionItems(projectId: InternalId): AttentionItem[];
+
+  insertImportReport(report: ImportReport): void;
+  getImportReport(id: InternalId): ImportReport | undefined;
+
+  upsertReadModelCheckpoint(projectionName: string, eventSequence: number, payload: Record<string, unknown>): void;
+  getReadModelCheckpoint(projectionName: string): { event_sequence: number; payload: Record<string, unknown> } | undefined;
 }
 
 export interface ProjectStore {

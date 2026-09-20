@@ -589,6 +589,88 @@ CREATE INDEX IF NOT EXISTS idx_deployment_attempts_deployment ON deployment_atte
 CREATE INDEX IF NOT EXISTS idx_external_operations_state ON external_operations(state);
 CREATE INDEX IF NOT EXISTS idx_reconciliations_operation ON reconciliations(operation_id);
 `
+  },
+  {
+    version: 6,
+    sql: `
+CREATE TABLE IF NOT EXISTS learning_candidates (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  source_kind TEXT NOT NULL,
+  promoted INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS knowledge_update_evidence (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  task_id TEXT NOT NULL,
+  conclusion TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS closure_evaluations (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  disposition TEXT NOT NULL,
+  result TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS archive_records (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS cancellation_records (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS supersession_records (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  successor_change_id TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS attention_items (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT,
+  kind TEXT NOT NULL,
+  status TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS import_reports (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  status TEXT NOT NULL,
+  runtime_ownership TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS read_model_checkpoints (
+  projection_name TEXT PRIMARY KEY,
+  event_sequence INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE INDEX IF NOT EXISTS idx_learning_candidates_change ON learning_candidates(change_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_update_change ON knowledge_update_evidence(change_id);
+CREATE INDEX IF NOT EXISTS idx_closure_evaluations_change ON closure_evaluations(change_id);
+CREATE INDEX IF NOT EXISTS idx_attention_items_status ON attention_items(status);
+`
   }
 ];
 

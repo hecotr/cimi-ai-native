@@ -3,9 +3,13 @@ import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import {
   AgentRunRecordSchema,
+  ArchiveRecordSchema,
   ArtifactSchema,
+  AttentionItemSchema,
   AssignmentSchema,
   BlockerSchema,
+  CancellationRecordSchema,
+  ClosureEvaluationSchema,
   CapabilityBindingSchema,
   ChangeProfileSchema,
   ChangeSchema,
@@ -30,8 +34,11 @@ import {
   GateEvaluationSchema,
   GateRequirementSetSchema,
   ImpactAssessmentSchema,
+  ImportReportSchema,
   IndependentEvaluationSchema,
   KnowledgeImpactAssessmentSchema,
+  KnowledgeUpdateEvidenceSchema,
+  LearningCandidateSchema,
   LeaseSchema,
   PlanAmendmentSchema,
   PlanCandidateSchema,
@@ -52,15 +59,20 @@ import {
   RoleSchema,
   SCHEMA_VERSION,
   SourceSnapshotSchema,
+  SupersessionRecordSchema,
   TaskSchema,
   VerificationResultSchema,
   WorkItemSchema,
   compileValidator,
   type Actor,
+  type ArchiveRecord,
+  type AttentionItem,
   type AgentRunRecord,
   type Artifact,
   type Assignment,
   type Blocker,
+  type CancellationRecord,
+  type ClosureEvaluation,
   type CapabilityBinding,
   type Change,
   type ChangeProfile,
@@ -85,9 +97,12 @@ import {
   type GateEvaluation,
   type GateRequirementSet,
   type ImpactAssessment,
+  type ImportReport,
   type IndependentEvaluation,
   type InternalId,
   type KnowledgeImpactAssessment,
+  type KnowledgeUpdateEvidence,
+  type LearningCandidate,
   type Lease,
   type PlanAmendment,
   type PlanCandidate,
@@ -108,6 +123,7 @@ import {
   type RiskProfile,
   type Role,
   type SourceSnapshot,
+  type SupersessionRecord,
   type Task,
   type TransitionRecord,
   type WorkItem
@@ -174,6 +190,14 @@ const parseRecoveryStrategy = compileValidator<RecoveryStrategy>(RecoveryStrateg
 const parseRecoveryExecution = compileValidator<RecoveryExecution>(RecoveryExecutionSchema);
 const parseReconciliation = compileValidator<Reconciliation>(ReconciliationSchema);
 const parseExternalOperation = compileValidator<ExternalOperation>(ExternalOperationSchema);
+const parseLearningCandidate = compileValidator<LearningCandidate>(LearningCandidateSchema);
+const parseKnowledgeUpdate = compileValidator<KnowledgeUpdateEvidence>(KnowledgeUpdateEvidenceSchema);
+const parseClosureEvaluation = compileValidator<ClosureEvaluation>(ClosureEvaluationSchema);
+const parseArchiveRecord = compileValidator<ArchiveRecord>(ArchiveRecordSchema);
+const parseCancellationRecord = compileValidator<CancellationRecord>(CancellationRecordSchema);
+const parseSupersessionRecord = compileValidator<SupersessionRecord>(SupersessionRecordSchema);
+const parseAttentionItem = compileValidator<AttentionItem>(AttentionItemSchema);
+const parseImportReport = compileValidator<ImportReport>(ImportReportSchema);
 
 const isUniqueConstraint = (error: unknown): boolean =>
   error instanceof Error && /UNIQUE constraint failed/i.test(error.message);
@@ -1547,6 +1571,185 @@ class SqliteTransaction implements StoreTransaction {
       "SELECT payload_json FROM external_operations WHERE state = 'unknown' ORDER BY rowid",
       parseExternalOperation
     );
+  }
+
+  insertLearningCandidate(candidate: LearningCandidate): void {
+    this.insertUnique(
+      "INSERT INTO learning_candidates(id, project_id, change_id, source_kind, promoted, payload_json) VALUES (?, ?, ?, ?, ?, ?)",
+      [
+        candidate.id,
+        candidate.project_id,
+        candidate.change_id,
+        candidate.source_kind,
+        candidate.promoted ? 1 : 0,
+        json(candidate)
+      ],
+      "Learning candidate already exists"
+    );
+  }
+
+  getLearningCandidate(id: InternalId): LearningCandidate | undefined {
+    return this.getPayload("SELECT payload_json FROM learning_candidates WHERE id = ?", parseLearningCandidate, id);
+  }
+
+  listLearningCandidatesByChange(changeId: InternalId): LearningCandidate[] {
+    return this.listPayload(
+      "SELECT payload_json FROM learning_candidates WHERE change_id = ? ORDER BY rowid",
+      parseLearningCandidate,
+      changeId
+    );
+  }
+
+  insertKnowledgeUpdateEvidence(evidence: KnowledgeUpdateEvidence): void {
+    this.insertUnique(
+      "INSERT INTO knowledge_update_evidence(id, project_id, change_id, task_id, conclusion, payload_json) VALUES (?, ?, ?, ?, ?, ?)",
+      [evidence.id, evidence.project_id, evidence.change_id, evidence.task_id, evidence.conclusion, json(evidence)],
+      "Knowledge update evidence already exists"
+    );
+  }
+
+  listKnowledgeUpdateEvidenceByChange(changeId: InternalId): KnowledgeUpdateEvidence[] {
+    return this.listPayload(
+      "SELECT payload_json FROM knowledge_update_evidence WHERE change_id = ? ORDER BY rowid",
+      parseKnowledgeUpdate,
+      changeId
+    );
+  }
+
+  insertClosureEvaluation(evaluation: ClosureEvaluation): void {
+    this.insertUnique(
+      "INSERT INTO closure_evaluations(id, project_id, change_id, disposition, result, payload_json) VALUES (?, ?, ?, ?, ?, ?)",
+      [
+        evaluation.id,
+        evaluation.project_id,
+        evaluation.change_id,
+        evaluation.disposition,
+        evaluation.result,
+        json(evaluation)
+      ],
+      "Closure evaluation already exists"
+    );
+  }
+
+  getClosureEvaluation(id: InternalId): ClosureEvaluation | undefined {
+    return this.getPayload("SELECT payload_json FROM closure_evaluations WHERE id = ?", parseClosureEvaluation, id);
+  }
+
+  listClosureEvaluationsByChange(changeId: InternalId): ClosureEvaluation[] {
+    return this.listPayload(
+      "SELECT payload_json FROM closure_evaluations WHERE change_id = ? ORDER BY rowid",
+      parseClosureEvaluation,
+      changeId
+    );
+  }
+
+  insertArchiveRecord(record: ArchiveRecord): void {
+    this.insertUnique(
+      "INSERT INTO archive_records(id, project_id, change_id, payload_json) VALUES (?, ?, ?, ?)",
+      [record.id, record.project_id, record.change_id, json(record)],
+      "Archive record already exists"
+    );
+  }
+
+  listArchiveRecordsByChange(changeId: InternalId): ArchiveRecord[] {
+    return this.listPayload(
+      "SELECT payload_json FROM archive_records WHERE change_id = ? ORDER BY rowid",
+      parseArchiveRecord,
+      changeId
+    );
+  }
+
+  insertCancellationRecord(record: CancellationRecord): void {
+    this.insertUnique(
+      "INSERT INTO cancellation_records(id, project_id, change_id, payload_json) VALUES (?, ?, ?, ?)",
+      [record.id, record.project_id, record.change_id, json(record)],
+      "Cancellation record already exists"
+    );
+  }
+
+  listCancellationRecordsByChange(changeId: InternalId): CancellationRecord[] {
+    return this.listPayload(
+      "SELECT payload_json FROM cancellation_records WHERE change_id = ? ORDER BY rowid",
+      parseCancellationRecord,
+      changeId
+    );
+  }
+
+  insertSupersessionRecord(record: SupersessionRecord): void {
+    this.insertUnique(
+      "INSERT INTO supersession_records(id, project_id, change_id, successor_change_id, payload_json) VALUES (?, ?, ?, ?, ?)",
+      [record.id, record.project_id, record.change_id, record.successor_change_id, json(record)],
+      "Supersession record already exists"
+    );
+  }
+
+  listSupersessionRecordsByChange(changeId: InternalId): SupersessionRecord[] {
+    return this.listPayload(
+      "SELECT payload_json FROM supersession_records WHERE change_id = ? ORDER BY rowid",
+      parseSupersessionRecord,
+      changeId
+    );
+  }
+
+  insertAttentionItem(item: AttentionItem): void {
+    this.insertUnique(
+      "INSERT INTO attention_items(id, project_id, change_id, kind, status, revision, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [item.id, item.project_id, item.change_id ?? null, item.kind, item.status, item.revision, json(item)],
+      "Attention item already exists"
+    );
+  }
+
+  updateAttentionItem(item: AttentionItem, expectedRevision: number): void {
+    this.updateRevision(
+      "attention_items",
+      item.id,
+      item.revision,
+      expectedRevision,
+      item,
+      ", status = ?",
+      [item.status]
+    );
+  }
+
+  listOpenAttentionItems(projectId: InternalId): AttentionItem[] {
+    return this.listPayload(
+      "SELECT payload_json FROM attention_items WHERE project_id = ? AND status = 'open' ORDER BY rowid",
+      parseAttentionItem,
+      projectId
+    );
+  }
+
+  insertImportReport(report: ImportReport): void {
+    this.insertUnique(
+      "INSERT INTO import_reports(id, project_id, status, runtime_ownership, payload_json) VALUES (?, ?, ?, ?, ?)",
+      [report.id, report.project_id, report.status, report.runtime_ownership, json(report)],
+      "Import report already exists"
+    );
+  }
+
+  getImportReport(id: InternalId): ImportReport | undefined {
+    return this.getPayload("SELECT payload_json FROM import_reports WHERE id = ?", parseImportReport, id);
+  }
+
+  upsertReadModelCheckpoint(projectionName: string, eventSequence: number, payload: Record<string, unknown>): void {
+    this.database
+      .prepare(
+        `INSERT INTO read_model_checkpoints(projection_name, event_sequence, payload_json)
+         VALUES (?, ?, ?)
+         ON CONFLICT(projection_name) DO UPDATE SET event_sequence = excluded.event_sequence, payload_json = excluded.payload_json`
+      )
+      .run(projectionName, eventSequence, json(payload));
+  }
+
+  getReadModelCheckpoint(
+    projectionName: string
+  ): { event_sequence: number; payload: Record<string, unknown> } | undefined {
+    const row = this.database
+      .prepare("SELECT event_sequence, payload_json FROM read_model_checkpoints WHERE projection_name = ?")
+      .get(projectionName) as SqlRow | undefined;
+    return row
+      ? { event_sequence: Number(row.event_sequence), payload: parseJson(row.payload_json) as Record<string, unknown> }
+      : undefined;
   }
 
   private insertUnique(sql: string, values: SqlValue[], conflictMessage: string): void {
