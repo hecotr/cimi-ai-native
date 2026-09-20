@@ -14,7 +14,7 @@ export const completedTaskKeys = (tasks: readonly Task[], workItems: readonly Wo
 export const hasOpenExecutionWorkItem = (workItems: readonly WorkItem[], taskId: string): boolean =>
   workItems.some(
     (item) =>
-      item.kind === "execution" &&
+      (item.kind === "execution" || item.kind === "repair") &&
       item.task_id === taskId &&
       (item.status === "created" || item.status === "ready" || item.status === "claimed" || item.status === "running")
   );

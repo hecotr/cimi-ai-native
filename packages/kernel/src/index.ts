@@ -11,6 +11,7 @@ export * from "./knowledge-impact.js";
 export * from "./plan.js";
 export * from "./policy.js";
 export * from "./read-models.js";
+export * from "./repair.js";
 export * from "./artifact.js";
 export * from "./ready-rules.js";
 export * from "./source-snapshot.js";

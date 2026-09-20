@@ -56,6 +56,7 @@ import {
   type RequestEvaluationCommand,
   type CompleteEvaluationCommand,
   type AssessImpactCommand,
+  type CreateRepairWorkItemCommand,
   type ClaimAssessment,
   type Artifact,
   type Evidence,
@@ -112,6 +113,7 @@ import {
 } from "./run.js";
 import { createArtifact, localReferenceExists } from "./artifact.js";
 import { createSourceSnapshot, snapshotKindValid } from "./source-snapshot.js";
+import { createRepairWorkItem, createRepairWorkItemLink } from "./repair.js";
 import { createEvaluationWorkItem, createExecutionWorkItem, createPlanningWorkItem } from "./work-item.js";
 import {
   createBuiltInChangeProfiles,
@@ -501,8 +503,9 @@ export class CimiLoopKernel {
         return this.#completeEvaluation(transaction, command);
       case "AssessImpact":
         return this.#assessImpact(transaction, command);
-      case "SubmitClaim":
       case "CreateRepairWorkItem":
+        return this.#createRepairWorkItem(transaction, command);
+      case "SubmitClaim":
         return domainError(
           command.correlation_id,
           "COMMAND_UNSUPPORTED",
@@ -2646,6 +2649,99 @@ export class CimiLoopKernel {
       nextChange.revision,
       [event],
       { impact }
+    );
+  }
+
+  #createRepairWorkItem(transaction: StoreTransaction, command: CreateRepairWorkItemCommand): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
+    if ("code" in loaded) return loaded;
+    const evidence = transaction.getEvidence(command.payload.failed_evidence_id);
+    if (!evidence || evidence.change_id !== loaded.change.id || evidence.stance !== "Refutes") {
+      return domainError(command.correlation_id, "REPAIR_EVIDENCE_NOT_REFUTED", "Repair 只能关联未解决的 Refutes Evidence", "conflict");
+    }
+    const source = transaction.getWorkItem(command.payload.source_work_item_id);
+    if (!source || source.change_id !== loaded.change.id) {
+      return domainError(command.correlation_id, "WORK_ITEM_NOT_FOUND", "Repair 需要原 Work Item", "not_found");
+    }
+    const artifact = transaction.getArtifact(command.payload.artifact_id);
+    if (!artifact || artifact.change_id !== loaded.change.id) {
+      return domainError(command.correlation_id, "ARTIFACT_NOT_FOUND", "Repair 需要保留原 Artifact", "not_found");
+    }
+    const policy = transaction.getLatestPolicySnapshot(loaded.project.id);
+    const now = this.#now();
+    const repair = createRepairWorkItem({
+      id: this.#id(),
+      projectId: loaded.project.id,
+      changeId: loaded.change.id,
+      contractId: artifact.contract_id,
+      contractVersion: artifact.contract_version,
+      planId: source.plan_id ?? artifact.plan_id,
+      planVersion: source.plan_version ?? artifact.plan_version,
+      taskId: command.payload.task_id,
+      policySnapshotId: policy?.id ?? source.policy_snapshot_id,
+      failedArtifactId: artifact.id,
+      now
+    });
+    const link = createRepairWorkItemLink({
+      id: this.#id(),
+      projectId: loaded.project.id,
+      changeId: loaded.change.id,
+      failedEvidenceId: evidence.id,
+      sourceWorkItemId: source.id,
+      taskId: command.payload.task_id,
+      artifactId: artifact.id,
+      repairWorkItemId: repair.id,
+      now
+    });
+    transaction.insertWorkItem(repair);
+    transaction.insertRepairWorkItemLink(link);
+    let nextChange = loaded.change;
+    if (loaded.change.lifecycle_state !== "Executing") {
+      nextChange = {
+        ...loaded.change,
+        lifecycle_state: "Executing",
+        operating_status: "Active",
+        updated_at: now,
+        revision: loaded.change.revision + 1
+      };
+      transaction.updateChange(nextChange, loaded.expectedRevision);
+      transaction.insertTransition({
+        schema_version: SCHEMA_VERSION,
+        id: this.#id(),
+        project_id: loaded.project.id,
+        change_id: loaded.change.id,
+        command_id: command.command_id,
+        transition_type: "lifecycle_changed",
+        from_lifecycle: loaded.change.lifecycle_state,
+        to_lifecycle: "Executing",
+        from_status: loaded.change.operating_status,
+        to_status: "Active",
+        actor_id: loaded.actorId,
+        occurred_at: now
+      });
+    } else {
+      nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    }
+    const event = this.#appendEvent(transaction, {
+      event_type: "RepairWorkItemCreated",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "repair_work_item_link", id: link.id, domain_version: 1 },
+      aggregate_revision: 1,
+      actor_id: loaded.actorId,
+      command,
+      payload: {
+        repair_work_item_id: repair.id,
+        failed_evidence_id: evidence.id,
+        artifact_id: artifact.id
+      },
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "repair_work_item_link", id: link.id, domain_version: 1 },
+      nextChange.revision,
+      [event],
+      { repair_link: link }
     );
   }
 
