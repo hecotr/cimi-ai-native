@@ -49,6 +49,12 @@ import {
   recordReconciliationCli,
   authorizeRecoveryCli,
   recordRecoveryCli,
+  exportProjectCli,
+  stageImportCli,
+  commitImportCli,
+  recordKnowledgeCli,
+  proposeCloseCli,
+  closeChangeCli,
   type GlobalOptions
 } from "./commands.js";
 import { outputError } from "./output.js";
@@ -104,6 +110,21 @@ change
   .requiredOption("--reason <reason>", "暂停原因")
   .option("--expected-revision <revision>", "期望 Revision")
   .action((idOrKey, options, command) => pauseChange(idOrKey, options.reason, { ...globals(command), ...options }));
+
+change
+  .command("propose-close <id-or-key>")
+  .description("提出 Close 评估")
+  .requiredOption("--risk <text>", "残余风险分类")
+  .option("--issue <text...>", "已知问题")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((idOrKey, options, command) => proposeCloseCli(idOrKey, { ...globals(command), ...options }));
+
+change
+  .command("close <id-or-key>")
+  .description("在 ALLOW Closure Evaluation 后关闭 Change")
+  .requiredOption("--evaluation <id>", "Closure Evaluation ID")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((idOrKey, options, command) => closeChangeCli(idOrKey, { ...globals(command), ...options }));
 
 change
   .command("resume <id-or-key>")
@@ -443,6 +464,34 @@ program
   .description("为 ready Task 创建 Execution Work Item")
   .option("--expected-revision <revision>", "期望 Revision")
   .action((change, options, command) => tickScheduler(change, { ...globals(command), ...options }));
+
+const project = program.command("project").description("Project export and portable import");
+project
+  .command("export")
+  .description("Export a deterministic portable project bundle")
+  .option("--expected-revision <revision>", "Expected project revision")
+  .action((options, command) => exportProjectCli({ ...globals(command), ...options }));
+project
+  .command("import-stage")
+  .description("Stage a portable bundle without activating runtime ownership")
+  .requiredOption("--file <path>", "Bundle JSON path")
+  .option("--expected-revision <revision>", "Expected project revision")
+  .action((options, command) => stageImportCli({ ...globals(command), ...options }));
+project
+  .command("import-commit <report>")
+  .description("Commit a staged import report")
+  .option("--expected-revision <revision>", "Expected project revision")
+  .action((report, options, command) => commitImportCli(report, { ...globals(command), ...options }));
+
+const knowledge = program.command("knowledge").description("Knowledge closure updates");
+knowledge
+  .command("record <change>")
+  .description("Record a versioned knowledge update from Evidence")
+  .requiredOption("--evidence <id>", "Evidence ID")
+  .requiredOption("--source <source>", "Knowledge source key")
+  .requiredOption("--conclusion <conclusion>", "Knowledge conclusion")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((change, options, command) => recordKnowledgeCli(change, { ...globals(command), ...options }));
 
 program
   .command("doctor")

@@ -1952,6 +1952,10 @@ export class SqliteProjectStore implements ProjectStore {
   }
 
   close(): void {
-    this.#database.close();
+    try {
+      this.#database.close();
+    } catch (error) {
+      if (!(error instanceof Error) || !/not open|already closed/i.test(error.message)) throw error;
+    }
   }
 }

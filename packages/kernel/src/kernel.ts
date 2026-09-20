@@ -1111,8 +1111,8 @@ export class CimiLoopKernel {
     });
     return this.#success(command, event.aggregate, change.revision, [event], {
       change,
-      roles,
-      assignments,
+      roles: transaction.listRoles(),
+      assignments: transaction.listAssignments(context.project.id),
       policy
     });
   }
@@ -4210,7 +4210,20 @@ export class CimiLoopKernel {
       return domainError(command.correlation_id, "EVIDENCE_CLAIM_NOT_FOUND", "记录 Evidence 需要已存在的 Claim", "not_found");
     }
     const now = this.#now();
-    const evidence = createEvidenceFromCommand({ id: this.#id(), claim, command, now });
+    let evidence = createEvidenceFromCommand({ id: this.#id(), claim, command, now });
+    if (!evidence.external_reference_id) {
+      const reference = {
+        schema_version: SCHEMA_VERSION,
+        id: this.#id(),
+        project_id: loaded.project.id,
+        reference: evidence.content_reference,
+        digest: evidence.digest,
+        summary: evidence.content_reference.slice(0, 1000),
+        created_at: now
+      };
+      transaction.insertExternalReference(reference);
+      evidence = { ...evidence, external_reference_id: reference.id };
+    }
     transaction.insertEvidence(evidence);
     const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
     const event = this.#appendEvent(transaction, {

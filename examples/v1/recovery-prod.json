@@ -1,0 +1,16 @@
+{
+  "trigger": "verify_fail",
+  "kind": "rollback",
+  "target_digest": {
+    "algorithm": "sha256",
+    "value": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "subject": "artifact"
+  },
+  "scope": {
+    "in": ["production.service"],
+    "out": []
+  },
+  "steps": ["restore prior digest"],
+  "verify_checks": ["digest", "health"],
+  "authorization": "preauthorized"
+}

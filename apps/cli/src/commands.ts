@@ -1332,3 +1332,184 @@ export const recordRecoveryCli = (
     context.store.close();
   }
 };
+
+export const exportProjectCli = (options: GlobalOptions & { expectedRevision?: string }): void => {
+  const context = openProject(options);
+  try {
+    const project = context.kernel.getProject();
+    if (isDomainError(project)) return outputError(project, Boolean(options.json));
+    const ids = commandIdentity(options);
+    const result = context.kernel.execute({
+      schema_version: SCHEMA_VERSION,
+      command_id: ids.commandId,
+      correlation_id: ids.correlationId,
+      command_type: "ExportProject",
+      requested_at: now(),
+      project_id: context.instance.project_id,
+      actor_id: context.instance.actor_id,
+      expected_revision: options.expectedRevision ? Number(options.expectedRevision) : project.revision,
+      source: source(context.location.repositoryPath),
+      payload: { scope: "project" }
+    });
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    if ("export_manifest" in result.data) {
+      stdout.write(`Export ${result.data.export_manifest.id} digest ${result.data.export_manifest.content_digest.value}\n`);
+    }
+  } finally {
+    context.store.close();
+  }
+};
+
+export const stageImportCli = (
+  options: GlobalOptions & { file: string; expectedRevision?: string }
+): void => {
+  const context = openProject(options);
+  try {
+    const project = context.kernel.getProject();
+    if (isDomainError(project)) return outputError(project, Boolean(options.json));
+    const bytes = readFileSync(resolve(options.file));
+    const ids = commandIdentity(options);
+    const result = context.kernel.execute({
+      schema_version: SCHEMA_VERSION,
+      command_id: ids.commandId,
+      correlation_id: ids.correlationId,
+      command_type: "StageImport",
+      requested_at: now(),
+      project_id: context.instance.project_id,
+      actor_id: context.instance.actor_id,
+      expected_revision: options.expectedRevision ? Number(options.expectedRevision) : project.revision,
+      source: source(context.location.repositoryPath),
+      payload: {
+        bundle_reference: `file://${resolve(options.file).replaceAll("\\", "/")}`,
+        bundle_digest: {
+          algorithm: "sha256",
+          value: createHash("sha256").update(bytes).digest("hex"),
+          subject: "import_bundle"
+        }
+      }
+    });
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    if ("import_report" in result.data) {
+      stdout.write(`Import ${result.data.import_report.id} ${result.data.import_report.status} ${result.data.import_report.runtime_ownership}\n`);
+    }
+  } finally {
+    context.store.close();
+  }
+};
+
+export const commitImportCli = (
+  reportId: string,
+  options: GlobalOptions & { expectedRevision?: string }
+): void => {
+  const context = openProject(options);
+  try {
+    const project = context.kernel.getProject();
+    if (isDomainError(project)) return outputError(project, Boolean(options.json));
+    const ids = commandIdentity(options);
+    const result = context.kernel.execute({
+      schema_version: SCHEMA_VERSION,
+      command_id: ids.commandId,
+      correlation_id: ids.correlationId,
+      command_type: "CommitImport",
+      requested_at: now(),
+      project_id: context.instance.project_id,
+      actor_id: context.instance.actor_id,
+      expected_revision: options.expectedRevision ? Number(options.expectedRevision) : project.revision,
+      source: source(context.location.repositoryPath),
+      payload: { import_report_id: reportId }
+    });
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    if ("import_report" in result.data) {
+      stdout.write(`Import ${result.data.import_report.status} ownership ${result.data.import_report.runtime_ownership}\n`);
+    }
+  } finally {
+    context.store.close();
+  }
+};
+
+export const recordKnowledgeCli = (
+  idOrKey: string,
+  options: RevisionOptions & { evidence: string; source: string; conclusion: string }
+): void => {
+  const context = openProject(options);
+  try {
+    const change = context.kernel.getChange(idOrKey);
+    if (isDomainError(change)) return outputError(change, Boolean(options.json));
+    const evidence = context.store.transaction((transaction) => transaction.getEvidence(options.evidence as InternalId));
+    if (!evidence?.external_reference_id) {
+      return outputError(
+        {
+          code: "KNOWLEDGE_REFERENCE_NOT_FOUND",
+          message: "Knowledge update requires Evidence with a versioned External Reference",
+          category: "not_found",
+          retryable: false,
+          details: {},
+          correlation_id: createInternalId()
+        },
+        Boolean(options.json)
+      );
+    }
+    const plan = context.store.transaction((transaction) => transaction.getCurrentPlan(change.id));
+    const task = plan
+      ? context.store
+          .transaction((transaction) => transaction.listTasks(plan.plan_id, plan.domain_version))
+          .find((item) => item.kind === "knowledge" && item.knowledge_source === options.source)
+      : undefined;
+    if (!task) {
+      return outputError(
+        {
+          code: "KNOWLEDGE_TASK_NOT_FOUND",
+          message: "Knowledge update requires a matching Mandatory Knowledge Task",
+          category: "not_found",
+          retryable: false,
+          details: {},
+          correlation_id: createInternalId()
+        },
+        Boolean(options.json)
+      );
+    }
+    const result = mutate(
+      context,
+      change.id,
+      "RecordKnowledgeUpdate",
+      {
+        change_id: change.id,
+        task_id: task.id,
+        knowledge_source: options.source,
+        conclusion: options.conclusion,
+        external_reference_id: evidence.external_reference_id,
+        evidence_id: evidence.id
+      },
+      options
+    );
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    stdout.write(`Knowledge update recorded for ${task.key}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const proposeCloseCli = (
+  idOrKey: string,
+  options: RevisionOptions & { risk: string; issue?: string[] }
+): void => {
+  executeChangeCommand(options, idOrKey, "ProposeClose", (changeId) => ({
+    change_id: changeId,
+    residual_risk: options.risk,
+    known_issues: options.issue ?? []
+  }));
+};
+
+export const closeChangeCli = (
+  idOrKey: string,
+  options: RevisionOptions & { evaluation: string }
+): void => {
+  executeChangeCommand(options, idOrKey, "CloseChange", (changeId) => ({
+    change_id: changeId,
+    closure_evaluation_id: options.evaluation
+  }));
+};
