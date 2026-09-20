@@ -49,9 +49,13 @@ import {
   type FailRunCommand,
   type CancelRunCommand,
   type ReclaimExpiredLeaseCommand,
+  type RecordSourceSnapshotCommand,
+  type RecordArtifactCommand,
+  type Artifact,
   type Lease,
   type PolicySnapshot,
-  type ResourceLock
+  type ResourceLock,
+  type SourceSnapshot
 } from "@cimiloop/protocol";
 import {
   StoreConflictError,
@@ -90,6 +94,8 @@ import {
   isOpenExecutionStatus,
   nextRunAttempt
 } from "./run.js";
+import { createArtifact, localReferenceExists } from "./artifact.js";
+import { createSourceSnapshot, snapshotKindValid } from "./source-snapshot.js";
 import { createExecutionWorkItem, createPlanningWorkItem } from "./work-item.js";
 import {
   createBuiltInChangeProfiles,
@@ -393,6 +399,15 @@ export class CimiLoopKernel {
     return this.#store.transaction((transaction) => transaction.getLatestPolicySnapshot(projectId));
   }
 
+  getArtifact(id: InternalId): Artifact | DomainError {
+    const artifact = this.#store.transaction((transaction) => transaction.getArtifact(id));
+    return artifact ?? domainError(this.#id(), "ARTIFACT_NOT_FOUND", "未找到指定 Artifact", "not_found", false, { id });
+  }
+
+  listArtifactsByChange(changeId: InternalId): Artifact[] {
+    return this.#store.transaction((transaction) => transaction.listArtifactsByChange(changeId));
+  }
+
   #dispatch(transaction: StoreTransaction, command: AnyCommand): KernelResult {
     switch (command.command_type) {
       case "InitializeProject":
@@ -438,13 +453,9 @@ export class CimiLoopKernel {
       case "ReclaimExpiredLease":
         return this.#reclaimExpiredLease(transaction, command);
       case "RecordSourceSnapshot":
+        return this.#recordSourceSnapshot(transaction, command);
       case "RecordArtifact":
-        return domainError(
-          command.correlation_id,
-          "COMMAND_UNSUPPORTED",
-          "该执行命令将在后续 M2 任务中实现",
-          "validation"
-        );
+        return this.#recordArtifact(transaction, command);
     }
   }
 
@@ -2174,6 +2185,122 @@ export class CimiLoopKernel {
       nextChange.revision,
       [event],
       { run: next }
+    );
+  }
+
+  #recordSourceSnapshot(transaction: StoreTransaction, command: RecordSourceSnapshotCommand): KernelResult {
+    const run = transaction.getAgentRun(command.payload.run_id);
+    if (!run) {
+      return domainError(command.correlation_id, "RUN_NOT_FOUND", "未找到指定 Run", "not_found");
+    }
+    const loaded = this.#requireChangeForMutation(transaction, command, run.change_id);
+    if ("code" in loaded) return loaded;
+    if (!snapshotKindValid(command)) {
+      return domainError(
+        command.correlation_id,
+        "SNAPSHOT_KIND_INVALID",
+        "Source Snapshot 的 kind 与 dirty 标记不一致",
+        "validation"
+      );
+    }
+    const now = this.#now();
+    const snapshot = createSourceSnapshot({ id: this.#id(), run, command, now });
+    transaction.insertSourceSnapshot(snapshot);
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "SourceSnapshotRecorded",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "source_snapshot", id: snapshot.id, domain_version: 1 },
+      aggregate_revision: 1,
+      actor_id: loaded.actorId,
+      command,
+      payload: { snapshot_id: snapshot.id, run_id: run.id, snapshot_kind: snapshot.snapshot_kind },
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "source_snapshot", id: snapshot.id, domain_version: 1 },
+      nextChange.revision,
+      [event],
+      { snapshot }
+    );
+  }
+
+  #recordArtifact(transaction: StoreTransaction, command: RecordArtifactCommand): KernelResult {
+    const run = transaction.getAgentRun(command.payload.run_id);
+    if (!run) {
+      return domainError(command.correlation_id, "RUN_NOT_FOUND", "未找到指定 Run", "not_found");
+    }
+    const loaded = this.#requireChangeForMutation(transaction, command, run.change_id);
+    if ("code" in loaded) return loaded;
+    const snapshot = transaction.getSourceSnapshot(command.payload.source_snapshot_id);
+    if (!snapshot) {
+      return domainError(command.correlation_id, "SNAPSHOT_NOT_FOUND", "未找到指定 Source Snapshot", "not_found");
+    }
+    if (
+      snapshot.run_id !== run.id ||
+      run.context_pack_id !== command.payload.context_pack_id ||
+      run.binding_id !== command.payload.binding_id
+    ) {
+      return domainError(
+        command.correlation_id,
+        "ARTIFACT_PROVENANCE_MISMATCH",
+        "Artifact 必须绑定同一 Run 的 Snapshot、Context 与 Binding",
+        "validation"
+      );
+    }
+    const workItem = transaction.getWorkItem(run.work_item_id);
+    if (!workItem?.plan_id || !workItem.plan_version) {
+      return domainError(command.correlation_id, "ARTIFACT_PLAN_REQUIRED", "Artifact 必须绑定 Plan", "validation");
+    }
+    if (!localReferenceExists(command.payload.content_reference)) {
+      return domainError(
+        command.correlation_id,
+        "ARTIFACT_REFERENCE_INVALID",
+        "本地 Artifact 引用不存在",
+        "validation"
+      );
+    }
+    const now = this.#now();
+    const artifact = createArtifact({
+      id: this.#id(),
+      run,
+      workItem,
+      snapshot,
+      contextPackId: command.payload.context_pack_id,
+      bindingId: command.payload.binding_id,
+      digest: command.payload.digest,
+      contentReference: command.payload.content_reference,
+      summary: command.payload.summary,
+      now
+    });
+    for (const existing of transaction.listArtifactsByChange(run.change_id)) {
+      if (existing.work_item_id !== run.work_item_id || existing.status !== "candidate") continue;
+      transaction.updateArtifact({ ...existing, status: "superseded" });
+    }
+    transaction.insertArtifact(artifact);
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "ArtifactRecorded",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "artifact", id: artifact.id, domain_version: 1 },
+      aggregate_revision: 1,
+      actor_id: loaded.actorId,
+      command,
+      payload: {
+        artifact_id: artifact.id,
+        run_id: run.id,
+        source_snapshot_id: snapshot.id,
+        digest: artifact.digest.value
+      },
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "artifact", id: artifact.id, domain_version: 1 },
+      nextChange.revision,
+      [event],
+      { artifact }
     );
   }
 
