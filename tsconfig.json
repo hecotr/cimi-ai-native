@@ -10,6 +10,8 @@
     { "path": "packages/runtime-claude-code" },
     { "path": "packages/orchestrator" },
     { "path": "packages/evaluator" },
+    { "path": "packages/devops" },
+    { "path": "packages/devops-command" },
     { "path": "packages/store-sqlite" },
     { "path": "apps/cli" },
     { "path": "apps/workbench" }
