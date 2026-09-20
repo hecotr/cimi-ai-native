@@ -58,6 +58,7 @@
 - [V1 操作指南](implementation/2026-09-20-cimiloop-v1操作指南-v0.1.md)
 - [V1 适配器指南](implementation/2026-09-20-cimiloop-v1适配器指南-v0.1.md)
 - [V1 发布检查清单](implementation/2026-09-20-cimiloop-v1发布检查清单-v0.1.md)
+- [V1 验收报告](implementation/2026-09-20-cimiloop-v1验收报告-v0.1.md)
 
 ## 文档职责
 

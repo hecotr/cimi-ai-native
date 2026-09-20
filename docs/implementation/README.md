@@ -7,7 +7,7 @@
 - 当前里程碑：M5 Product Closure、Portability 与 Release Hardening（V1 Release Candidate）。
 - 当前状态：M0–M5 均已交付。Knowledge Closure、终态动作、Portable Export/Import、完整 Workbench 投影与北极星验收已实现。导入项目默认 dormant，不会自动获得 Runtime ownership。
 - 实施基线：[CimiLoop M5 实施架构 v0.1](2026-09-20-cimiloop-m5实施架构-v0.1.md)；操作见 [V1 操作指南](2026-09-20-cimiloop-v1操作指南-v0.1.md)、[V1 适配器指南](2026-09-20-cimiloop-v1适配器指南-v0.1.md)、[V1 发布检查清单](2026-09-20-cimiloop-v1发布检查清单-v0.1.md)。前序基线为 [M4](2026-09-20-cimiloop-m4实施架构-v0.1.md)、[M3](2026-09-20-cimiloop-m3实施架构-v0.1.md)、[M2](2026-09-20-cimiloop-m2实施架构-v0.1.md)、[M1](2026-09-20-cimiloop-m1实施架构-v0.1.md) 与 [M0](2026-09-19-cimiloop-m0实施架构-v0.1.md)。
-- 认证：`tests/acceptance/v1-north-star.test.ts`、`scripts/demo-v1.ps1`、`scripts/audit-v1.ps1`。
+- 认证：`tests/acceptance/v1-north-star.test.ts`、`scripts/demo-v1.ps1`、`scripts/audit-v1.ps1`、[V1 验收报告](2026-09-20-cimiloop-v1验收报告-v0.1.md)。
 
 ## 已确认技术决策
 
