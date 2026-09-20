@@ -15,7 +15,8 @@ import {
   type InitializeProjectCommand,
   type InternalId,
   type Project,
-  type Role
+  type Role,
+  type SubmitContractCandidateCommand
 } from "@cimiloop/protocol";
 import {
   StoreConflictError,
@@ -26,6 +27,9 @@ import {
 } from "@cimiloop/store";
 import { commandDigest } from "./canonical.js";
 import { createDraftChange, pauseDraftChange, resumeDraftChange } from "./change.js";
+import { createContractCandidate } from "./contract.js";
+import { createKnowledgeImpactAssessment, validateKnowledgeImpact } from "./knowledge-impact.js";
+import { createRiskAssessment, createRiskProfile, validateRiskDimensions } from "./risk.js";
 import {
   createBuiltInChangeProfiles,
   createSoloAssignments,
@@ -164,6 +168,8 @@ export class CimiLoopKernel {
         return this.#resumeChange(transaction, command);
       case "BootstrapSoloGovernance":
         return this.#bootstrapSoloGovernance(transaction, command);
+      case "SubmitContractCandidate":
+        return this.#submitContractCandidate(transaction, command);
       default:
         return domainError(
           command.correlation_id,
@@ -431,6 +437,145 @@ export class CimiLoopKernel {
       assignments,
       policy
     });
+  }
+
+  #submitContractCandidate(
+    transaction: StoreTransaction,
+    command: SubmitContractCandidateCommand
+  ): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.target?.id);
+    if ("code" in loaded) return loaded;
+    if (!transaction.getProjectPolicy(loaded.project.id)) {
+      return domainError(
+        command.correlation_id,
+        "GOVERNANCE_REQUIRED",
+        "提交 Contract 前必须先完成 Solo 治理初始化",
+        "conflict"
+      );
+    }
+    const profiles = transaction.listChangeProfiles(loaded.project.id);
+    if (!profiles.some((profile) => profile.profile_key === command.payload.profile_key)) {
+      return domainError(
+        command.correlation_id,
+        "CHANGE_PROFILE_NOT_FOUND",
+        "未找到指定 Change Profile",
+        "not_found",
+        false,
+        { profile_key: command.payload.profile_key }
+      );
+    }
+    try {
+      validateRiskDimensions(command.payload.risk);
+      validateKnowledgeImpact(command.payload.knowledge_impact);
+    } catch (error) {
+      return domainError(
+        command.correlation_id,
+        "CONTRACT_ASSESSMENT_INVALID",
+        error instanceof Error ? error.message : "Risk 或 Knowledge Impact 不完整",
+        "validation"
+      );
+    }
+
+    const now = this.#now();
+    const existingCandidate = transaction.getContractCandidateByChange(loaded.change.id);
+    const candidateRevision = existingCandidate ? existingCandidate.revision + 1 : 1;
+    const candidate = createContractCandidate(
+      existingCandidate?.id ?? this.#id(),
+      loaded.project.id,
+      loaded.change.id,
+      command.payload,
+      now,
+      candidateRevision
+    );
+    const existingRisk = transaction.getRiskProfileByChange(loaded.change.id);
+    const riskProfile = createRiskProfile(
+      existingRisk?.id ?? this.#id(),
+      loaded.project.id,
+      loaded.change.id,
+      command.payload.risk,
+      now,
+      existingRisk ? existingRisk.revision + 1 : 1
+    );
+    const riskAssessment = createRiskAssessment(this.#id(), riskProfile, now);
+    const existingKnowledge = transaction.getKnowledgeImpactAssessmentByChange(loaded.change.id);
+    const knowledge = createKnowledgeImpactAssessment(
+      existingKnowledge?.id ?? this.#id(),
+      loaded.project.id,
+      loaded.change.id,
+      command.payload.knowledge_impact,
+      now,
+      existingKnowledge ? existingKnowledge.revision + 1 : 1
+    );
+    if (existingCandidate) {
+      transaction.updateContractCandidate(candidate, existingCandidate.revision);
+    } else {
+      transaction.insertContractCandidate(candidate);
+    }
+    if (existingRisk) {
+      transaction.updateRiskProfile(riskProfile, existingRisk.revision);
+    } else {
+      transaction.insertRiskProfile(riskProfile);
+    }
+    transaction.insertRiskAssessment(riskAssessment);
+    if (existingKnowledge) {
+      transaction.updateKnowledgeImpactAssessment(knowledge, existingKnowledge.revision);
+    } else {
+      transaction.insertKnowledgeImpactAssessment(knowledge);
+    }
+    const nextChange = { ...loaded.change, updated_at: now, revision: loaded.change.revision + 1 };
+    transaction.updateChange(nextChange, loaded.expectedRevision);
+    const event = this.#appendEvent(transaction, {
+      event_type: "ContractCandidateSubmitted",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "change", id: nextChange.id, domain_version: 1 },
+      aggregate_revision: nextChange.revision,
+      actor_id: loaded.actorId,
+      command,
+      payload: {
+        candidate_id: candidate.id,
+        candidate_revision: candidate.revision,
+        risk_assessment_id: riskAssessment.id,
+        knowledge_assessment_id: knowledge.id
+      },
+      occurred_at: now
+    });
+    return this.#success(command, event.aggregate, nextChange.revision, [event], {
+      candidate,
+      risk_assessment: riskAssessment,
+      knowledge_assessment: knowledge
+    });
+  }
+
+  #requireChangeForMutation(
+    transaction: StoreTransaction,
+    command: Exclude<AnyCommand, InitializeProjectCommand>,
+    changeId: InternalId | undefined
+  ): { project: Project; actorId: InternalId; change: Change; expectedRevision: number } | DomainError {
+    const context = this.#requireProjectActor(transaction, command);
+    if ("code" in context) return context;
+    if (!changeId || command.expected_revision === undefined) {
+      return domainError(
+        command.correlation_id,
+        "CHANGE_TARGET_REQUIRED",
+        "修改 Change 必须提供目标和 expected_revision",
+        "validation"
+      );
+    }
+    const change = transaction.getChange(changeId);
+    if (!change || change.project_id !== context.project.id) {
+      return domainError(command.correlation_id, "CHANGE_NOT_FOUND", "未找到指定 Change", "not_found");
+    }
+    if (change.revision !== command.expected_revision) {
+      return domainError(
+        command.correlation_id,
+        "REVISION_CONFLICT",
+        "目标对象已被其他命令修改，请刷新后重试",
+        "conflict",
+        false,
+        { current_revision: change.revision }
+      );
+    }
+    return { ...context, change, expectedRevision: command.expected_revision };
   }
 
   #requireProjectActor(
