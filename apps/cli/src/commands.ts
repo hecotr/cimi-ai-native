@@ -9,6 +9,10 @@ import {
   SCHEMA_VERSION,
   createInternalId,
   parseArtifactShowResult,
+  parseClaimShowResult,
+  parseEvidencePackageShowResult,
+  parseEvidenceShowResult,
+  parseEvaluationShowResult,
   parseChangeListResult,
   parseChangeRoomResult,
   parseChangeShowResult,
@@ -707,6 +711,295 @@ export const recordArtifact = (
     if (isDomainError(recorded)) return outputError(recorded, Boolean(options.json));
     if (options.json) return outputJson(recorded, parseCommandResult);
     if ("artifact" in recorded.data) stdout.write(`Artifact ${recorded.data.artifact.id}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const submitClaim = (
+  idOrKey: string,
+  options: GlobalOptions & {
+    key: string;
+    statement: string;
+    category: string;
+    obligation: string;
+    source: string;
+    expectedRevision?: string;
+  }
+): void => {
+  const context = openProject(options);
+  try {
+    const change = context.kernel.getChange(idOrKey);
+    if (isDomainError(change)) return outputError(change, Boolean(options.json));
+    const result = mutate(
+      context,
+      change.id,
+      "SubmitClaim",
+      {
+        change_id: change.id,
+        claim_key: options.key,
+        statement: options.statement,
+        category: options.category,
+        obligation: options.obligation,
+        source: options.source
+      },
+      options
+    );
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    if ("claim" in result.data) stdout.write(`Claim ${result.data.claim.id} ${result.data.claim.claim_key}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const showClaim = (claimId: string, options: GlobalOptions): void => {
+  const context = openProject(options);
+  try {
+    const claim = context.kernel.getClaim(claimId as InternalId);
+    if (isDomainError(claim)) return outputError(claim, Boolean(options.json));
+    if (options.json) return outputJson({ ok: true, claim }, parseClaimShowResult);
+    stdout.write(`${claim.id}\t${claim.claim_key}\t${claim.obligation}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const recordEvidence = (
+  idOrKey: string,
+  options: GlobalOptions & {
+    claim: string;
+    stance: string;
+    subjectType: string;
+    subjectId: string;
+    subjectDigest: string;
+    reference: string;
+    digest: string;
+    producer: string;
+    expectedRevision?: string;
+  }
+): void => {
+  const context = openProject(options);
+  try {
+    const change = context.kernel.getChange(idOrKey);
+    if (isDomainError(change)) return outputError(change, Boolean(options.json));
+    const result = mutate(
+      context,
+      change.id,
+      "RecordEvidence",
+      {
+        change_id: change.id,
+        claim_id: options.claim,
+        stance: options.stance,
+        subject_type: options.subjectType,
+        subject_id: options.subjectId,
+        subject_digest: { algorithm: "sha256", value: options.subjectDigest, subject: "artifact" },
+        content_reference: options.reference,
+        digest: { algorithm: "sha256", value: options.digest, subject: "evidence" },
+        producer_role: options.producer
+      },
+      options
+    );
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    if ("evidence" in result.data) stdout.write(`Evidence ${result.data.evidence.id} ${result.data.evidence.stance}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const showEvidence = (evidenceId: string, options: GlobalOptions): void => {
+  const context = openProject(options);
+  try {
+    const evidence = context.kernel.getEvidence(evidenceId as InternalId);
+    if (isDomainError(evidence)) return outputError(evidence, Boolean(options.json));
+    if (options.json) return outputJson({ ok: true, evidence }, parseEvidenceShowResult);
+    stdout.write(`${evidence.id}\t${evidence.stance}\t${evidence.producer_role}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const requestEvaluation = (
+  idOrKey: string,
+  options: GlobalOptions & { artifact: string; digest: string; requirementSet?: string; expectedRevision?: string }
+): void => {
+  const context = openProject(options);
+  try {
+    const change = context.kernel.getChange(idOrKey);
+    if (isDomainError(change)) return outputError(change, Boolean(options.json));
+    const requirementSet = options.requirementSet ?? context.kernel.getLatestGateRequirementSet(change.id)?.id;
+    if (!requirementSet) {
+      return outputError(inputError("REQUIREMENT_SET_NOT_FOUND", "评价需要 Requirement Set"), Boolean(options.json));
+    }
+    const result = mutate(
+      context,
+      change.id,
+      "RequestEvaluation",
+      {
+        change_id: change.id,
+        artifact_id: options.artifact,
+        artifact_digest: { algorithm: "sha256", value: options.digest, subject: "artifact" },
+        requirement_set_id: requirementSet
+      },
+      options
+    );
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    if ("work_item" in result.data) stdout.write(`Evaluation Work Item ${result.data.work_item.id}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const completeEvaluation = (
+  idOrKey: string,
+  options: GlobalOptions & {
+    evaluationId: string;
+    artifact: string;
+    digest: string;
+    requirementSet?: string;
+    inputDigest: string;
+    result: string;
+    reason: string;
+    expectedRevision?: string;
+  }
+): void => {
+  const context = openProject(options);
+  try {
+    const change = context.kernel.getChange(idOrKey);
+    if (isDomainError(change)) return outputError(change, Boolean(options.json));
+    const requirementSet = options.requirementSet ?? context.kernel.getLatestGateRequirementSet(change.id)?.id;
+    if (!requirementSet) {
+      return outputError(inputError("REQUIREMENT_SET_NOT_FOUND", "评价需要 Requirement Set"), Boolean(options.json));
+    }
+    const result = mutate(
+      context,
+      change.id,
+      "CompleteEvaluation",
+      {
+        change_id: change.id,
+        evaluation_id: options.evaluationId,
+        artifact_id: options.artifact,
+        artifact_digest: { algorithm: "sha256", value: options.digest, subject: "artifact" },
+        requirement_set_id: requirementSet,
+        input_digest: { algorithm: "sha256", value: options.inputDigest, subject: "evaluation_input" },
+        result: options.result,
+        reason: options.reason
+      },
+      options
+    );
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    if ("evaluation" in result.data) {
+      stdout.write(`Evaluation ${result.data.evaluation.id} ${result.data.evaluation.result}\n`);
+    }
+  } finally {
+    context.store.close();
+  }
+};
+
+export const showEvaluation = (evaluationId: string, options: GlobalOptions): void => {
+  const context = openProject(options);
+  try {
+    const evaluation = context.kernel.getIndependentEvaluation(evaluationId as InternalId);
+    if (isDomainError(evaluation)) return outputError(evaluation, Boolean(options.json));
+    const assessments = context.kernel.listClaimAssessmentsByEvaluation(evaluation.id);
+    if (options.json) return outputJson({ ok: true, evaluation, assessments }, parseEvaluationShowResult);
+    stdout.write(`${evaluation.id}\t${evaluation.result}\t${evaluation.reason}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const createRepair = (
+  idOrKey: string,
+  options: GlobalOptions & {
+    failedEvidence: string;
+    sourceWorkItem: string;
+    artifact: string;
+    task: string;
+    expectedRevision?: string;
+  }
+): void => {
+  const context = openProject(options);
+  try {
+    const change = context.kernel.getChange(idOrKey);
+    if (isDomainError(change)) return outputError(change, Boolean(options.json));
+    const result = mutate(
+      context,
+      change.id,
+      "CreateRepairWorkItem",
+      {
+        change_id: change.id,
+        failed_evidence_id: options.failedEvidence,
+        source_work_item_id: options.sourceWorkItem,
+        artifact_id: options.artifact,
+        task_id: options.task
+      },
+      options
+    );
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    if ("repair_link" in result.data) stdout.write(`Repair ${result.data.repair_link.repair_work_item_id}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const assessImpactCli = (
+  idOrKey: string,
+  options: GlobalOptions & {
+    trigger: string;
+    subjectType: string;
+    subjectId: string;
+    rule: string;
+    oldDigest: string;
+    newDigest: string;
+    affected: string;
+    expectedRevision?: string;
+  }
+): void => {
+  const context = openProject(options);
+  try {
+    const change = context.kernel.getChange(idOrKey);
+    if (isDomainError(change)) return outputError(change, Boolean(options.json));
+    const result = mutate(
+      context,
+      change.id,
+      "AssessImpact",
+      {
+        change_id: change.id,
+        trigger: options.trigger,
+        subject_type: options.subjectType,
+        subject_id: options.subjectId,
+        rule: options.rule,
+        old_input_digest: { algorithm: "sha256", value: options.oldDigest, subject: "artifact" },
+        new_input_digest: { algorithm: "sha256", value: options.newDigest, subject: "artifact" },
+        new_validity: options.rule.includes("integrity") || options.rule.includes("mismatch") ? "Invalid" : "Stale",
+        affected_ids: [options.affected]
+      },
+      options
+    );
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    if ("impact" in result.data) stdout.write(`Impact ${result.data.impact.id} ${result.data.impact.new_validity}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const showEvidencePackage = (idOrKey: string, options: GlobalOptions): void => {
+  const context = openProject(options);
+  try {
+    const change = context.kernel.getChange(idOrKey);
+    if (isDomainError(change)) return outputError(change, Boolean(options.json));
+    const pack = context.kernel.getEvidencePackage(change.id);
+    if (isDomainError(pack)) return outputError(pack, Boolean(options.json));
+    if (options.json) return outputJson(pack, parseEvidencePackageShowResult);
+    stdout.write(
+      `Package ${pack.package.id} claims=${pack.package.claim_ids.length} evidence=${pack.package.evidence_ids.length} evaluations=${pack.package.evaluation_ids.length}\n`
+    );
   } finally {
     context.store.close();
   }

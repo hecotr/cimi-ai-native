@@ -23,6 +23,11 @@ export interface WorkbenchKernel {
   listTasksByChange(changeId: InternalId): import("@cimiloop/protocol").Task[];
   listOpenBlockers(changeId: InternalId): import("@cimiloop/protocol").Blocker[];
   listAgentRuns(workItemId: InternalId): import("@cimiloop/protocol").AgentRunRecord[];
+  listClaimsByChange(changeId: InternalId): import("@cimiloop/protocol").Claim[];
+  listEvidenceByChange(changeId: InternalId): import("@cimiloop/protocol").Evidence[];
+  listIndependentEvaluationsByChange(changeId: InternalId): import("@cimiloop/protocol").IndependentEvaluation[];
+  listRepairWorkItemLinksByChange(changeId: InternalId): import("@cimiloop/protocol").RepairWorkItemLink[];
+  listImpactAssessmentsBySubject(subjectId: InternalId): import("@cimiloop/protocol").ImpactAssessment[];
 }
 import { escapeHtml, page } from "./html.js";
 import { workbenchStyles } from "./styles.js";
@@ -141,6 +146,49 @@ export const renderChangeRoom = (context: WorkbenchContext, idOrKey: string): st
               `<p class="muted">Run ${escapeHtml(run.id)} · ${escapeHtml(run.status)} · log ${escapeHtml(run.log_reference)}</p>`
           )
           .join("") || "<p class=\"muted\">尚无 Run。</p>"
+      }
+    </article>
+    <article class="card">
+      <h2>Claims</h2>
+      ${
+        context.kernel.listClaimsByChange(change.id).length === 0
+          ? "<p class=\"muted\">尚无 Claim。</p>"
+          : `<ul>${context.kernel
+              .listClaimsByChange(change.id)
+              .map((claim) => {
+                const related = context.kernel.listEvidenceByChange(change.id).filter((item) => item.claim_id === claim.id);
+                const refutes = related.filter((item) => item.stance === "Refutes");
+                const freshness = related
+                  .map((item) => context.kernel.listImpactAssessmentsBySubject(item.id).at(-1)?.new_validity ?? "Valid")
+                  .join(", ");
+                return `<li>${escapeHtml(claim.claim_key)} · ${escapeHtml(claim.obligation)} · coverage ${related.length} · Refutes ${refutes.length} · freshness ${escapeHtml(freshness || "Valid")}</li>`;
+              })
+              .join("")}</ul>`
+      }
+    </article>
+    <article class="card">
+      <h2>Evaluations</h2>
+      ${
+        context.kernel.listIndependentEvaluationsByChange(change.id).length === 0
+          ? "<p class=\"muted\">尚无 Evaluation。</p>"
+          : `<ul>${context.kernel
+              .listIndependentEvaluationsByChange(change.id)
+              .map((evaluation) => `<li>${escapeHtml(evaluation.result)} · ${escapeHtml(evaluation.reason)}</li>`)
+              .join("")}</ul>`
+      }
+    </article>
+    <article class="card">
+      <h2>Repair lineage</h2>
+      ${
+        context.kernel.listRepairWorkItemLinksByChange(change.id).length === 0
+          ? "<p class=\"muted\">没有 Repair。</p>"
+          : `<ul>${context.kernel
+              .listRepairWorkItemLinksByChange(change.id)
+              .map(
+                (link) =>
+                  `<li>failed ${escapeHtml(link.failed_evidence_id)} → repair ${escapeHtml(link.repair_work_item_id)}</li>`
+              )
+              .join("")}</ul>`
       }
     </article>`,
     workbenchStyles

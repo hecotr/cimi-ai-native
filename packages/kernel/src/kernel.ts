@@ -7,6 +7,7 @@ import {
   parseCommand,
   parseDecisionInboxResult,
   parseGetDecisionRequestResult,
+  parseEvidencePackageShowResult,
   parseTimelineResult,
   type Actor,
   type AnyCommand,
@@ -57,7 +58,12 @@ import {
   type CompleteEvaluationCommand,
   type AssessImpactCommand,
   type CreateRepairWorkItemCommand,
+  type SubmitClaimCommand,
+  type Claim,
   type ClaimAssessment,
+  type EvidencePackageManifest,
+  type EvidencePackageShowResult,
+  type RepairWorkItemLink,
   type Artifact,
   type Evidence,
   type EvidenceValidity,
@@ -88,6 +94,7 @@ import {
 } from "./decision.js";
 import { evaluateIntentGate } from "./gates/intent-gate.js";
 import { evaluatePlanGate } from "./gates/plan-gate.js";
+import { resolveGateRequirementSet } from "./evidence/requirements.js";
 import { assessClaim } from "./evidence/assessment.js";
 import { evaluateEvidenceGate, evaluationInputDigest, findReusableEvaluation } from "./evidence/evaluation-gate.js";
 import { classifyImpact, projectValidity } from "./evidence/impact.js";
@@ -433,6 +440,84 @@ export class CimiLoopKernel {
     return this.#store.transaction((transaction) => transaction.getActiveLeaseByWorkItem(workItemId));
   }
 
+  getClaim(id: InternalId): Claim | DomainError {
+    const claim = this.#store.transaction((transaction) => transaction.getClaim(id));
+    return claim ?? domainError(this.#id(), "CLAIM_NOT_FOUND", "未找到指定 Claim", "not_found", false, { id });
+  }
+
+  listClaimsByChange(changeId: InternalId): Claim[] {
+    return this.#store.transaction((transaction) => transaction.listClaimsByChange(changeId));
+  }
+
+  listEvidenceByChange(changeId: InternalId): Evidence[] {
+    return this.#store.transaction((transaction) => transaction.listEvidenceByChange(changeId));
+  }
+
+  getIndependentEvaluation(id: InternalId): IndependentEvaluation | DomainError {
+    const evaluation = this.#store.transaction((transaction) => transaction.getIndependentEvaluation(id));
+    return (
+      evaluation ??
+      domainError(this.#id(), "EVALUATION_NOT_FOUND", "未找到指定 Independent Evaluation", "not_found", false, { id })
+    );
+  }
+
+  listIndependentEvaluationsByChange(changeId: InternalId): IndependentEvaluation[] {
+    return this.#store.transaction((transaction) => transaction.listIndependentEvaluationsByChange(changeId));
+  }
+
+  listClaimAssessmentsByEvaluation(evaluationId: InternalId): ClaimAssessment[] {
+    return this.#store.transaction((transaction) => transaction.listClaimAssessmentsByEvaluation(evaluationId));
+  }
+
+  listRepairWorkItemLinksByChange(changeId: InternalId): RepairWorkItemLink[] {
+    return this.#store.transaction((transaction) => transaction.listRepairWorkItemLinksByChange(changeId));
+  }
+
+  getLatestGateRequirementSet(changeId: InternalId) {
+    return this.#store.transaction((transaction) => transaction.getLatestGateRequirementSet(changeId));
+  }
+
+  listImpactAssessmentsBySubject(subjectId: InternalId): ImpactAssessment[] {
+    return this.#store.transaction((transaction) => transaction.listImpactAssessmentsBySubject(subjectId));
+  }
+
+  getEvidencePackage(changeId: InternalId): EvidencePackageShowResult | DomainError {
+    const change = this.#store.getChange(changeId);
+    if (!change) {
+      return domainError(this.#id(), "CHANGE_NOT_FOUND", "未找到指定 Change", "not_found", false, {
+        id_or_key: changeId
+      });
+    }
+    return this.#store.transaction((transaction) => {
+      const claimIds = transaction.listClaimsByChange(change.id).map((item) => item.id);
+      const evidenceIds = transaction.listEvidenceByChange(change.id).map((item) => item.id);
+      const evaluationIds = transaction.listIndependentEvaluationsByChange(change.id).map((item) => item.id);
+      const body = { claim_ids: claimIds, evidence_ids: evidenceIds, evaluation_ids: evaluationIds };
+      const manifest: EvidencePackageManifest = {
+        schema_version: SCHEMA_VERSION,
+        id: this.#id(),
+        project_id: change.project_id,
+        change_id: change.id,
+        package_kind: "test",
+        claim_ids: claimIds,
+        evidence_ids: evidenceIds,
+        evaluation_ids: evaluationIds,
+        digest: { algorithm: "sha256", value: requestDigest(body), subject: "evidence_package" },
+        created_at: this.#now()
+      };
+      try {
+        return parseEvidencePackageShowResult({ ok: true, package: manifest });
+      } catch (error) {
+        return domainError(
+          this.#id(),
+          "PROTOCOL_VALIDATION_FAILED",
+          error instanceof Error ? error.message : "Evidence Package 不符合协议",
+          "validation"
+        );
+      }
+    });
+  }
+
   getEvidence(id: InternalId): Evidence | DomainError {
     const evidence = this.#store.transaction((transaction) => transaction.getEvidence(id));
     return evidence ?? domainError(this.#id(), "EVIDENCE_NOT_FOUND", "未找到指定 Evidence", "not_found", false, { id });
@@ -506,12 +591,7 @@ export class CimiLoopKernel {
       case "CreateRepairWorkItem":
         return this.#createRepairWorkItem(transaction, command);
       case "SubmitClaim":
-        return domainError(
-          command.correlation_id,
-          "COMMAND_UNSUPPORTED",
-          "M3 evidence command is registered but not yet implemented",
-          "conflict"
-        );
+        return this.#submitClaim(transaction, command);
     }
   }
 
@@ -2455,7 +2535,11 @@ export class CimiLoopKernel {
     const evidence = transaction.listEvidenceByChange(loaded.change.id);
     const validity: Record<string, EvidenceValidity> = {};
     for (const item of evidence) {
-      const impacts = transaction.listImpactAssessmentsBySubject(item.id);
+      const impacts = [
+        ...transaction.listImpactAssessmentsBySubject(item.id),
+        ...transaction.listImpactAssessmentsBySubject(item.subject_id)
+      ].filter((impact, index, all) => all.findIndex((entry) => entry.id === impact.id) === index)
+        .filter((impact) => impact.affected_ids.includes(item.id) || impact.subject_id === item.id);
       validity[item.id] = impacts.at(-1)?.new_validity ?? "Valid";
     }
     const assessed = claims.map((claim) => {
@@ -2742,6 +2826,73 @@ export class CimiLoopKernel {
       nextChange.revision,
       [event],
       { repair_link: link }
+    );
+  }
+
+  #submitClaim(transaction: StoreTransaction, command: SubmitClaimCommand): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
+    if ("code" in loaded) return loaded;
+    const now = this.#now();
+    let requirementSetId = command.payload.requirement_set_id;
+    if (!requirementSetId) {
+      const existing = transaction.getLatestGateRequirementSet(loaded.change.id);
+      const contract = transaction.getCurrentContract(loaded.change.id);
+      const policy = transaction.getLatestPolicySnapshot(loaded.project.id);
+      const risk = transaction.getLatestRiskAssessment(loaded.change.id);
+      if (existing) {
+        requirementSetId = existing.id;
+      } else if (contract && policy && risk) {
+        const requirementSet = resolveGateRequirementSet({
+          id: this.#id(),
+          now,
+          version: 1,
+          profile_key: contract.profile_key,
+          policy,
+          contract,
+          risk
+        });
+        transaction.insertGateRequirementSet(requirementSet);
+        requirementSetId = requirementSet.id;
+      }
+    }
+    const claim: Claim = {
+      schema_version: SCHEMA_VERSION,
+      id: this.#id(),
+      project_id: loaded.project.id,
+      change_id: loaded.change.id,
+      claim_key: command.payload.claim_key,
+      statement: command.payload.statement,
+      category: command.payload.category,
+      obligation: command.payload.obligation,
+      source: command.payload.source,
+      contract_id:
+        transaction.getCurrentContract(loaded.change.id)?.contract_id ??
+        command.payload.artifact_id ??
+        loaded.change.id,
+      contract_version: transaction.getCurrentContract(loaded.change.id)?.domain_version ?? 1,
+      created_at: now,
+      ...(requirementSetId ? { requirement_set_id: requirementSetId } : {}),
+      ...(command.payload.artifact_id ? { artifact_id: command.payload.artifact_id } : {}),
+      ...(command.payload.artifact_digest ? { artifact_digest: command.payload.artifact_digest } : {})
+    };
+    transaction.insertClaim(claim);
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "ClaimSubmitted",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "claim", id: claim.id, domain_version: 1 },
+      aggregate_revision: 1,
+      actor_id: loaded.actorId,
+      command,
+      payload: { claim_id: claim.id, claim_key: claim.claim_key },
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "claim", id: claim.id, domain_version: 1 },
+      nextChange.revision,
+      [event],
+      { claim }
     );
   }
 

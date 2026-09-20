@@ -27,6 +27,16 @@ import {
   showRun,
   recordArtifact,
   showArtifact,
+  submitClaim,
+  showClaim,
+  recordEvidence,
+  showEvidence,
+  requestEvaluation,
+  completeEvaluation,
+  showEvaluation,
+  createRepair,
+  assessImpactCli,
+  showEvidencePackage,
   type GlobalOptions
 } from "./commands.js";
 import { outputError } from "./output.js";
@@ -197,6 +207,118 @@ artifact
 artifact.command("show <id>").description("查看 Artifact").action((id, _options, command) =>
   showArtifact(id, globals(command))
 );
+
+const claim = program.command("claim").description("Claim 提交与查询");
+claim
+  .command("submit <change>")
+  .description("提交 Claim")
+  .requiredOption("--key <key>", "Claim key")
+  .requiredOption("--statement <text>", "Claim 陈述")
+  .requiredOption("--category <category>", "Claim 类别")
+  .requiredOption("--obligation <obligation>", "required | conditional | advisory")
+  .requiredOption("--source <source>", "acceptance | policy | risk | plan | contract")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((change, options, command) => submitClaim(change, { ...globals(command), ...options }));
+claim.command("show <id>").description("查看 Claim").action((id, _options, command) => showClaim(id, globals(command)));
+
+const evidence = program.command("evidence").description("Evidence 记录、查询与 Package");
+evidence
+  .command("record <change>")
+  .description("记录 Evidence")
+  .requiredOption("--claim <id>", "Claim ID")
+  .requiredOption("--stance <stance>", "Supports | Refutes | Inconclusive")
+  .requiredOption("--subject-type <type>", "主体类型")
+  .requiredOption("--subject-id <id>", "主体 ID")
+  .requiredOption("--subject-digest <hex>", "主体 Digest")
+  .requiredOption("--reference <ref>", "内容引用")
+  .requiredOption("--digest <hex>", "Evidence Digest")
+  .requiredOption("--producer <role>", "producer role")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((change, options, command) =>
+    recordEvidence(change, { ...globals(command), ...options, subjectType: options.subjectType, subjectId: options.subjectId, subjectDigest: options.subjectDigest })
+  );
+evidence.command("show <id>").description("查看 Evidence").action((id, _options, command) =>
+  showEvidence(id, globals(command))
+);
+evidence.command("package <change>").description("查看 Evidence Package Manifest").action((change, _options, command) =>
+  showEvidencePackage(change, globals(command))
+);
+
+const evaluate = program.command("evaluate").description("独立 Evaluation");
+evaluate
+  .command("request <change>")
+  .description("创建 Evaluation Work Item")
+  .requiredOption("--artifact <id>", "Artifact ID")
+  .requiredOption("--digest <hex>", "Artifact Digest")
+  .option("--requirement-set <id>", "Requirement Set ID")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((change, options, command) =>
+    requestEvaluation(change, { ...globals(command), ...options, requirementSet: options.requirementSet })
+  );
+evaluate
+  .command("complete <change>")
+  .description("完成 Evaluation；Kernel 重新判定 Gate")
+  .requiredOption("--evaluation-id <id>", "Evaluation ID")
+  .requiredOption("--artifact <id>", "Artifact ID")
+  .requiredOption("--digest <hex>", "Artifact Digest")
+  .requiredOption("--input-digest <hex>", "输入 Digest")
+  .requiredOption("--result <result>", "提议结果，Kernel 可覆盖")
+  .requiredOption("--reason <text>", "提议理由")
+  .option("--requirement-set <id>", "Requirement Set ID")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((change, options, command) =>
+    completeEvaluation(change, {
+      ...globals(command),
+      ...options,
+      evaluationId: options.evaluationId,
+      inputDigest: options.inputDigest,
+      requirementSet: options.requirementSet
+    })
+  );
+evaluate.command("show <id>").description("查看 Evaluation").action((id, _options, command) =>
+  showEvaluation(id, globals(command))
+);
+
+program
+  .command("repair")
+  .command("create <change>")
+  .description("为 Refutes Evidence 创建 Repair Work Item")
+  .requiredOption("--failed-evidence <id>", "失败 Evidence ID")
+  .requiredOption("--source-work-item <id>", "原 Work Item ID")
+  .requiredOption("--artifact <id>", "失败 Artifact ID")
+  .requiredOption("--task <id>", "Task ID")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((change, options, command) =>
+    createRepair(change, {
+      ...globals(command),
+      ...options,
+      failedEvidence: options.failedEvidence,
+      sourceWorkItem: options.sourceWorkItem
+    })
+  );
+
+program
+  .command("impact")
+  .command("assess <change>")
+  .description("记录精确失效传播")
+  .requiredOption("--trigger <trigger>", "artifact | contract | environment | policy | context")
+  .requiredOption("--subject-type <type>", "主体类型")
+  .requiredOption("--subject-id <id>", "主体 ID")
+  .requiredOption("--rule <rule>", "影响规则")
+  .requiredOption("--old-digest <hex>", "旧 Digest")
+  .requiredOption("--new-digest <hex>", "新 Digest")
+  .requiredOption("--affected <id>", "受影响 Evidence ID")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((change, options, command) =>
+    assessImpactCli(change, {
+      ...globals(command),
+      ...options,
+      subjectType: options.subjectType,
+      subjectId: options.subjectId,
+      oldDigest: options.oldDigest,
+      newDigest: options.newDigest
+    })
+  );
 
 program
   .command("scheduler")
