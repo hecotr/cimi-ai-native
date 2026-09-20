@@ -21,8 +21,10 @@ import {
   type RequestIntentDecisionCommand,
   type RequestPlanDecisionCommand,
   type Role,
+  type SubmitContractAmendmentCommand,
   type SubmitContractCandidateCommand,
   type SubmitDecisionCommand,
+  type SubmitPlanAmendmentCommand,
   type SubmitPlanCandidateCommand,
   type Task
 } from "@cimiloop/protocol";
@@ -33,6 +35,7 @@ import {
   type ProposedEvent,
   type StoreTransaction
 } from "@cimiloop/store";
+import { createContractAmendment, createPlanAmendment, nextDomainVersion } from "./amendment.js";
 import { commandDigest } from "./canonical.js";
 import { createDraftChange, pauseDraftChange, resumeDraftChange } from "./change.js";
 import { createContractCandidate } from "./contract.js";
@@ -197,15 +200,10 @@ export class CimiLoopKernel {
         return this.#submitPlanCandidate(transaction, command);
       case "RequestPlanDecision":
         return this.#requestPlanDecision(transaction, command);
-      default:
-        return domainError(
-          command.correlation_id,
-          "UNSUPPORTED_COMMAND",
-          "当前 Kernel 尚未实现该命令",
-          "validation",
-          false,
-          { command_type: command.command_type }
-        );
+      case "SubmitContractAmendment":
+        return this.#submitContractAmendment(transaction, command);
+      case "SubmitPlanAmendment":
+        return this.#submitPlanAmendment(transaction, command);
     }
   }
 
@@ -663,6 +661,18 @@ export class CimiLoopKernel {
       );
       return domainError(command.correlation_id, "DECISION_REQUEST_EXPIRED", "输入已变化，原 Decision Request 已过期", "conflict");
     }
+    if (
+      command.payload.outcome === "approve" &&
+      request.request_type === "intent" &&
+      loaded.change.lifecycle_state === "Planned"
+    ) {
+      return domainError(
+        command.correlation_id,
+        "M1_AMENDMENT_AFTER_PLANNED_UNSUPPORTED",
+        "M1 不允许在 Planned 之后批准 Contract Amendment",
+        "conflict"
+      );
+    }
 
     const now = this.#now();
     const decision = createDecisionRecord({
@@ -716,16 +726,18 @@ export class CimiLoopKernel {
         revision: loaded.change.revision + 1
       };
       transaction.updateChange(nextChange, loaded.expectedRevision);
+      this.#closeOpenAmendment(transaction, loaded.change.id, request.request_type, "rejected", now);
     } else if (command.payload.outcome === "request_changes") {
       nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
     } else if (gateResult === "ALLOW" && request.request_type === "intent" && "profile_key" in facts.candidate) {
+      const currentContract = transaction.getCurrentContract(loaded.change.id);
       contract = {
         schema_version: SCHEMA_VERSION,
         id: this.#id(),
-        contract_id: this.#id(),
+        contract_id: currentContract?.contract_id ?? this.#id(),
         project_id: loaded.project.id,
         change_id: loaded.change.id,
-        domain_version: 1,
+        domain_version: currentContract ? nextDomainVersion(currentContract.domain_version) : 1,
         candidate_id: facts.candidate.id,
         profile_key: facts.candidate.profile_key,
         intent: facts.candidate.intent,
@@ -737,6 +749,8 @@ export class CimiLoopKernel {
         created_at: now
       };
       transaction.insertContractVersion(contract);
+      this.#expireOpenRequests(transaction, loaded.change.id, "plan", now);
+      this.#closeOpenAmendment(transaction, loaded.change.id, "intent", "approved", now);
       nextChange = {
         ...loaded.change,
         lifecycle_state: "IntentReady",
@@ -745,38 +759,43 @@ export class CimiLoopKernel {
         revision: loaded.change.revision + 1
       };
       transaction.updateChange(nextChange, loaded.expectedRevision);
-      transaction.insertTransition({
-        schema_version: SCHEMA_VERSION,
-        id: this.#id(),
-        project_id: loaded.project.id,
-        change_id: loaded.change.id,
-        command_id: command.command_id,
-        transition_type: "lifecycle_changed",
-        from_lifecycle: "Draft",
-        to_lifecycle: "IntentReady",
-        from_status: loaded.change.operating_status,
-        to_status: "Active",
-        gate_evaluation_id: gate.id,
-        decision_id: decision.id,
-        actor_id: loaded.actorId,
-        occurred_at: now
-      });
+      if (!currentContract) {
+        transaction.insertTransition({
+          schema_version: SCHEMA_VERSION,
+          id: this.#id(),
+          project_id: loaded.project.id,
+          change_id: loaded.change.id,
+          command_id: command.command_id,
+          transition_type: "lifecycle_changed",
+          from_lifecycle: "Draft",
+          to_lifecycle: "IntentReady",
+          from_status: loaded.change.operating_status,
+          to_status: "Active",
+          gate_evaluation_id: gate.id,
+          decision_id: decision.id,
+          actor_id: loaded.actorId,
+          occurred_at: now
+        });
+      }
     } else if (gateResult === "ALLOW" && request.request_type === "plan" && "tasks" in facts.candidate) {
-      const planId = this.#id();
+      const currentPlan = transaction.getCurrentPlan(loaded.change.id);
+      const planId = currentPlan?.plan_id ?? this.#id();
+      const planVersion = currentPlan ? nextDomainVersion(currentPlan.domain_version) : 1;
       tasks = createPlanTasks(
         facts.candidate.tasks,
         () => this.#id(),
         loaded.project.id,
         loaded.change.id,
         planId,
-        1,
+        planVersion,
         now
       );
-      plan = createPlanVersion(this.#id(), planId, facts.candidate, tasks, now);
+      plan = createPlanVersion(this.#id(), planId, facts.candidate, tasks, now, planVersion);
       for (const task of tasks) {
         transaction.insertTask(task);
       }
       transaction.insertPlanVersion(plan);
+      this.#closeOpenAmendment(transaction, loaded.change.id, "plan", "approved", now);
       nextChange = {
         ...loaded.change,
         lifecycle_state: "Planned",
@@ -785,22 +804,24 @@ export class CimiLoopKernel {
         revision: loaded.change.revision + 1
       };
       transaction.updateChange(nextChange, loaded.expectedRevision);
-      transaction.insertTransition({
-        schema_version: SCHEMA_VERSION,
-        id: this.#id(),
-        project_id: loaded.project.id,
-        change_id: loaded.change.id,
-        command_id: command.command_id,
-        transition_type: "lifecycle_changed",
-        from_lifecycle: "IntentReady",
-        to_lifecycle: "Planned",
-        from_status: loaded.change.operating_status,
-        to_status: "Active",
-        gate_evaluation_id: gate.id,
-        decision_id: decision.id,
-        actor_id: loaded.actorId,
-        occurred_at: now
-      });
+      if (!currentPlan) {
+        transaction.insertTransition({
+          schema_version: SCHEMA_VERSION,
+          id: this.#id(),
+          project_id: loaded.project.id,
+          change_id: loaded.change.id,
+          command_id: command.command_id,
+          transition_type: "lifecycle_changed",
+          from_lifecycle: "IntentReady",
+          to_lifecycle: "Planned",
+          from_status: loaded.change.operating_status,
+          to_status: "Active",
+          gate_evaluation_id: gate.id,
+          decision_id: decision.id,
+          actor_id: loaded.actorId,
+          occurred_at: now
+        });
+      }
     }
 
     const event = this.#appendEvent(transaction, {
@@ -835,11 +856,11 @@ export class CimiLoopKernel {
   ): KernelResult {
     const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
     if ("code" in loaded) return loaded;
-    if (loaded.change.lifecycle_state !== "IntentReady") {
+    if (loaded.change.lifecycle_state !== "IntentReady" && loaded.change.lifecycle_state !== "Planned") {
       return domainError(
         command.correlation_id,
         "CHANGE_NOT_INTENT_READY",
-        "只有 IntentReady 的 Change 可以请求 Plan Decision",
+        "只有 IntentReady 或 Planned 的 Change 可以请求 Plan Decision",
         "conflict"
       );
     }
@@ -976,6 +997,245 @@ export class CimiLoopKernel {
         candidate_revision: candidate.revision,
         contract_id: contract.contract_id,
         contract_version: contract.domain_version
+      },
+      occurred_at: now
+    });
+    return this.#success(command, event.aggregate, nextChange.revision, [event], { candidate });
+  }
+
+  #submitContractAmendment(
+    transaction: StoreTransaction,
+    command: SubmitContractAmendmentCommand
+  ): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.target?.id);
+    if ("code" in loaded) return loaded;
+    if (loaded.change.lifecycle_state === "Planned") {
+      return domainError(
+        command.correlation_id,
+        "M1_AMENDMENT_AFTER_PLANNED_UNSUPPORTED",
+        "M1 不允许在 Planned 之后批准 Contract Amendment",
+        "conflict"
+      );
+    }
+    if (loaded.change.lifecycle_state !== "IntentReady") {
+      return domainError(
+        command.correlation_id,
+        "CHANGE_NOT_INTENT_READY",
+        "只有 IntentReady 的 Change 可以提交 Contract Amendment",
+        "conflict"
+      );
+    }
+    const currentContract = transaction.getCurrentContract(loaded.change.id);
+    if (!currentContract) {
+      return domainError(
+        command.correlation_id,
+        "CURRENT_CONTRACT_NOT_FOUND",
+        "Contract Amendment 必须基于当前正式 Contract Version",
+        "conflict"
+      );
+    }
+    if (command.payload.base_version !== currentContract.domain_version) {
+      return domainError(
+        command.correlation_id,
+        "AMENDMENT_BASE_STALE",
+        "Contract Amendment 的 base_version 已过期",
+        "conflict",
+        false,
+        { current_version: currentContract.domain_version }
+      );
+    }
+    try {
+      validateRiskDimensions(command.payload.risk);
+      validateKnowledgeImpact(command.payload.knowledge_impact);
+    } catch (error) {
+      return domainError(
+        command.correlation_id,
+        "CONTRACT_ASSESSMENT_INVALID",
+        error instanceof Error ? error.message : "Risk 或 Knowledge Impact 不完整",
+        "validation"
+      );
+    }
+
+    const now = this.#now();
+    this.#closeOpenAmendment(transaction, loaded.change.id, "intent", "withdrawn", now);
+    const existingCandidate = transaction.getContractCandidateByChange(loaded.change.id);
+    const candidate = createContractCandidate(
+      existingCandidate?.id ?? this.#id(),
+      loaded.project.id,
+      loaded.change.id,
+      command.payload,
+      now,
+      existingCandidate ? existingCandidate.revision + 1 : 1
+    );
+    const existingRisk = transaction.getRiskProfileByChange(loaded.change.id);
+    const riskProfile = createRiskProfile(
+      existingRisk?.id ?? this.#id(),
+      loaded.project.id,
+      loaded.change.id,
+      command.payload.risk,
+      now,
+      existingRisk ? existingRisk.revision + 1 : 1
+    );
+    const riskAssessment = createRiskAssessment(this.#id(), riskProfile, now);
+    const existingKnowledge = transaction.getKnowledgeImpactAssessmentByChange(loaded.change.id);
+    const knowledge = createKnowledgeImpactAssessment(
+      existingKnowledge?.id ?? this.#id(),
+      loaded.project.id,
+      loaded.change.id,
+      command.payload.knowledge_impact,
+      now,
+      existingKnowledge ? existingKnowledge.revision + 1 : 1
+    );
+    const amendment = createContractAmendment(
+      this.#id(),
+      loaded.project.id,
+      loaded.change.id,
+      currentContract.contract_id,
+      command.payload,
+      now
+    );
+    if (existingCandidate) {
+      transaction.updateContractCandidate(candidate, existingCandidate.revision);
+    } else {
+      transaction.insertContractCandidate(candidate);
+    }
+    if (existingRisk) {
+      transaction.updateRiskProfile(riskProfile, existingRisk.revision);
+    } else {
+      transaction.insertRiskProfile(riskProfile);
+    }
+    transaction.insertRiskAssessment(riskAssessment);
+    if (existingKnowledge) {
+      transaction.updateKnowledgeImpactAssessment(knowledge, existingKnowledge.revision);
+    } else {
+      transaction.insertKnowledgeImpactAssessment(knowledge);
+    }
+    transaction.insertContractAmendment(amendment);
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "ContractAmendmentSubmitted",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "change", id: nextChange.id, domain_version: 1 },
+      aggregate_revision: nextChange.revision,
+      actor_id: loaded.actorId,
+      command,
+      payload: {
+        amendment_id: amendment.id,
+        base_version: amendment.base_version,
+        candidate_id: candidate.id
+      },
+      occurred_at: now
+    });
+    return this.#success(command, event.aggregate, nextChange.revision, [event], {
+      candidate,
+      risk_assessment: riskAssessment,
+      knowledge_assessment: knowledge
+    });
+  }
+
+  #submitPlanAmendment(transaction: StoreTransaction, command: SubmitPlanAmendmentCommand): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.target?.id);
+    if ("code" in loaded) return loaded;
+    if (loaded.change.lifecycle_state !== "Planned") {
+      return domainError(
+        command.correlation_id,
+        "CHANGE_NOT_PLANNED",
+        "只有 Planned 的 Change 可以提交 Plan Amendment",
+        "conflict"
+      );
+    }
+    const currentPlan = transaction.getCurrentPlan(loaded.change.id);
+    const contract = transaction.getCurrentContract(loaded.change.id);
+    if (!currentPlan || !contract) {
+      return domainError(
+        command.correlation_id,
+        "CURRENT_PLAN_NOT_FOUND",
+        "Plan Amendment 必须基于当前正式 Plan Version",
+        "conflict"
+      );
+    }
+    if (command.payload.base_version !== currentPlan.domain_version) {
+      return domainError(
+        command.correlation_id,
+        "AMENDMENT_BASE_STALE",
+        "Plan Amendment 的 base_version 已过期",
+        "conflict",
+        false,
+        { current_version: currentPlan.domain_version }
+      );
+    }
+    const dag = validateTaskDag(command.payload.tasks);
+    if (!dag.ok) {
+      return domainError(
+        command.correlation_id,
+        dag.code,
+        "Plan Task DAG 不合法",
+        "validation",
+        false,
+        dag.cycle_task_ids ? { cycle_task_ids: dag.cycle_task_ids } : {}
+      );
+    }
+    const knowledge = transaction.getKnowledgeImpactAssessmentByChange(loaded.change.id);
+    if (!knowledge) {
+      return domainError(
+        command.correlation_id,
+        "CONTRACT_ASSESSMENT_INVALID",
+        "提交 Plan Amendment 前必须存在 Knowledge Impact Assessment",
+        "validation"
+      );
+    }
+    try {
+      validateKnowledgeTasks(command.payload.tasks, knowledge.sources);
+    } catch (error) {
+      return domainError(
+        command.correlation_id,
+        "PLAN_KNOWLEDGE_TASK_REQUIRED",
+        error instanceof Error ? error.message : "非 NoImpact 知识来源必须由 knowledge Task 覆盖",
+        "validation"
+      );
+    }
+
+    const now = this.#now();
+    this.#closeOpenAmendment(transaction, loaded.change.id, "plan", "withdrawn", now);
+    const existing = transaction.getPlanCandidateByChange(loaded.change.id);
+    const candidate = createPlanCandidate(
+      existing?.id ?? this.#id(),
+      loaded.project.id,
+      loaded.change.id,
+      contract.contract_id,
+      contract.domain_version,
+      command.payload,
+      now,
+      existing ? existing.revision + 1 : 1
+    );
+    const amendment = createPlanAmendment(
+      this.#id(),
+      loaded.project.id,
+      loaded.change.id,
+      currentPlan.plan_id,
+      contract.contract_id,
+      contract.domain_version,
+      command.payload,
+      now
+    );
+    if (existing) {
+      transaction.updatePlanCandidate(candidate, existing.revision);
+    } else {
+      transaction.insertPlanCandidate(candidate);
+    }
+    transaction.insertPlanAmendment(amendment);
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "PlanAmendmentSubmitted",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "change", id: nextChange.id, domain_version: 1 },
+      aggregate_revision: nextChange.revision,
+      actor_id: loaded.actorId,
+      command,
+      payload: {
+        amendment_id: amendment.id,
+        base_version: amendment.base_version,
+        candidate_id: candidate.id
       },
       occurred_at: now
     });
@@ -1120,6 +1380,48 @@ export class CimiLoopKernel {
     };
     transaction.insertGateEvaluation(gate);
     return gate;
+  }
+
+  #expireOpenRequests(
+    transaction: StoreTransaction,
+    changeId: InternalId,
+    requestType: "intent" | "plan",
+    now: string
+  ): void {
+    for (const open of transaction.listOpenDecisionRequests()) {
+      if (open.change_id === changeId && open.request_type === requestType) {
+        transaction.updateDecisionRequest(
+          { ...open, status: "expired", updated_at: now, revision: open.revision + 1 },
+          open.revision
+        );
+      }
+    }
+  }
+
+  #closeOpenAmendment(
+    transaction: StoreTransaction,
+    changeId: InternalId,
+    kind: "intent" | "plan",
+    status: "approved" | "rejected" | "withdrawn",
+    now: string
+  ): void {
+    if (kind === "intent") {
+      const amendment = transaction.getLatestContractAmendment(changeId);
+      if (amendment && amendment.status === "open") {
+        transaction.updateContractAmendment(
+          { ...amendment, status, updated_at: now, revision: amendment.revision + 1 },
+          amendment.revision
+        );
+      }
+      return;
+    }
+    const amendment = transaction.getLatestPlanAmendment(changeId);
+    if (amendment && amendment.status === "open") {
+      transaction.updatePlanAmendment(
+        { ...amendment, status, updated_at: now, revision: amendment.revision + 1 },
+        amendment.revision
+      );
+    }
   }
 
   #touchChange(transaction: StoreTransaction, change: Change, expectedRevision: number, now: string): Change {

@@ -1,3 +1,4 @@
+export * from "./amendment.js";
 export * from "./canonical.js";
 export * from "./change.js";
 export * from "./contract.js";

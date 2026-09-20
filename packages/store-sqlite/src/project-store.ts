@@ -428,6 +428,14 @@ class SqliteTransaction implements StoreTransaction {
     return this.getPayload("SELECT payload_json FROM contract_amendments WHERE id = ?", parseContractAmendment, id);
   }
 
+  getLatestContractAmendment(changeId: InternalId): ContractAmendment | undefined {
+    return this.getPayload(
+      "SELECT payload_json FROM contract_amendments WHERE change_id = ? ORDER BY revision DESC, rowid DESC LIMIT 1",
+      parseContractAmendment,
+      changeId
+    );
+  }
+
   insertRiskProfile(profile: RiskProfile): void {
     this.database
       .prepare("INSERT INTO risk_profiles(id, change_id, revision, payload_json) VALUES (?, ?, ?, ?)")
@@ -542,6 +550,14 @@ class SqliteTransaction implements StoreTransaction {
 
   getPlanAmendment(id: InternalId): PlanAmendment | undefined {
     return this.getPayload("SELECT payload_json FROM plan_amendments WHERE id = ?", parsePlanAmendment, id);
+  }
+
+  getLatestPlanAmendment(changeId: InternalId): PlanAmendment | undefined {
+    return this.getPayload(
+      "SELECT payload_json FROM plan_amendments WHERE change_id = ? ORDER BY revision DESC, rowid DESC LIMIT 1",
+      parsePlanAmendment,
+      changeId
+    );
   }
 
   insertTask(task: Task): void {

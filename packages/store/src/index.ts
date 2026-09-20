@@ -108,6 +108,7 @@ export interface StoreTransaction {
   insertContractAmendment(amendment: ContractAmendment): void;
   updateContractAmendment(amendment: ContractAmendment, expectedRevision: number): void;
   getContractAmendment(id: InternalId): ContractAmendment | undefined;
+  getLatestContractAmendment(changeId: InternalId): ContractAmendment | undefined;
 
   insertRiskProfile(profile: RiskProfile): void;
   updateRiskProfile(profile: RiskProfile, expectedRevision: number): void;
@@ -134,6 +135,7 @@ export interface StoreTransaction {
   insertPlanAmendment(amendment: PlanAmendment): void;
   updatePlanAmendment(amendment: PlanAmendment, expectedRevision: number): void;
   getPlanAmendment(id: InternalId): PlanAmendment | undefined;
+  getLatestPlanAmendment(changeId: InternalId): PlanAmendment | undefined;
 
   insertTask(task: Task): void;
   listTasks(planId: InternalId, planVersion: number): Task[];
