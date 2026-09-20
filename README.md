@@ -13,7 +13,7 @@ CimiLoop 是一个面向 AI-Native 软件研发的 Runtime-neutral Harness（运
 - 已补充 Knowledge Closure（知识闭环），把受影响文档更新纳入 Change 的任务、证据和关闭条件。
 - V1 首批 Agent Runtime 目标为 OpenCode 和 Claude Code；cimicode 是企业内部基于 OpenCode 二次开发的 Runtime，后续通过同一适配边界接入。
 
-项目已经进入正式实现阶段。M0 可恢复 Kernel 切片、M1 `Draft → IntentReady → Planned` 治理闭环、M2 `Planned → Work Item → Run → Artifact` 执行切片，以及 M3 Claim / Evidence / Independent Evaluation 均已冻结。Test/Production Deployment、Recovery 与 Portable Export/Import 从后续里程碑加入。
+项目已经进入 V1 Release Candidate。M0–M5 均已在 Node.js 24.15.0 + pnpm 12.4.2 基线上交付：可恢复 Kernel、Intent/Plan Decision、执行切片、Independent Evaluation、Test/Production Delivery 与 Recovery、Knowledge Closure、Portable Export/Import 与完整 Workbench 投影。认证见 [北极星测试](tests/acceptance/v1-north-star.test.ts) 与 [demo-v1](scripts/demo-v1.ps1)。
 
 ## 建议阅读顺序
 
@@ -43,13 +43,20 @@ CimiLoop 是一个面向 AI-Native 软件研发的 Runtime-neutral Harness（运
 │  ├─ kernel/         # 聚合规则、状态转换和命令处理
 │  ├─ store/          # Kernel 使用的逻辑 Store Port
 │  ├─ store-sqlite/   # Embedded Solo Mode SQLite 实现
+│  ├─ portability/    # Portable Export digest 与 Import staging
 │  ├─ context/        # Context Pack 与 Capability Resolver
 │  ├─ workspace-git/  # 隔离 Git worktree
 │  ├─ runtime/        # Runtime Adapter Port
 │  ├─ runtime-claude-code/
+│  ├─ evaluator/      # 独立评价，无生产写权限
+│  ├─ devops/         # DevOps Adapter Port
+│  ├─ devops-command/ # argv-only Command Adapter
 │  └─ orchestrator/   # Run 编排与恢复
 ├─ tests/
-│  └─ scenarios/      # 跨模块和 CLI 端到端场景
+│  ├─ scenarios/      # M0–M4 跨模块场景
+│  ├─ acceptance/     # V1 北极星、异常与 CLI
+│  ├─ faults/         # 故障注入
+│  └─ security/       # 安全与审计
 ├─ docs/
 │  ├─ architecture/   # 正式架构、领域模型、协议与流程规范
 │  ├─ plans/          # 讨论记录、决策账本、产品范围与实施计划
@@ -90,13 +97,33 @@ Agent 或脚本在命令中增加 `--json` 即可获得经过 Protocol Schema �
   → 关闭 Change，并保留完整事件与决策记录
 ```
 
-## 下一阶段
+## 已支持能力与认证
 
-M0–M4 已在 Node.js 24.15.0 + pnpm 12.4.2 基线上冻结。下一步进入 M5：Product Closure、Portability 与 Release Hardening。实施边界见 [M4 实施架构](docs/implementation/2026-09-20-cimiloop-m4实施架构-v0.1.md)。
+| 能力 | 认证 |
+|---|---|
+| Feature 闭环到 Close + Export | [v1-north-star.test.ts](tests/acceptance/v1-north-star.test.ts)、[demo-v1.ps1](scripts/demo-v1.ps1) |
+| Intent / Plan Decision | [demo-m1.ps1](scripts/demo-m1.ps1)、`tests/scenarios/m1-cli.test.ts` |
+| Work Item / Run / Artifact | [demo-m2.ps1](scripts/demo-m2.ps1) |
+| Independent Evaluation | [demo-m3.ps1](scripts/demo-m3.ps1)、`tests/acceptance/v1-exceptions.test.ts` |
+| Test / Production / Recovery | [demo-m4.ps1](scripts/demo-m4.ps1) |
+| Knowledge Closure | `packages/kernel/test/knowledge-closure.test.ts` |
+| Portable Export/Import | `packages/kernel/test/export.test.ts`、`packages/kernel/test/import.test.ts` |
+| Workbench 六阶段 Room | `apps/workbench/test/workbench.test.ts` |
+| 故障 / 安全 / 审计 | [v1-faults.test.ts](tests/faults/v1-faults.test.ts)、[audit-v1.ps1](scripts/audit-v1.ps1) |
+
+操作说明见 [V1 操作指南](docs/implementation/2026-09-20-cimiloop-v1操作指南-v0.1.md)。发布门禁见 [V1 发布检查清单](docs/implementation/2026-09-20-cimiloop-v1发布检查清单-v0.1.md)。
+
+## 明确未实现
+
+- 导入后自动激活 Runtime ownership
+- 云 DevOps 平台 Adapter、登录、实时协作、完整 SPA
+- Agent 批准 Contract / Plan / Production Release
+- Hard Delete、staging 环境
 
 ```text
 powershell -NoProfile -File scripts/demo-m1.ps1
 powershell -NoProfile -File scripts/demo-m2.ps1
 powershell -NoProfile -File scripts/demo-m3.ps1
 powershell -NoProfile -File scripts/demo-m4.ps1
+powershell -NoProfile -File scripts/demo-v1.ps1
 ```

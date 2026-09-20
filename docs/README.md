@@ -53,6 +53,11 @@
 - [M1 实施架构](implementation/2026-09-20-cimiloop-m1实施架构-v0.1.md)
 - [M2 实施架构](implementation/2026-09-20-cimiloop-m2实施架构-v0.1.md)
 - [M3 实施架构](implementation/2026-09-20-cimiloop-m3实施架构-v0.1.md)
+- [M4 实施架构](implementation/2026-09-20-cimiloop-m4实施架构-v0.1.md)
+- [M5 实施架构](implementation/2026-09-20-cimiloop-m5实施架构-v0.1.md)
+- [V1 操作指南](implementation/2026-09-20-cimiloop-v1操作指南-v0.1.md)
+- [V1 适配器指南](implementation/2026-09-20-cimiloop-v1适配器指南-v0.1.md)
+- [V1 发布检查清单](implementation/2026-09-20-cimiloop-v1发布检查清单-v0.1.md)
 
 ## 文档职责
 

@@ -4,10 +4,10 @@
 
 ## 当前阶段
 
-- 当前里程碑：M4 Test、Production 与 Recovery 已冻结。
-- 当前状态：M0 Kernel 最小闭环、M1 `Draft → IntentReady → Planned` 治理闭环、M2 执行切片、M3 Claim/Evidence/Evaluation/Repair，以及 M4 Environment/Release/Deployment/Reconciliation/Recovery 均已交付。Knowledge Closure 与 Portable Export/Import 仍未实现。
-- 下一里程碑：M5 Product Closure、Portability 与 Release Hardening。
-- 实施基线：[CimiLoop M4 实施架构 v0.1](2026-09-20-cimiloop-m4实施架构-v0.1.md)；前序基线为 [M3](2026-09-20-cimiloop-m3实施架构-v0.1.md)、[M2](2026-09-20-cimiloop-m2实施架构-v0.1.md)、[M1](2026-09-20-cimiloop-m1实施架构-v0.1.md) 与 [M0](2026-09-19-cimiloop-m0实施架构-v0.1.md)。
+- 当前里程碑：M5 Product Closure、Portability 与 Release Hardening（V1 Release Candidate）。
+- 当前状态：M0–M5 均已交付。Knowledge Closure、终态动作、Portable Export/Import、完整 Workbench 投影与北极星验收已实现。导入项目默认 dormant，不会自动获得 Runtime ownership。
+- 实施基线：[CimiLoop M5 实施架构 v0.1](2026-09-20-cimiloop-m5实施架构-v0.1.md)；操作见 [V1 操作指南](2026-09-20-cimiloop-v1操作指南-v0.1.md)、[V1 适配器指南](2026-09-20-cimiloop-v1适配器指南-v0.1.md)、[V1 发布检查清单](2026-09-20-cimiloop-v1发布检查清单-v0.1.md)。前序基线为 [M4](2026-09-20-cimiloop-m4实施架构-v0.1.md)、[M3](2026-09-20-cimiloop-m3实施架构-v0.1.md)、[M2](2026-09-20-cimiloop-m2实施架构-v0.1.md)、[M1](2026-09-20-cimiloop-m1实施架构-v0.1.md) 与 [M0](2026-09-19-cimiloop-m0实施架构-v0.1.md)。
+- 认证：`tests/acceptance/v1-north-star.test.ts`、`scripts/demo-v1.ps1`、`scripts/audit-v1.ps1`。
 
 ## 已确认技术决策
 
@@ -15,7 +15,7 @@
 |---|---|---|---|
 | I-001 | TypeScript + Node.js | 已确认 | 作为 CimiLoop V1 的实现语言与运行平台；不改变 Protocol 和 Harness 的运行时中立性。 |
 | I-002 | Node.js 24 LTS + pnpm Workspace | 已确认 | Node.js 使用 24 LTS 基线；pnpm 管理多包工作区并锁定准确版本，开发环境与 CI 显式安装，不依赖系统预装的 Corepack。 |
-| I-003 | Monorepo 模块布局 | 已确认 | 使用 `apps/cli` 与 `packages/protocol`、`packages/kernel`、`packages/store`、`packages/store-sqlite`；包内放单元测试，根目录 `tests/scenarios` 放跨模块端到端场景。 |
+| I-003 | Monorepo 模块布局 | 已确认 | 使用 `apps/cli`、`apps/workbench` 与 `packages/protocol`、`packages/kernel`、`packages/store`、`packages/store-sqlite`、`packages/portability`；包内放单元测试，根目录 `tests/scenarios`、`tests/acceptance`、`tests/faults`、`tests/security` 放跨模块场景。 |
 | I-004 | Protocol Schema 工具链 | 已确认 | TypeBox 是 TypeScript 内的 Schema 定义源，导出 JSON Schema 2020-12 作为跨语言协议制品，Ajv strict mode 负责所有外部边界的运行时校验；不重复手写 Protocol interface。 |
 | I-005 | M0 演示边界 | 已确认 | M0 实现 Project 初始化、Draft Change 创建与查询、暂停/恢复、非法操作解释、重启恢复、命令幂等及 Event/Current State 一致性；真实 `Draft → IntentReady` 留到 M1。 |
 | I-006 | Repository 与 Project 默认映射 | 已确认 | Embedded Solo Mode 默认一个本地 Git Repository 对应一个 CimiLoop Project；`cimiloop init` 自动发现 Git 根目录，非 Git 目录允许显式初始化，多仓库 Project 只预留协议能力。 |
@@ -44,15 +44,20 @@ packages/
 ├─ kernel/              # 聚合规则、状态机、Gate 与命令处理
 ├─ store/               # Kernel 使用的逻辑 Store Port
 ├─ store-sqlite/        # Embedded Solo Mode 的 SQLite 实现
+├─ portability/         # Portable Export digest 与 Import staging（只依赖 protocol）
 ├─ context/             # Context Pack 与 Capability Resolver
 ├─ workspace-git/       # 隔离 Git worktree 与 Source Snapshot
 ├─ runtime/             # Runtime Adapter Port
 ├─ runtime-claude-code/ # Claude Code command adapter
 ├─ orchestrator/        # Run 编排与恢复（只发 Kernel Command）
 ├─ evaluator/           # 独立评价规划、只读上下文与写权限拒绝
-└─ devops/              # DevOps Command Adapter（argv-only，无 Secret）
+├─ devops/              # DevOps Adapter Port
+└─ devops-command/      # argv-only Command Adapter（无 Secret）
 tests/
-└─ scenarios/           # 跨模块的 Change 端到端行为场景
+├─ scenarios/           # M0–M4 跨模块场景
+├─ acceptance/          # V1 北极星、异常与 CLI
+├─ faults/              # 故障注入
+└─ security/            # 安全与审计
 ```
 
 依赖规则：`kernel` 依赖 `protocol` 与 `store`，`store` 只依赖 `protocol`，`store-sqlite` 依赖 `store` 与 `protocol`。`context` / `workspace-git` / `runtime*` / `orchestrator` 位于 Kernel 之外，只能通过 Command 回传事实。Kernel 不得依赖 CLI、SQLite 或具体 Agent Runtime。
@@ -92,3 +97,4 @@ V1 使用与产品同名的 `cimiloop` 可执行命令。人类默认获得中�
 - 项目级 `objects/` 保存由 CimiLoop 管理的内容寻址附件；缓存、暂存与备份使用独立子目录并应用不同清理规则。
 - 用户级 `registry.db` 只用于发现和展示本机项目，是可重建 Read Model（读模型），不保存 Change 权威状态。
 - Git clone 不复制 Solo 状态；跨设备和 Solo→Team 迁移必须使用 Portable Export/Import。
+- Export 从一致性 SQLite snapshot 生成，缺失对象失败；Import 先 staging，导入项目默认 dormant。认证见 `packages/kernel/test/export.test.ts` 与 `packages/kernel/test/import.test.ts`。
