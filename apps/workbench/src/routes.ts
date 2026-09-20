@@ -28,6 +28,12 @@ export interface WorkbenchKernel {
   listIndependentEvaluationsByChange(changeId: InternalId): import("@cimiloop/protocol").IndependentEvaluation[];
   listRepairWorkItemLinksByChange(changeId: InternalId): import("@cimiloop/protocol").RepairWorkItemLink[];
   listImpactAssessmentsBySubject(subjectId: InternalId): import("@cimiloop/protocol").ImpactAssessment[];
+  listEnvironments(projectId: InternalId): import("@cimiloop/protocol").Environment[];
+  listReleasesByChange(changeId: InternalId): import("@cimiloop/protocol").Release[];
+  listDeploymentsByRelease(releaseId: InternalId): import("@cimiloop/protocol").Deployment[];
+  listExternalOperationsByChange(changeId: InternalId): import("@cimiloop/protocol").ExternalOperation[];
+  listUnknownExternalOperations(): import("@cimiloop/protocol").ExternalOperation[];
+  listRecoveryExecutionsByRelease(releaseId: InternalId): import("@cimiloop/protocol").RecoveryExecution[];
 }
 import { escapeHtml, page } from "./html.js";
 import { workbenchStyles } from "./styles.js";
@@ -176,6 +182,66 @@ export const renderChangeRoom = (context: WorkbenchContext, idOrKey: string): st
               .map((evaluation) => `<li>${escapeHtml(evaluation.result)} · ${escapeHtml(evaluation.reason)}</li>`)
               .join("")}</ul>`
       }
+    </article>
+    <article class="card">
+      <h2>Delivery</h2>
+      ${(() => {
+        const environments = context.kernel.listEnvironments(context.projectId);
+        const releases = context.kernel.listReleasesByChange(change.id);
+        const operations = context.kernel.listExternalOperationsByChange(change.id);
+        const unknown = context.kernel
+          .listUnknownExternalOperations()
+          .filter((item) => item.change_id === change.id);
+        const recoveries = releases.flatMap((item) => context.kernel.listRecoveryExecutionsByRelease(item.id));
+        const deployments = releases.flatMap((item) => context.kernel.listDeploymentsByRelease(item.id));
+        return `
+          <p>下一动作：${escapeHtml(room.room.next_action)}</p>
+          <h3>Environments</h3>
+          ${
+            environments.length === 0
+              ? "<p class=\"muted\">尚无 Environment。</p>"
+              : `<ul>${environments
+                  .map((item) => `<li>${escapeHtml(item.environment_key)} · ${escapeHtml(item.kind)} · ${escapeHtml(item.status)}</li>`)
+                  .join("")}</ul>`
+          }
+          <h3>Releases</h3>
+          ${
+            releases.length === 0
+              ? "<p class=\"muted\">尚无 Release。</p>"
+              : `<ul>${releases
+                  .map(
+                    (item) =>
+                      `<li>${escapeHtml(item.kind)} · ${escapeHtml(item.status)} · ${escapeHtml(item.artifact_digest.value)}</li>`
+                  )
+                  .join("")}</ul>`
+          }
+          <h3>Deployments</h3>
+          ${
+            deployments.length === 0
+              ? "<p class=\"muted\">尚无 Deployment。</p>"
+              : `<ul>${deployments
+                  .map((item) => `<li>${escapeHtml(item.id)} · ${escapeHtml(item.status)}</li>`)
+                  .join("")}</ul>`
+          }
+          <h3>Unknown operations</h3>
+          ${
+            unknown.length === 0
+              ? "<p class=\"muted\">没有未知外部操作。</p>"
+              : `<ul>${unknown
+                  .map((item) => `<li>${escapeHtml(item.operation_key)} · ${escapeHtml(item.operation_kind)}</li>`)
+                  .join("")}</ul>`
+          }
+          <h3>Recovery</h3>
+          ${
+            recoveries.length === 0
+              ? "<p class=\"muted\">没有 Recovery Execution。</p>"
+              : `<ul>${recoveries
+                  .map((item) => `<li>${escapeHtml(item.id)} · ${escapeHtml(item.status)}</li>`)
+                  .join("")}</ul>`
+          }
+          <p class="muted">操作数 ${operations.length}</p>
+        `;
+      })()}
     </article>
     <article class="card">
       <h2>Repair lineage</h2>

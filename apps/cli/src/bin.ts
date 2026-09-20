@@ -37,6 +37,18 @@ import {
   createRepair,
   assessImpactCli,
   showEvidencePackage,
+  registerEnvironment,
+  showEnvironment,
+  createReleaseCli,
+  showRelease,
+  requestReleaseDecisionCli,
+  queueDeploymentCli,
+  showDeployment,
+  recordOperationResultCli,
+  requestReconciliationCli,
+  recordReconciliationCli,
+  authorizeRecoveryCli,
+  recordRecoveryCli,
   type GlobalOptions
 } from "./commands.js";
 import { outputError } from "./output.js";
@@ -319,6 +331,111 @@ program
       newDigest: options.newDigest
     })
   );
+
+const environment = program.command("environment").description("登记与查询 Environment");
+environment
+  .command("register <change>")
+  .description("登记 Test 或 Production Environment")
+  .requiredOption("--key <key>", "Environment key")
+  .requiredOption("--kind <kind>", "test | production")
+  .requiredOption("--name <name>", "显示名称")
+  .requiredOption("--adapter <ref>", "Adapter 引用")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((change, options, command) => registerEnvironment(change, { ...globals(command), ...options }));
+environment.command("show <id>").description("查看 Environment").action((id, _options, command) =>
+  showEnvironment(id, globals(command))
+);
+
+const release = program.command("release").description("创建与推进 Release");
+release
+  .command("create <change>")
+  .description("创建 Test 或 Production Release")
+  .requiredOption("--kind <kind>", "test | production")
+  .requiredOption("--artifact <id>", "Artifact ID")
+  .requiredOption("--digest <hex>", "Artifact Digest")
+  .requiredOption("--environment <id>", "Environment ID")
+  .requiredOption("--scope <csv>", "范围内目标，逗号分隔")
+  .requiredOption("--window-start <iso>", "窗口开始")
+  .requiredOption("--window-end <iso>", "窗口结束")
+  .requiredOption("--recovery-file <path>", "Recovery Strategy Draft JSON")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((change, options, command) =>
+    createReleaseCli(change, {
+      ...globals(command),
+      ...options,
+      windowStart: options.windowStart,
+      windowEnd: options.windowEnd,
+      recoveryFile: options.recoveryFile
+    })
+  );
+release.command("show <id>").description("查看 Release").action((id, _options, command) =>
+  showRelease(id, globals(command))
+);
+release
+  .command("request-review <id>")
+  .description("请求 Production Release Decision")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((id, options, command) => requestReleaseDecisionCli(id, { ...globals(command), ...options }));
+release
+  .command("queue <id>")
+  .description("排队 Deployment 或下一步外部操作")
+  .requiredOption("--environment <id>", "Environment ID")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((id, options, command) => queueDeploymentCli(id, { ...globals(command), ...options }));
+release
+  .command("authorize-recovery <id>")
+  .description("授权 Production Recovery")
+  .requiredOption("--strategy <id>", "Recovery Strategy ID")
+  .requiredOption("--source-deployment <id>", "失败 Deployment ID")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((id, options, command) =>
+    authorizeRecoveryCli(id, { ...globals(command), ...options, sourceDeployment: options.sourceDeployment })
+  );
+
+const deployment = program.command("deployment").description("Deployment、核对与 Recovery 结果");
+deployment.command("show <id>").description("查看 Deployment").action((id, _options, command) =>
+  showDeployment(id, globals(command))
+);
+deployment
+  .command("record-result <operation>")
+  .description("记录外部操作结果")
+  .requiredOption("--key <key>", "Operation key")
+  .requiredOption("--state <state>", "pending | unknown | succeeded | failed | not_found")
+  .requiredOption("--log-reference <ref>", "日志引用")
+  .requiredOption("--log-digest <hex>", "日志 Digest")
+  .requiredOption("--summary <text>", "结果摘要")
+  .option("--actual-digest <hex>", "实际 Artifact Digest")
+  .option("--health <health>", "healthy | unhealthy | unknown")
+  .option("--core-path <path>", "pass | fail | unknown")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((operation, options, command) =>
+    recordOperationResultCli(operation, {
+      ...globals(command),
+      ...options,
+      logReference: options.logReference,
+      logDigest: options.logDigest,
+      actualDigest: options.actualDigest,
+      corePath: options.corePath
+    })
+  );
+deployment
+  .command("reconcile-request <operation>")
+  .description("请求核对未知外部结果")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((operation, options, command) => requestReconciliationCli(operation, { ...globals(command), ...options }));
+deployment
+  .command("reconcile-record <operation>")
+  .description("记录核对结论")
+  .requiredOption("--conclusion <conclusion>", "核对结论")
+  .requiredOption("--summary <text>", "核对摘要")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((operation, options, command) => recordReconciliationCli(operation, { ...globals(command), ...options }));
+deployment
+  .command("record-recovery <execution>")
+  .description("记录 Recovery 执行结果")
+  .requiredOption("--status <status>", "verified | failed | require_human | authorized")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((execution, options, command) => recordRecoveryCli(execution, { ...globals(command), ...options }));
 
 program
   .command("scheduler")

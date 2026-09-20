@@ -191,6 +191,9 @@ describe("local workbench", () => {
     expect(roomHtml).toContain("Claims");
     expect(roomHtml).toContain("Evaluations");
     expect(roomHtml).toContain("Repair lineage");
+    expect(roomHtml).toContain("Delivery");
+    expect(roomHtml).toContain("Unknown operations");
+    expect(roomHtml).toContain("Recovery");
     expect(roomHtml).toContain("/decisions/");
     expect(roomHtml).not.toContain(harness.workbench.databasePath);
 

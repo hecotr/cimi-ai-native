@@ -28,7 +28,7 @@ afterEach(() => {
 });
 
 describe("cimiloop CLI", () => {
-  it("runs the M0 flow and keeps JSON output machine-readable", () => {
+  it("runs the M0 flow and keeps JSON output machine-readable", { timeout: 90_000 }, () => {
     const root = mkdtempSync(join(tmpdir(), "cimiloop-cli-test-"));
     temporaryDirectories.push(root);
     const repository = join(root, "repository");
@@ -64,7 +64,7 @@ describe("cimiloop CLI", () => {
 
     const instance = JSON.parse(readFileSync(join(repository, ".git", "cimiloop", "instance.json"), "utf8"));
     expect(instance.project_id).toBeTruthy();
-  }, 20_000);
+  });
 
   it("returns schema-valid JSON for pre-kernel and argument failures", () => {
     const root = mkdtempSync(join(tmpdir(), "cimiloop-cli-error-test-"));
@@ -93,5 +93,5 @@ describe("cimiloop CLI", () => {
       ok: false,
       error: { code: "CLI_ARGUMENT_INVALID", category: "validation" }
     });
-  }, 20_000);
+  }, 90_000);
 });

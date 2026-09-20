@@ -36,6 +36,15 @@ export interface InboxFacts {
   changes: InboxChange[];
 }
 
+export interface DeliveryFocusFacts {
+  unknownOperations: number;
+  pendingOperations: number;
+  productionDrafted: boolean;
+  testReady: boolean;
+  recoveryRequiresHuman: boolean;
+  productionVerificationFailed: boolean;
+}
+
 export interface RoomFacts {
   change: Change;
   contract?: { domain_version: number; intent: string };
@@ -44,6 +53,7 @@ export interface RoomFacts {
   decisionIds: string[];
   feedbackIds: string[];
   timelineEventIds: string[];
+  delivery?: DeliveryFocusFacts;
 }
 
 const inboxSummary = (requestType: DecisionRequest["request_type"]): string => {
@@ -72,6 +82,26 @@ const eventSummary = (eventType: string): string => {
       return "提交 Contract Amendment";
     case "PlanAmendmentSubmitted":
       return "提交 Plan Amendment";
+    case "EnvironmentRegistered":
+      return "登记 Environment";
+    case "ReleaseCreated":
+      return "创建 Release";
+    case "ReleaseDecisionRequested":
+      return "请求 Production Release Decision";
+    case "ReleaseDecisionSubmitted":
+      return "提交 Production Release Decision";
+    case "DeploymentQueued":
+      return "排队 Deployment";
+    case "OperationResultRecorded":
+      return "记录外部操作结果";
+    case "ReconciliationRequested":
+      return "请求核对未知外部结果";
+    case "ReconciliationRecorded":
+      return "记录核对结论";
+    case "RecoveryAuthorized":
+      return "授权 Recovery";
+    case "RecoveryRecorded":
+      return "记录 Recovery 结果";
     default:
       return eventType;
   }
@@ -80,12 +110,33 @@ const eventSummary = (eventType: string): string => {
 export const changeFocus = (
   change: Change,
   openRequests: Array<{ request_type: DecisionRequest["request_type"] }>,
-  hasPlan: boolean
+  hasPlan: boolean,
+  delivery?: DeliveryFocusFacts
 ): { focus: string; next_action: string } => {
   const openIntent = openRequests.some((request) => request.request_type === "intent");
   const openPlan = openRequests.some((request) => request.request_type === "plan");
+  const openRelease = openRequests.some((request) => request.request_type === "release");
+  if (openRelease) return { focus: "Release Decision", next_action: "Project Owner 批准 Production Release" };
   if (openPlan) return { focus: "Plan Decision", next_action: "Technical Owner 批准 Plan" };
   if (openIntent) return { focus: "Intent Decision", next_action: "Intent Owner 批准 Contract" };
+  const hasDelivery = Boolean(
+    delivery &&
+      (delivery.unknownOperations > 0 ||
+        delivery.pendingOperations > 0 ||
+        delivery.productionDrafted ||
+        delivery.testReady ||
+        delivery.recoveryRequiresHuman ||
+        delivery.productionVerificationFailed)
+  );
+  if (change.lifecycle_state === "Executing" || hasDelivery) {
+    if (delivery?.unknownOperations) return { focus: "Reconciliation", next_action: "核对未知外部操作" };
+    if (delivery?.recoveryRequiresHuman) return { focus: "Recovery", next_action: "人工授权 Recovery" };
+    if (delivery?.productionVerificationFailed) return { focus: "Recovery", next_action: "执行预授权 Recovery" };
+    if (delivery?.productionDrafted) return { focus: "Release Decision", next_action: "请求 Production Release Decision" };
+    if (delivery?.pendingOperations) return { focus: "Deployment", next_action: "记录外部操作结果" };
+    if (delivery?.testReady) return { focus: "Test Delivery", next_action: "排队 Test Deployment" };
+    return { focus: "Delivery", next_action: "登记 Environment 并创建 Release" };
+  }
   if (change.lifecycle_state === "Planned") {
     return { focus: "Execution Plan", next_action: "等待后续执行授权" };
   }
@@ -121,7 +172,7 @@ export class ReadModelBuilder {
   }
 
   buildRoom(facts: RoomFacts): ChangeRoomView {
-    const focus = changeFocus(facts.change, facts.openRequests, Boolean(facts.plan));
+    const focus = changeFocus(facts.change, facts.openRequests, Boolean(facts.plan), facts.delivery);
     return {
       change_id: facts.change.id,
       display_key: facts.change.display_key,

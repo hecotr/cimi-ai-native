@@ -92,10 +92,11 @@ Agent 或脚本在命令中增加 `--json` 即可获得经过 Protocol Schema �
 
 ## 下一阶段
 
-M0–M3 已在 Node.js 24.15.0 + pnpm 12.4.2 基线上冻结。下一步进入 M4：Test、Production 与 Recovery。实施边界见 [M3 实施架构](docs/implementation/2026-09-20-cimiloop-m3实施架构-v0.1.md)。
+M0–M4 已在 Node.js 24.15.0 + pnpm 12.4.2 基线上冻结。下一步进入 M5：Product Closure、Portability 与 Release Hardening。实施边界见 [M4 实施架构](docs/implementation/2026-09-20-cimiloop-m4实施架构-v0.1.md)。
 
 ```text
 powershell -NoProfile -File scripts/demo-m1.ps1
 powershell -NoProfile -File scripts/demo-m2.ps1
 powershell -NoProfile -File scripts/demo-m3.ps1
+powershell -NoProfile -File scripts/demo-m4.ps1
 ```

@@ -12,6 +12,9 @@ import {
   parseClaimShowResult,
   parseEvidencePackageShowResult,
   parseEvidenceShowResult,
+  parseEnvironmentShowResult,
+  parseReleaseShowResult,
+  parseDeploymentShowResult,
   parseEvaluationShowResult,
   parseChangeListResult,
   parseChangeRoomResult,
@@ -1012,6 +1015,319 @@ export const showArtifact = (artifactId: string, options: GlobalOptions): void =
     if (isDomainError(artifact)) return outputError(artifact, Boolean(options.json));
     if (options.json) return outputJson({ ok: true, artifact }, parseArtifactShowResult);
     stdout.write(`${artifact.id} ${artifact.status} ${artifact.content_reference}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const registerEnvironment = (
+  idOrKey: string,
+  options: GlobalOptions & { key: string; kind: string; name: string; adapter: string; expectedRevision?: string }
+): void => {
+  const context = openProject(options);
+  try {
+    const change = context.kernel.getChange(idOrKey);
+    if (isDomainError(change)) return outputError(change, Boolean(options.json));
+    const result = mutate(
+      context,
+      change.id,
+      "RegisterEnvironment",
+      {
+        environment_key: options.key,
+        kind: options.kind,
+        display_name: options.name,
+        adapter_ref: options.adapter
+      },
+      options
+    );
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    if ("environment" in result.data) stdout.write(`Environment ${result.data.environment.environment_key}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const showEnvironment = (environmentId: string, options: GlobalOptions): void => {
+  const context = openProject(options);
+  try {
+    const shown = context.kernel.showEnvironment(environmentId as InternalId);
+    if (isDomainError(shown)) return outputError(shown, Boolean(options.json));
+    if (options.json) return outputJson(shown, parseEnvironmentShowResult);
+    stdout.write(`${shown.environment.environment_key}\t${shown.environment.kind}\t${shown.environment.status}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const createReleaseCli = (
+  idOrKey: string,
+  options: GlobalOptions & {
+    kind: string;
+    artifact: string;
+    digest: string;
+    environment: string;
+    scope: string;
+    windowStart: string;
+    windowEnd: string;
+    recoveryFile: string;
+    expectedRevision?: string;
+  }
+): void => {
+  const context = openProject(options);
+  try {
+    const change = context.kernel.getChange(idOrKey);
+    if (isDomainError(change)) return outputError(change, Boolean(options.json));
+    const recovery = JSON.parse(readFileSync(resolve(options.recoveryFile), "utf8")) as Record<string, unknown>;
+    const result = mutate(
+      context,
+      change.id,
+      "CreateRelease",
+      {
+        change_id: change.id,
+        kind: options.kind,
+        artifact_id: options.artifact,
+        artifact_digest: { algorithm: "sha256", value: options.digest, subject: "artifact" },
+        environment_id: options.environment,
+        scope: { in: options.scope.split(",").map((item) => item.trim()).filter(Boolean), out: [] },
+        window: { starts_at: options.windowStart, ends_at: options.windowEnd },
+        recovery
+      },
+      options
+    );
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    if ("release" in result.data) stdout.write(`Release ${result.data.release.id} ${result.data.release.status}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const showRelease = (releaseId: string, options: GlobalOptions): void => {
+  const context = openProject(options);
+  try {
+    const shown = context.kernel.showRelease(releaseId as InternalId);
+    if (isDomainError(shown)) return outputError(shown, Boolean(options.json));
+    if (options.json) return outputJson(shown, parseReleaseShowResult);
+    stdout.write(`${shown.release.kind}\t${shown.release.status}\t${shown.release.artifact_digest.value}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const requestReleaseDecisionCli = (
+  releaseId: string,
+  options: GlobalOptions & { expectedRevision?: string }
+): void => {
+  const context = openProject(options);
+  try {
+    const release = context.kernel.getRelease(releaseId as InternalId);
+    if (isDomainError(release)) return outputError(release, Boolean(options.json));
+    const result = mutate(context, release.change_id, "RequestReleaseDecision", { release_id: release.id }, options);
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    if ("request" in result.data) stdout.write(`Release Decision ${result.data.request.id}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const queueDeploymentCli = (
+  releaseId: string,
+  options: GlobalOptions & { environment: string; expectedRevision?: string }
+): void => {
+  const context = openProject(options);
+  try {
+    const release = context.kernel.getRelease(releaseId as InternalId);
+    if (isDomainError(release)) return outputError(release, Boolean(options.json));
+    const result = mutate(
+      context,
+      release.change_id,
+      "QueueDeployment",
+      { release_id: release.id, environment_id: options.environment },
+      options
+    );
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    if ("deployment" in result.data) stdout.write(`Deployment ${result.data.deployment.id} ${result.data.deployment.status}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const showDeployment = (deploymentId: string, options: GlobalOptions): void => {
+  const context = openProject(options);
+  try {
+    const shown = context.kernel.showDeployment(deploymentId as InternalId);
+    if (isDomainError(shown)) return outputError(shown, Boolean(options.json));
+    if (options.json) return outputJson(shown, parseDeploymentShowResult);
+    stdout.write(`${shown.deployment.id}\t${shown.deployment.status}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const recordOperationResultCli = (
+  operationId: string,
+  options: GlobalOptions & {
+    key: string;
+    state: string;
+    logReference: string;
+    logDigest: string;
+    summary: string;
+    actualDigest?: string;
+    health?: string;
+    corePath?: string;
+    expectedRevision?: string;
+  }
+): void => {
+  const context = openProject(options);
+  try {
+    const operation = context.store.transaction((transaction) => transaction.getExternalOperation(operationId as InternalId));
+    if (!operation) {
+      return outputError(
+        { code: "OPERATION_NOT_FOUND", message: "未找到指定 External Operation", category: "not_found", retryable: false, details: {}, correlation_id: createInternalId() },
+        Boolean(options.json)
+      );
+    }
+    const result = mutate(
+      context,
+      operation.change_id,
+      "RecordOperationResult",
+      {
+        operation_id: operation.id,
+        operation_key: options.key,
+        state: options.state,
+        log_reference: options.logReference,
+        log_digest: { algorithm: "sha256", value: options.logDigest, subject: "operation_log" },
+        summary: options.summary,
+        ...(options.actualDigest
+          ? { actual_digest: { algorithm: "sha256", value: options.actualDigest, subject: "artifact" } }
+          : {}),
+        ...(options.health ? { health: options.health } : {}),
+        ...(options.corePath ? { core_path: options.corePath } : {})
+      },
+      options
+    );
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    if ("operation" in result.data) stdout.write(`Operation ${result.data.operation.state}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const requestReconciliationCli = (
+  operationId: string,
+  options: GlobalOptions & { expectedRevision?: string }
+): void => {
+  const context = openProject(options);
+  try {
+    const operation = context.store.transaction((transaction) => transaction.getExternalOperation(operationId as InternalId));
+    if (!operation) {
+      return outputError(
+        { code: "OPERATION_NOT_FOUND", message: "未找到指定 External Operation", category: "not_found", retryable: false, details: {}, correlation_id: createInternalId() },
+        Boolean(options.json)
+      );
+    }
+    const result = mutate(context, operation.change_id, "RequestReconciliation", { operation_id: operation.id }, options);
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    stdout.write(`Reconciliation requested for ${operationId}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const recordReconciliationCli = (
+  operationId: string,
+  options: GlobalOptions & { conclusion: string; summary: string; expectedRevision?: string }
+): void => {
+  const context = openProject(options);
+  try {
+    const operation = context.store.transaction((transaction) => transaction.getExternalOperation(operationId as InternalId));
+    if (!operation) {
+      return outputError(
+        { code: "OPERATION_NOT_FOUND", message: "未找到指定 External Operation", category: "not_found", retryable: false, details: {}, correlation_id: createInternalId() },
+        Boolean(options.json)
+      );
+    }
+    const result = mutate(
+      context,
+      operation.change_id,
+      "RecordReconciliation",
+      { operation_id: operation.id, conclusion: options.conclusion, summary: options.summary },
+      options
+    );
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    if ("reconciliation" in result.data) stdout.write(`Reconciliation ${result.data.reconciliation.conclusion}\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const authorizeRecoveryCli = (
+  releaseId: string,
+  options: GlobalOptions & { strategy: string; sourceDeployment: string; expectedRevision?: string }
+): void => {
+  const context = openProject(options);
+  try {
+    const release = context.kernel.getRelease(releaseId as InternalId);
+    if (isDomainError(release)) return outputError(release, Boolean(options.json));
+    const result = mutate(
+      context,
+      release.change_id,
+      "AuthorizeRecovery",
+      {
+        release_id: release.id,
+        strategy_id: options.strategy,
+        source_deployment_id: options.sourceDeployment
+      },
+      options
+    );
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    if ("recovery_execution" in result.data) {
+      stdout.write(`Recovery ${result.data.recovery_execution.id} ${result.data.recovery_execution.status}\n`);
+    }
+  } finally {
+    context.store.close();
+  }
+};
+
+export const recordRecoveryCli = (
+  executionId: string,
+  options: GlobalOptions & { status: string; expectedRevision?: string }
+): void => {
+  const context = openProject(options);
+  try {
+    const execution = context.store.transaction((transaction) => transaction.getRecoveryExecution(executionId as InternalId));
+    if (!execution) {
+      return outputError(
+        {
+          code: "RECOVERY_EXECUTION_NOT_FOUND",
+          message: "未找到指定 Recovery Execution",
+          category: "not_found",
+          retryable: false,
+          details: {},
+          correlation_id: createInternalId()
+        },
+        Boolean(options.json)
+      );
+    }
+    const result = mutate(
+      context,
+      execution.change_id,
+      "RecordRecovery",
+      { execution_id: execution.id, status: options.status },
+      options
+    );
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    if ("recovery_execution" in result.data) {
+      stdout.write(`Recovery ${result.data.recovery_execution.status}\n`);
+    }
   } finally {
     context.store.close();
   }

@@ -8,6 +8,9 @@ import {
   parseDecisionInboxResult,
   parseGetDecisionRequestResult,
   parseEvidencePackageShowResult,
+  parseEnvironmentShowResult,
+  parseReleaseShowResult,
+  parseDeploymentShowResult,
   parseTimelineResult,
   type Actor,
   type AnyCommand,
@@ -82,7 +85,13 @@ import {
   type Lease,
   type PolicySnapshot,
   type ResourceLock,
-  type SourceSnapshot
+  type SourceSnapshot,
+  type Deployment,
+  type DeploymentAttempt,
+  type Environment,
+  type ExternalOperation,
+  type RecoveryExecution,
+  type Release
 } from "@cimiloop/protocol";
 import {
   StoreConflictError,
@@ -351,6 +360,10 @@ export class CimiLoopKernel {
           transaction.listFeedback(decision.id).map((feedback) => feedback.id)
         );
         const timeline = new ReadModelBuilder().buildTimeline(this.#store.listEvents(), change.id);
+        const releases = transaction.listReleasesByChange(change.id);
+        const operations = transaction.listExternalOperationsByChange(change.id);
+        const recoveries = releases.flatMap((release) => transaction.listRecoveryExecutionsByRelease(release.id));
+        const blockers = transaction.listOpenBlockers(change.id);
         const room = new ReadModelBuilder().buildRoom({
           change,
           ...(contract ? { contract: { domain_version: contract.domain_version, intent: contract.intent } } : {}),
@@ -358,7 +371,15 @@ export class CimiLoopKernel {
           openRequests: openRequests.map((request) => ({ id: request.id, request_type: request.request_type })),
           decisionIds: decisions.map((decision) => decision.id),
           feedbackIds,
-          timelineEventIds: timeline.events.map((event) => event.event_id)
+          timelineEventIds: timeline.events.map((event) => event.event_id),
+          delivery: {
+            unknownOperations: operations.filter((item) => item.state === "unknown").length,
+            pendingOperations: operations.filter((item) => item.state === "pending").length,
+            productionDrafted: releases.some((item) => item.kind === "production" && item.status === "drafted"),
+            testReady: releases.some((item) => item.kind === "test" && (item.status === "authorized" || item.status === "verified")),
+            recoveryRequiresHuman: recoveries.some((item) => item.status === "require_human"),
+            productionVerificationFailed: blockers.some((item) => item.code === "PRODUCTION_VERIFICATION_FAILED")
+          }
         });
         return parseChangeRoomResult({ ok: true, room });
       });
@@ -508,6 +529,110 @@ export class CimiLoopKernel {
 
   listImpactAssessmentsBySubject(subjectId: InternalId): ImpactAssessment[] {
     return this.#store.transaction((transaction) => transaction.listImpactAssessmentsBySubject(subjectId));
+  }
+
+  getEnvironment(id: InternalId): Environment | DomainError {
+    const environment = this.#store.transaction((transaction) => transaction.getEnvironment(id));
+    return environment ?? domainError(this.#id(), "ENVIRONMENT_NOT_FOUND", "未找到指定 Environment", "not_found", false, { id });
+  }
+
+  listEnvironments(projectId: InternalId): Environment[] {
+    return this.#store.transaction((transaction) => transaction.listEnvironments(projectId));
+  }
+
+  getRelease(id: InternalId): Release | DomainError {
+    const release = this.#store.transaction((transaction) => transaction.getRelease(id));
+    return release ?? domainError(this.#id(), "RELEASE_NOT_FOUND", "未找到指定 Release", "not_found", false, { id });
+  }
+
+  listReleasesByChange(changeId: InternalId): Release[] {
+    return this.#store.transaction((transaction) => transaction.listReleasesByChange(changeId));
+  }
+
+  getDeployment(id: InternalId): Deployment | DomainError {
+    const deployment = this.#store.transaction((transaction) => transaction.getDeployment(id));
+    return (
+      deployment ?? domainError(this.#id(), "DEPLOYMENT_NOT_FOUND", "未找到指定 Deployment", "not_found", false, { id })
+    );
+  }
+
+  listDeploymentsByRelease(releaseId: InternalId): Deployment[] {
+    return this.#store.transaction((transaction) => transaction.listDeploymentsByRelease(releaseId));
+  }
+
+  listDeploymentAttempts(deploymentId: InternalId): DeploymentAttempt[] {
+    return this.#store.transaction((transaction) => transaction.listDeploymentAttempts(deploymentId));
+  }
+
+  listExternalOperationsByChange(changeId: InternalId): ExternalOperation[] {
+    return this.#store.transaction((transaction) => transaction.listExternalOperationsByChange(changeId));
+  }
+
+  listUnknownExternalOperations(): ExternalOperation[] {
+    return this.#store.transaction((transaction) => transaction.listUnknownExternalOperations());
+  }
+
+  listRecoveryExecutionsByRelease(releaseId: InternalId): RecoveryExecution[] {
+    return this.#store.transaction((transaction) => transaction.listRecoveryExecutionsByRelease(releaseId));
+  }
+
+  showEnvironment(id: InternalId) {
+    const environment = this.getEnvironment(id);
+    if ("code" in environment) return environment;
+    try {
+      return parseEnvironmentShowResult({ ok: true, environment });
+    } catch (error) {
+      return domainError(
+        this.#id(),
+        "PROTOCOL_VALIDATION_FAILED",
+        error instanceof Error ? error.message : "Environment 不符合协议",
+        "validation"
+      );
+    }
+  }
+
+  showRelease(id: InternalId) {
+    const release = this.getRelease(id);
+    if ("code" in release) return release;
+    const packageId = release.package_id;
+    const pack = packageId
+      ? this.#store.transaction((transaction) => transaction.getReleasePackage(packageId))
+      : undefined;
+    try {
+      return parseReleaseShowResult({ ok: true, release, ...(pack ? { package: pack } : {}) });
+    } catch (error) {
+      return domainError(
+        this.#id(),
+        "PROTOCOL_VALIDATION_FAILED",
+        error instanceof Error ? error.message : "Release 不符合协议",
+        "validation"
+      );
+    }
+  }
+
+  showDeployment(id: InternalId) {
+    const deployment = this.getDeployment(id);
+    if ("code" in deployment) return deployment;
+    const attempts = this.listDeploymentAttempts(id);
+    const operationId = deployment.current_operation_id;
+    const operation = operationId
+      ? this.#store.transaction((transaction) => transaction.getExternalOperation(operationId))
+      : undefined;
+    try {
+      return parseDeploymentShowResult({
+        ok: true,
+        deployment,
+        attempts,
+        ...(operation ? { operation } : {})
+      });
+    } catch (error) {
+      return domainError(
+        this.#id(),
+        "PROTOCOL_VALIDATION_FAILED",
+        error instanceof Error ? error.message : "Deployment 不符合协议",
+        "validation"
+      );
+    }
   }
 
   getEvidencePackage(changeId: InternalId): EvidencePackageShowResult | DomainError {
