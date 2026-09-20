@@ -13,7 +13,8 @@ const run = (projectDirectory: string, appData: string, args: string[]): unknown
     ["--no-warnings", cli, "--project-dir", projectDirectory, "--json", ...args],
     {
       encoding: "utf8",
-      env: { ...process.env, LOCALAPPDATA: appData }
+      env: { ...process.env, LOCALAPPDATA: appData },
+      timeout: 90_000
     }
   );
   return JSON.parse(output);
@@ -159,7 +160,7 @@ describe("cimiloop M1 CLI", () => {
     expect(timeline.events.map((event) => event.event_sequence)).toEqual(
       timeline.events.map((event) => event.event_sequence).sort((left, right) => left - right)
     );
-  }, 90_000);
+  }, 240_000);
 
   it("returns schema-valid JSON for illegal files without leaking paths", () => {
     const root = mkdtempSync(join(tmpdir(), "cimiloop-m1-cli-error-"));

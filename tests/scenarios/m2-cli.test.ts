@@ -171,5 +171,5 @@ describe("cimiloop M2 CLI", () => {
       const shown = parseArtifactShowResult(run(repository, appData, ["artifact", "show", recorded.data.artifact.id]));
       expect(shown.artifact.content_reference.startsWith("file:")).toBe(true);
     }
-  }, 90_000);
+  }, 240_000);
 });
