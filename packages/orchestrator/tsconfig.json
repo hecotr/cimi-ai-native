@@ -11,6 +11,8 @@
     { "path": "../kernel" },
     { "path": "../context" },
     { "path": "../evaluator" },
-    { "path": "../runtime" }
+    { "path": "../runtime" },
+    { "path": "../devops" },
+    { "path": "../store" }
   ]
 }

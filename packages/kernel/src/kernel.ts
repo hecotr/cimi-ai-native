@@ -63,6 +63,8 @@ import {
   type CreateReleaseCommand,
   type QueueDeploymentCommand,
   type RecordOperationResultCommand,
+  type RequestReconciliationCommand,
+  type RecordReconciliationCommand,
   type RequestReleaseDecisionCommand,
   type DecisionRequest,
   type Claim,
@@ -134,6 +136,11 @@ import {
   nextDeliveryOperationKind,
   productionNeedsRecovery
 } from "./delivery/production.js";
+import {
+  conclusionToOperationState,
+  redeployBlockedReason,
+  reconciliationResolvesBlocker
+} from "./delivery/reconciliation.js";
 import { latestEvaluationAllowsArtifact, releaseDigestMatches } from "./delivery/test-gate.js";
 import {
   authorizationDigest,
@@ -622,7 +629,9 @@ export class CimiLoopKernel {
       case "RequestReleaseDecision":
         return this.#requestReleaseDecision(transaction, command);
       case "RequestReconciliation":
+        return this.#requestReconciliation(transaction, command);
       case "RecordReconciliation":
+        return this.#recordReconciliation(transaction, command);
       case "AuthorizeRecovery":
       case "RecordRecovery":
         return domainError(
@@ -3130,6 +3139,19 @@ export class CimiLoopKernel {
     if (release.status !== "authorized" && release.status !== "queued" && release.status !== "deploying") {
       return domainError(command.correlation_id, "RELEASE_NOT_AUTHORIZED", "只有已授权 Release 可以排队部署", "conflict");
     }
+    const blocked = redeployBlockedReason(
+      transaction.listExternalOperationsByChange(loaded.change.id).filter((item) => item.release_id === release.id)
+    );
+    if (blocked) {
+      return domainError(
+        command.correlation_id,
+        blocked,
+        blocked === "EXTERNAL_OPERATION_UNKNOWN"
+          ? "存在未知外部结果，必须先 Reconciliation，禁止再次部署"
+          : "已核对的外部操作不可盲目重试部署",
+        "conflict"
+      );
+    }
     if (
       release.kind === "production" &&
       !canPromoteProductionDigest(transaction.listReleasesByChange(loaded.change.id), release.artifact_digest)
@@ -3281,7 +3303,31 @@ export class CimiLoopKernel {
       revision: operation.revision + 1
     };
     transaction.updateExternalOperation(nextOperation, operation.revision);
-    if (operation.operation_kind === "deploy" && command.payload.state === "succeeded") {
+    if (command.payload.state === "unknown") {
+      transaction.updateDeployment(
+        { ...deployment, status: "unknown", updated_at: now, revision: deployment.revision + 1 },
+        deployment.revision
+      );
+      if (
+        !transaction
+          .listOpenBlockers(loaded.change.id)
+          .some((item) => item.code === "EXTERNAL_OPERATION_UNKNOWN")
+      ) {
+        transaction.insertBlocker({
+          schema_version: SCHEMA_VERSION,
+          id: this.#id(),
+          project_id: loaded.project.id,
+          change_id: loaded.change.id,
+          code: "EXTERNAL_OPERATION_UNKNOWN",
+          summary: command.payload.summary,
+          status: "open",
+          resolution_condition: "reconcile the operation key before any further deploy",
+          created_at: now,
+          updated_at: now,
+          revision: 1
+        });
+      }
+    } else if (operation.operation_kind === "deploy" && command.payload.state === "succeeded") {
       if (!releaseDigestMatches(release, command.payload.actual_digest)) {
         const related = transaction
           .listEvidenceByChange(loaded.change.id)
@@ -3473,6 +3519,119 @@ export class CimiLoopKernel {
       [event],
       { operation: nextOperation }
     );
+  }
+
+  #requestReconciliation(transaction: StoreTransaction, command: RequestReconciliationCommand): KernelResult {
+    const operation = transaction.getExternalOperation(command.payload.operation_id);
+    if (!operation) {
+      return domainError(command.correlation_id, "OPERATION_NOT_FOUND", "未找到指定 External Operation", "not_found");
+    }
+    const loaded = this.#requireChangeForMutation(transaction, command, operation.change_id);
+    if ("code" in loaded) return loaded;
+    if (operation.state === "succeeded" || operation.state === "failed" || operation.state === "not_found") {
+      return domainError(
+        command.correlation_id,
+        "RECONCILIATION_NOT_REQUIRED",
+        "已确定的外部结果不需要再发起 Reconciliation",
+        "conflict"
+      );
+    }
+    const now = this.#now();
+    let current = operation;
+    if (operation.state === "pending") {
+      current = { ...operation, state: "unknown", updated_at: now, revision: operation.revision + 1 };
+      transaction.updateExternalOperation(current, operation.revision);
+    }
+    if (!transaction.listOpenBlockers(loaded.change.id).some((item) => item.code === "EXTERNAL_OPERATION_UNKNOWN")) {
+      transaction.insertBlocker({
+        schema_version: SCHEMA_VERSION,
+        id: this.#id(),
+        project_id: loaded.project.id,
+        change_id: loaded.change.id,
+        code: "EXTERNAL_OPERATION_UNKNOWN",
+        summary: "external operation result is unknown",
+        status: "open",
+        resolution_condition: "reconcile the operation key before any further deploy",
+        created_at: now,
+        updated_at: now,
+        revision: 1
+      });
+    }
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "ReconciliationRequested",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "external_operation", id: current.id, domain_version: 1 },
+      aggregate_revision: current.revision,
+      actor_id: loaded.actorId,
+      command,
+      payload: { operation_id: current.id, operation_key: current.operation_key },
+      occurred_at: now
+    });
+    return this.#success(command, event.aggregate, nextChange.revision, [event], { operation: current });
+  }
+
+  #recordReconciliation(transaction: StoreTransaction, command: RecordReconciliationCommand): KernelResult {
+    const operation = transaction.getExternalOperation(command.payload.operation_id);
+    if (!operation) {
+      return domainError(command.correlation_id, "OPERATION_NOT_FOUND", "未找到指定 External Operation", "not_found");
+    }
+    const loaded = this.#requireChangeForMutation(transaction, command, operation.change_id);
+    if ("code" in loaded) return loaded;
+    const deployment = transaction.getDeployment(operation.deployment_id);
+    const now = this.#now();
+    const nextState = conclusionToOperationState(command.payload.conclusion);
+    const reconciliation = {
+      schema_version: SCHEMA_VERSION,
+      id: this.#id(),
+      project_id: loaded.project.id,
+      change_id: loaded.change.id,
+      operation_id: operation.id,
+      conclusion: command.payload.conclusion,
+      summary: command.payload.summary,
+      created_at: now,
+      ...(command.payload.observed_digest ? { observed_digest: command.payload.observed_digest } : {}),
+      ...(command.payload.observed_state ? { observed_state: command.payload.observed_state } : {})
+    };
+    transaction.insertReconciliation(reconciliation);
+    const nextOperation = {
+      ...operation,
+      state: nextState,
+      summary: command.payload.summary,
+      updated_at: now,
+      revision: operation.revision + 1
+    };
+    transaction.updateExternalOperation(nextOperation, operation.revision);
+    if (deployment) {
+      const deploymentStatus =
+        nextState === "succeeded" ? "succeeded" : nextState === "unknown" ? "unknown" : "failed";
+      transaction.updateDeployment(
+        { ...deployment, status: deploymentStatus, updated_at: now, revision: deployment.revision + 1 },
+        deployment.revision
+      );
+    }
+    if (reconciliationResolvesBlocker(command.payload.conclusion)) {
+      for (const blocker of transaction.listOpenBlockers(loaded.change.id)) {
+        if (blocker.code === "EXTERNAL_OPERATION_UNKNOWN") {
+          transaction.updateBlocker(
+            { ...blocker, status: "resolved", updated_at: now, revision: blocker.revision + 1 },
+            blocker.revision
+          );
+        }
+      }
+    }
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "ReconciliationRecorded",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "reconciliation", id: reconciliation.id, domain_version: 1 },
+      aggregate_revision: 1,
+      actor_id: loaded.actorId,
+      command,
+      payload: { operation_id: operation.id, conclusion: command.payload.conclusion },
+      occurred_at: now
+    });
+    return this.#success(command, event.aggregate, nextChange.revision, [event], { reconciliation });
   }
 
   #createRepairWorkItem(transaction: StoreTransaction, command: CreateRepairWorkItemCommand): KernelResult {

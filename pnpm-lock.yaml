@@ -256,6 +256,9 @@ importers:
       '@cimiloop/context':
         specifier: workspace:*
         version: link:../context
+      '@cimiloop/devops':
+        specifier: workspace:*
+        version: link:../devops
       '@cimiloop/evaluator':
         specifier: workspace:*
         version: link:../evaluator
@@ -268,6 +271,9 @@ importers:
       '@cimiloop/runtime':
         specifier: workspace:*
         version: link:../runtime
+      '@cimiloop/store':
+        specifier: workspace:*
+        version: link:../store
 
   packages/protocol:
     dependencies:
