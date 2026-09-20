@@ -39,6 +39,18 @@ import {
   RequestReconciliationCommandSchema,
   RequestReleaseDecisionCommandSchema
 } from "../m4/commands.js";
+import {
+  ArchiveChangeCommandSchema,
+  CancelChangeCommandSchema,
+  CloseChangeCommandSchema,
+  CommitImportCommandSchema,
+  CreateLearningCandidateCommandSchema,
+  ExportProjectCommandSchema,
+  ProposeCloseCommandSchema,
+  RecordKnowledgeUpdateCommandSchema,
+  StageImportCommandSchema,
+  SupersedeChangeCommandSchema
+} from "../m5/commands.js";
 
 export const CreatePlanningWorkItemCommandSchema = mutatingCommandSchema(
   "CreatePlanningWorkItem",
@@ -186,7 +198,17 @@ export const AnyCommandSchema = Type.Union([
   RequestReconciliationCommandSchema,
   RecordReconciliationCommandSchema,
   AuthorizeRecoveryCommandSchema,
-  RecordRecoveryCommandSchema
+  RecordRecoveryCommandSchema,
+  RecordKnowledgeUpdateCommandSchema,
+  ProposeCloseCommandSchema,
+  CloseChangeCommandSchema,
+  CancelChangeCommandSchema,
+  SupersedeChangeCommandSchema,
+  ArchiveChangeCommandSchema,
+  CreateLearningCandidateCommandSchema,
+  ExportProjectCommandSchema,
+  StageImportCommandSchema,
+  CommitImportCommandSchema
 ]);
 
 export const m2CommandSchemas = {

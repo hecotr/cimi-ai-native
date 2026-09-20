@@ -13,6 +13,7 @@ import {
 import { M2CommandSuccessDataSchema } from "../m2/results.js";
 import { M3CommandSuccessDataSchema } from "../m3/results.js";
 import { M4CommandSuccessDataSchema } from "../m4/results.js";
+import { M5CommandSuccessDataSchema } from "../m5/results.js";
 import {
   ChangeRoomViewSchema,
   ContractCandidateSchema,
@@ -74,7 +75,8 @@ export const CommandSuccessDataSchema = Type.Union([
   ),
   M2CommandSuccessDataSchema,
   M3CommandSuccessDataSchema,
-  M4CommandSuccessDataSchema
+  M4CommandSuccessDataSchema,
+  M5CommandSuccessDataSchema
 ]);
 
 export const CommandSuccessSchema = Type.Object(

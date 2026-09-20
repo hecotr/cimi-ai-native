@@ -260,6 +260,46 @@
             {
               "type": "string",
               "const": "external_operation"
+            },
+            {
+              "type": "string",
+              "const": "learning_candidate"
+            },
+            {
+              "type": "string",
+              "const": "knowledge_update_evidence"
+            },
+            {
+              "type": "string",
+              "const": "closure_evaluation"
+            },
+            {
+              "type": "string",
+              "const": "export_manifest"
+            },
+            {
+              "type": "string",
+              "const": "import_report"
+            },
+            {
+              "type": "string",
+              "const": "portable_object_entry"
+            },
+            {
+              "type": "string",
+              "const": "attention_item"
+            },
+            {
+              "type": "string",
+              "const": "archive_record"
+            },
+            {
+              "type": "string",
+              "const": "cancellation_record"
+            },
+            {
+              "type": "string",
+              "const": "supersession_record"
             }
           ]
         },
@@ -549,6 +589,46 @@
                   {
                     "type": "string",
                     "const": "external_operation"
+                  },
+                  {
+                    "type": "string",
+                    "const": "learning_candidate"
+                  },
+                  {
+                    "type": "string",
+                    "const": "knowledge_update_evidence"
+                  },
+                  {
+                    "type": "string",
+                    "const": "closure_evaluation"
+                  },
+                  {
+                    "type": "string",
+                    "const": "export_manifest"
+                  },
+                  {
+                    "type": "string",
+                    "const": "import_report"
+                  },
+                  {
+                    "type": "string",
+                    "const": "portable_object_entry"
+                  },
+                  {
+                    "type": "string",
+                    "const": "attention_item"
+                  },
+                  {
+                    "type": "string",
+                    "const": "archive_record"
+                  },
+                  {
+                    "type": "string",
+                    "const": "cancellation_record"
+                  },
+                  {
+                    "type": "string",
+                    "const": "supersession_record"
                   }
                 ]
               },
@@ -7616,6 +7696,1484 @@
                       "type": "object",
                       "patternProperties": {
                         "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "knowledge_update"
+              ],
+              "properties": {
+                "knowledge_update": {
+                  "type": "object",
+                  "required": [
+                    "schema_version",
+                    "created_at",
+                    "id",
+                    "project_id",
+                    "change_id",
+                    "task_id",
+                    "knowledge_source",
+                    "conclusion",
+                    "external_reference_id",
+                    "evidence_id",
+                    "digest"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "type": "string",
+                      "const": "1.0.0"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "project_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "change_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "task_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "knowledge_source": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "product_business"
+                        },
+                        {
+                          "type": "string",
+                          "const": "technical"
+                        },
+                        {
+                          "type": "string",
+                          "const": "operations"
+                        },
+                        {
+                          "type": "string",
+                          "const": "communication"
+                        }
+                      ]
+                    },
+                    "conclusion": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "Create"
+                        },
+                        {
+                          "type": "string",
+                          "const": "Update"
+                        },
+                        {
+                          "type": "string",
+                          "const": "Deprecate"
+                        },
+                        {
+                          "type": "string",
+                          "const": "Verify"
+                        },
+                        {
+                          "type": "string",
+                          "const": "NoImpact"
+                        }
+                      ]
+                    },
+                    "external_reference_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "evidence_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "exception_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "digest": {
+                      "type": "object",
+                      "required": [
+                        "algorithm",
+                        "value",
+                        "subject"
+                      ],
+                      "properties": {
+                        "algorithm": {
+                          "type": "string",
+                          "const": "sha256"
+                        },
+                        "value": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{64}$"
+                        },
+                        "subject": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "extensions": {
+                      "type": "object",
+                      "patternProperties": {
+                        "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "closure_evaluation"
+              ],
+              "properties": {
+                "closure_evaluation": {
+                  "type": "object",
+                  "required": [
+                    "schema_version",
+                    "created_at",
+                    "id",
+                    "project_id",
+                    "change_id",
+                    "disposition",
+                    "result",
+                    "knowledge_complete",
+                    "residual_risk",
+                    "known_issues",
+                    "gaps",
+                    "digest"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "type": "string",
+                      "const": "1.0.0"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "project_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "change_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "disposition": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "closed"
+                        },
+                        {
+                          "type": "string",
+                          "const": "cancelled"
+                        },
+                        {
+                          "type": "string",
+                          "const": "superseded"
+                        },
+                        {
+                          "type": "string",
+                          "const": "archived"
+                        }
+                      ]
+                    },
+                    "result": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "ALLOW"
+                        },
+                        {
+                          "type": "string",
+                          "const": "NEED_MORE_EVIDENCE"
+                        },
+                        {
+                          "type": "string",
+                          "const": "REQUIRE_HUMAN"
+                        },
+                        {
+                          "type": "string",
+                          "const": "DENY"
+                        }
+                      ]
+                    },
+                    "knowledge_complete": {
+                      "type": "boolean"
+                    },
+                    "residual_risk": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2000
+                    },
+                    "known_issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500
+                      }
+                    },
+                    "gaps": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "obligation_key",
+                          "summary",
+                          "blocking"
+                        ],
+                        "properties": {
+                          "obligation_key": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "summary": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 1000
+                          },
+                          "blocking": {
+                            "type": "boolean"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "digest": {
+                      "type": "object",
+                      "required": [
+                        "algorithm",
+                        "value",
+                        "subject"
+                      ],
+                      "properties": {
+                        "algorithm": {
+                          "type": "string",
+                          "const": "sha256"
+                        },
+                        "value": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{64}$"
+                        },
+                        "subject": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "extensions": {
+                      "type": "object",
+                      "patternProperties": {
+                        "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "learning_candidate"
+              ],
+              "properties": {
+                "learning_candidate": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "schema_version",
+                        "created_at",
+                        "id",
+                        "project_id",
+                        "change_id",
+                        "source_kind",
+                        "source_id",
+                        "summary",
+                        "digest",
+                        "status",
+                        "promoted"
+                      ],
+                      "properties": {
+                        "schema_version": {
+                          "type": "string",
+                          "const": "1.0.0"
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                        },
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "project_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "change_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "source_kind": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "failure"
+                            },
+                            {
+                              "type": "string",
+                              "const": "exception"
+                            },
+                            {
+                              "type": "string",
+                              "const": "decision"
+                            },
+                            {
+                              "type": "string",
+                              "const": "recovery"
+                            }
+                          ]
+                        },
+                        "source_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "summary": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 2000
+                        },
+                        "digest": {
+                          "type": "object",
+                          "required": [
+                            "algorithm",
+                            "value",
+                            "subject"
+                          ],
+                          "properties": {
+                            "algorithm": {
+                              "type": "string",
+                              "const": "sha256"
+                            },
+                            "value": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$"
+                            },
+                            "subject": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "extensions": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+                          },
+                          "additionalProperties": false
+                        },
+                        "status": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "proposed"
+                            },
+                            {
+                              "type": "string",
+                              "const": "rejected"
+                            },
+                            {
+                              "type": "string",
+                              "const": "deferred"
+                            }
+                          ]
+                        },
+                        "promoted": {
+                          "type": "boolean",
+                          "const": false
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "schema_version",
+                        "created_at",
+                        "id",
+                        "project_id",
+                        "change_id",
+                        "source_kind",
+                        "source_id",
+                        "summary",
+                        "digest",
+                        "status",
+                        "promoted",
+                        "decision_id"
+                      ],
+                      "properties": {
+                        "schema_version": {
+                          "type": "string",
+                          "const": "1.0.0"
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                        },
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "project_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "change_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "source_kind": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "failure"
+                            },
+                            {
+                              "type": "string",
+                              "const": "exception"
+                            },
+                            {
+                              "type": "string",
+                              "const": "decision"
+                            },
+                            {
+                              "type": "string",
+                              "const": "recovery"
+                            }
+                          ]
+                        },
+                        "source_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "summary": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 2000
+                        },
+                        "digest": {
+                          "type": "object",
+                          "required": [
+                            "algorithm",
+                            "value",
+                            "subject"
+                          ],
+                          "properties": {
+                            "algorithm": {
+                              "type": "string",
+                              "const": "sha256"
+                            },
+                            "value": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$"
+                            },
+                            "subject": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "extensions": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+                          },
+                          "additionalProperties": false
+                        },
+                        "status": {
+                          "type": "string",
+                          "const": "accepted"
+                        },
+                        "promoted": {
+                          "type": "boolean"
+                        },
+                        "decision_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "archive_record"
+              ],
+              "properties": {
+                "archive_record": {
+                  "type": "object",
+                  "required": [
+                    "schema_version",
+                    "created_at",
+                    "id",
+                    "project_id",
+                    "change_id",
+                    "disposition",
+                    "reason"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "type": "string",
+                      "const": "1.0.0"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "project_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "change_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "disposition": {
+                      "type": "string",
+                      "const": "archived"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2000
+                    },
+                    "extensions": {
+                      "type": "object",
+                      "patternProperties": {
+                        "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "cancellation_record"
+              ],
+              "properties": {
+                "cancellation_record": {
+                  "type": "object",
+                  "required": [
+                    "schema_version",
+                    "created_at",
+                    "id",
+                    "project_id",
+                    "change_id",
+                    "disposition",
+                    "reason",
+                    "cleanup_summary",
+                    "residual_responsibility"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "type": "string",
+                      "const": "1.0.0"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "project_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "change_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "disposition": {
+                      "type": "string",
+                      "const": "cancelled"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2000
+                    },
+                    "cleanup_summary": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2000
+                    },
+                    "residual_responsibility": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2000
+                    },
+                    "extensions": {
+                      "type": "object",
+                      "patternProperties": {
+                        "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "supersession_record"
+              ],
+              "properties": {
+                "supersession_record": {
+                  "type": "object",
+                  "required": [
+                    "schema_version",
+                    "created_at",
+                    "id",
+                    "project_id",
+                    "change_id",
+                    "successor_change_id",
+                    "disposition",
+                    "reason"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "type": "string",
+                      "const": "1.0.0"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "project_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "change_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "successor_change_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "disposition": {
+                      "type": "string",
+                      "const": "superseded"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2000
+                    },
+                    "extensions": {
+                      "type": "object",
+                      "patternProperties": {
+                        "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "attention_item"
+              ],
+              "properties": {
+                "attention_item": {
+                  "type": "object",
+                  "required": [
+                    "schema_version",
+                    "created_at",
+                    "updated_at",
+                    "revision",
+                    "id",
+                    "project_id",
+                    "kind",
+                    "subject_id",
+                    "summary",
+                    "status"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "type": "string",
+                      "const": "1.0.0"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "project_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "change_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "kind": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "blocker"
+                        },
+                        {
+                          "type": "string",
+                          "const": "failure"
+                        },
+                        {
+                          "type": "string",
+                          "const": "stale_evidence"
+                        },
+                        {
+                          "type": "string",
+                          "const": "decision"
+                        },
+                        {
+                          "type": "string",
+                          "const": "unknown_deployment"
+                        },
+                        {
+                          "type": "string",
+                          "const": "knowledge_gap"
+                        }
+                      ]
+                    },
+                    "subject_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "summary": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1000
+                    },
+                    "status": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "open"
+                        },
+                        {
+                          "type": "string",
+                          "const": "acknowledged"
+                        },
+                        {
+                          "type": "string",
+                          "const": "resolved"
+                        }
+                      ]
+                    },
+                    "extensions": {
+                      "type": "object",
+                      "patternProperties": {
+                        "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "export_manifest"
+              ],
+              "properties": {
+                "export_manifest": {
+                  "type": "object",
+                  "required": [
+                    "portable_schema_version",
+                    "id",
+                    "project_id",
+                    "exported_at",
+                    "exporter_actor_id",
+                    "source_instance_id",
+                    "ids",
+                    "entries",
+                    "event_sequence_start",
+                    "event_sequence_end",
+                    "latest_revision",
+                    "ownership_state",
+                    "excluded",
+                    "content_digest",
+                    "manifest_digest"
+                  ],
+                  "properties": {
+                    "portable_schema_version": {
+                      "type": "string",
+                      "const": "portable-1.0.0"
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "project_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "exported_at": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                    },
+                    "exporter_actor_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "source_instance_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                      },
+                      "uniqueItems": true
+                    },
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "object_type",
+                          "schema_version",
+                          "id",
+                          "digest",
+                          "payload_reference"
+                        ],
+                        "properties": {
+                          "object_type": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "schema_version": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 32
+                          },
+                          "id": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                          },
+                          "domain_version": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "digest": {
+                            "type": "object",
+                            "required": [
+                              "algorithm",
+                              "value",
+                              "subject"
+                            ],
+                            "properties": {
+                              "algorithm": {
+                                "type": "string",
+                                "const": "sha256"
+                              },
+                              "value": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{64}$"
+                              },
+                              "subject": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "payload_reference": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "event_sequence_start": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "event_sequence_end": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "latest_revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "ownership_state": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "dormant"
+                        },
+                        {
+                          "type": "string",
+                          "const": "active"
+                        }
+                      ]
+                    },
+                    "excluded": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "kind",
+                          "reason"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "reason": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "content_digest": {
+                      "type": "object",
+                      "required": [
+                        "algorithm",
+                        "value",
+                        "subject"
+                      ],
+                      "properties": {
+                        "algorithm": {
+                          "type": "string",
+                          "const": "sha256"
+                        },
+                        "value": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{64}$"
+                        },
+                        "subject": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "manifest_digest": {
+                      "type": "object",
+                      "required": [
+                        "algorithm",
+                        "value",
+                        "subject"
+                      ],
+                      "properties": {
+                        "algorithm": {
+                          "type": "string",
+                          "const": "sha256"
+                        },
+                        "value": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{64}$"
+                        },
+                        "subject": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "import_report"
+              ],
+              "properties": {
+                "import_report": {
+                  "type": "object",
+                  "required": [
+                    "portable_schema_version",
+                    "id",
+                    "project_id",
+                    "staged_at",
+                    "status",
+                    "runtime_ownership",
+                    "conflicts",
+                    "duplicate_ids",
+                    "digest_mismatches",
+                    "summary"
+                  ],
+                  "properties": {
+                    "portable_schema_version": {
+                      "type": "string",
+                      "const": "portable-1.0.0"
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "project_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "staged_at": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                    },
+                    "status": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "staged"
+                        },
+                        {
+                          "type": "string",
+                          "const": "accepted"
+                        },
+                        {
+                          "type": "string",
+                          "const": "rejected"
+                        }
+                      ]
+                    },
+                    "runtime_ownership": {
+                      "type": "string",
+                      "const": "dormant"
+                    },
+                    "conflicts": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500
+                      }
+                    },
+                    "duplicate_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                      }
+                    },
+                    "digest_mismatches": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      }
+                    },
+                    "summary": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2000
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "import_report"
+              ],
+              "properties": {
+                "import_report": {
+                  "type": "object",
+                  "required": [
+                    "portable_schema_version",
+                    "id",
+                    "project_id",
+                    "staged_at",
+                    "status",
+                    "runtime_ownership",
+                    "conflicts",
+                    "duplicate_ids",
+                    "digest_mismatches",
+                    "summary"
+                  ],
+                  "properties": {
+                    "portable_schema_version": {
+                      "type": "string",
+                      "const": "portable-1.0.0"
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "project_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "staged_at": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                    },
+                    "status": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "staged"
+                        },
+                        {
+                          "type": "string",
+                          "const": "accepted"
+                        },
+                        {
+                          "type": "string",
+                          "const": "rejected"
+                        }
+                      ]
+                    },
+                    "runtime_ownership": {
+                      "type": "string",
+                      "const": "dormant"
+                    },
+                    "conflicts": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500
+                      }
+                    },
+                    "duplicate_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                      }
+                    },
+                    "digest_mismatches": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      }
+                    },
+                    "summary": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2000
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "export_manifest": {
+                  "type": "object",
+                  "required": [
+                    "portable_schema_version",
+                    "id",
+                    "project_id",
+                    "exported_at",
+                    "exporter_actor_id",
+                    "source_instance_id",
+                    "ids",
+                    "entries",
+                    "event_sequence_start",
+                    "event_sequence_end",
+                    "latest_revision",
+                    "ownership_state",
+                    "excluded",
+                    "content_digest",
+                    "manifest_digest"
+                  ],
+                  "properties": {
+                    "portable_schema_version": {
+                      "type": "string",
+                      "const": "portable-1.0.0"
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "project_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "exported_at": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                    },
+                    "exporter_actor_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "source_instance_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                      },
+                      "uniqueItems": true
+                    },
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "object_type",
+                          "schema_version",
+                          "id",
+                          "digest",
+                          "payload_reference"
+                        ],
+                        "properties": {
+                          "object_type": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "schema_version": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 32
+                          },
+                          "id": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                          },
+                          "domain_version": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "digest": {
+                            "type": "object",
+                            "required": [
+                              "algorithm",
+                              "value",
+                              "subject"
+                            ],
+                            "properties": {
+                              "algorithm": {
+                                "type": "string",
+                                "const": "sha256"
+                              },
+                              "value": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{64}$"
+                              },
+                              "subject": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "payload_reference": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "event_sequence_start": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "event_sequence_end": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "latest_revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "ownership_state": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "const": "dormant"
+                        },
+                        {
+                          "type": "string",
+                          "const": "active"
+                        }
+                      ]
+                    },
+                    "excluded": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "kind",
+                          "reason"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "reason": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "content_digest": {
+                      "type": "object",
+                      "required": [
+                        "algorithm",
+                        "value",
+                        "subject"
+                      ],
+                      "properties": {
+                        "algorithm": {
+                          "type": "string",
+                          "const": "sha256"
+                        },
+                        "value": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{64}$"
+                        },
+                        "subject": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "manifest_digest": {
+                      "type": "object",
+                      "required": [
+                        "algorithm",
+                        "value",
+                        "subject"
+                      ],
+                      "properties": {
+                        "algorithm": {
+                          "type": "string",
+                          "const": "sha256"
+                        },
+                        "value": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{64}$"
+                        },
+                        "subject": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        }
                       },
                       "additionalProperties": false
                     }

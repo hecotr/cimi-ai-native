@@ -67,7 +67,17 @@ export const ObjectTypeSchema = Type.Union([
   Type.Literal("recovery_strategy"),
   Type.Literal("recovery_execution"),
   Type.Literal("reconciliation"),
-  Type.Literal("external_operation")
+  Type.Literal("external_operation"),
+  Type.Literal("learning_candidate"),
+  Type.Literal("knowledge_update_evidence"),
+  Type.Literal("closure_evaluation"),
+  Type.Literal("export_manifest"),
+  Type.Literal("import_report"),
+  Type.Literal("portable_object_entry"),
+  Type.Literal("attention_item"),
+  Type.Literal("archive_record"),
+  Type.Literal("cancellation_record"),
+  Type.Literal("supersession_record")
 ]);
 
 export const TypedReferenceSchema = Type.Object(

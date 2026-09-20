@@ -278,6 +278,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -652,6 +692,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -997,6 +1077,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -1342,6 +1462,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -1681,6 +1841,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -2038,6 +2238,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -2916,6 +3156,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -3263,6 +3543,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -3828,6 +4148,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -4711,6 +5071,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -5146,6 +5546,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -5493,6 +5933,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -5933,6 +6413,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -6280,6 +6800,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -6627,6 +7187,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -6974,6 +7574,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -7331,6 +7971,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -7678,6 +8358,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -8062,6 +8782,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -8449,6 +9209,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -8802,6 +9602,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -9205,6 +10045,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -9604,6 +10484,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -9951,6 +10871,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -10421,6 +11381,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -10922,6 +11922,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -11357,6 +12397,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -11739,6 +12819,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -12178,6 +13298,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -12694,6 +13854,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -13061,6 +14261,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -13434,6 +14674,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -14036,6 +15316,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -14383,6 +15703,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -14735,6 +16095,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -15206,6 +16606,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -15553,6 +16993,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -15975,6 +17455,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -16332,6 +17852,46 @@
                 {
                   "type": "string",
                   "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
                 }
               ]
             },
@@ -16420,6 +17980,4060 @@
               ]
             },
             "verification_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "actor_id",
+        "project_id",
+        "expected_revision",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "RecordKnowledgeUpdate"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "work_item"
+                },
+                {
+                  "type": "string",
+                  "const": "agent_run"
+                },
+                {
+                  "type": "string",
+                  "const": "context_pack_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "context_source"
+                },
+                {
+                  "type": "string",
+                  "const": "capability_requirement"
+                },
+                {
+                  "type": "string",
+                  "const": "provider_descriptor"
+                },
+                {
+                  "type": "string",
+                  "const": "capability_binding"
+                },
+                {
+                  "type": "string",
+                  "const": "source_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "artifact"
+                },
+                {
+                  "type": "string",
+                  "const": "resource_lock"
+                },
+                {
+                  "type": "string",
+                  "const": "lease"
+                },
+                {
+                  "type": "string",
+                  "const": "failure"
+                },
+                {
+                  "type": "string",
+                  "const": "blocker"
+                },
+                {
+                  "type": "string",
+                  "const": "claim"
+                },
+                {
+                  "type": "string",
+                  "const": "evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "external_reference"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_requirement_set"
+                },
+                {
+                  "type": "string",
+                  "const": "claim_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "independent_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "evidence_package_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "repair_work_item_link"
+                },
+                {
+                  "type": "string",
+                  "const": "environment"
+                },
+                {
+                  "type": "string",
+                  "const": "release"
+                },
+                {
+                  "type": "string",
+                  "const": "release_package"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment_attempt"
+                },
+                {
+                  "type": "string",
+                  "const": "verification_result"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_strategy"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_execution"
+                },
+                {
+                  "type": "string",
+                  "const": "reconciliation"
+                },
+                {
+                  "type": "string",
+                  "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "change_id",
+            "task_id",
+            "knowledge_source",
+            "conclusion",
+            "external_reference_id",
+            "evidence_id"
+          ],
+          "properties": {
+            "change_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "task_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "knowledge_source": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "product_business"
+                },
+                {
+                  "type": "string",
+                  "const": "technical"
+                },
+                {
+                  "type": "string",
+                  "const": "operations"
+                },
+                {
+                  "type": "string",
+                  "const": "communication"
+                }
+              ]
+            },
+            "conclusion": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "Create"
+                },
+                {
+                  "type": "string",
+                  "const": "Update"
+                },
+                {
+                  "type": "string",
+                  "const": "Deprecate"
+                },
+                {
+                  "type": "string",
+                  "const": "Verify"
+                },
+                {
+                  "type": "string",
+                  "const": "NoImpact"
+                }
+              ]
+            },
+            "external_reference_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "evidence_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "exception_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "actor_id",
+        "project_id",
+        "expected_revision",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "ProposeClose"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "work_item"
+                },
+                {
+                  "type": "string",
+                  "const": "agent_run"
+                },
+                {
+                  "type": "string",
+                  "const": "context_pack_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "context_source"
+                },
+                {
+                  "type": "string",
+                  "const": "capability_requirement"
+                },
+                {
+                  "type": "string",
+                  "const": "provider_descriptor"
+                },
+                {
+                  "type": "string",
+                  "const": "capability_binding"
+                },
+                {
+                  "type": "string",
+                  "const": "source_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "artifact"
+                },
+                {
+                  "type": "string",
+                  "const": "resource_lock"
+                },
+                {
+                  "type": "string",
+                  "const": "lease"
+                },
+                {
+                  "type": "string",
+                  "const": "failure"
+                },
+                {
+                  "type": "string",
+                  "const": "blocker"
+                },
+                {
+                  "type": "string",
+                  "const": "claim"
+                },
+                {
+                  "type": "string",
+                  "const": "evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "external_reference"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_requirement_set"
+                },
+                {
+                  "type": "string",
+                  "const": "claim_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "independent_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "evidence_package_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "repair_work_item_link"
+                },
+                {
+                  "type": "string",
+                  "const": "environment"
+                },
+                {
+                  "type": "string",
+                  "const": "release"
+                },
+                {
+                  "type": "string",
+                  "const": "release_package"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment_attempt"
+                },
+                {
+                  "type": "string",
+                  "const": "verification_result"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_strategy"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_execution"
+                },
+                {
+                  "type": "string",
+                  "const": "reconciliation"
+                },
+                {
+                  "type": "string",
+                  "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "change_id",
+            "residual_risk",
+            "known_issues"
+          ],
+          "properties": {
+            "change_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "residual_risk": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "known_issues": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "actor_id",
+        "project_id",
+        "expected_revision",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "CloseChange"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "work_item"
+                },
+                {
+                  "type": "string",
+                  "const": "agent_run"
+                },
+                {
+                  "type": "string",
+                  "const": "context_pack_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "context_source"
+                },
+                {
+                  "type": "string",
+                  "const": "capability_requirement"
+                },
+                {
+                  "type": "string",
+                  "const": "provider_descriptor"
+                },
+                {
+                  "type": "string",
+                  "const": "capability_binding"
+                },
+                {
+                  "type": "string",
+                  "const": "source_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "artifact"
+                },
+                {
+                  "type": "string",
+                  "const": "resource_lock"
+                },
+                {
+                  "type": "string",
+                  "const": "lease"
+                },
+                {
+                  "type": "string",
+                  "const": "failure"
+                },
+                {
+                  "type": "string",
+                  "const": "blocker"
+                },
+                {
+                  "type": "string",
+                  "const": "claim"
+                },
+                {
+                  "type": "string",
+                  "const": "evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "external_reference"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_requirement_set"
+                },
+                {
+                  "type": "string",
+                  "const": "claim_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "independent_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "evidence_package_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "repair_work_item_link"
+                },
+                {
+                  "type": "string",
+                  "const": "environment"
+                },
+                {
+                  "type": "string",
+                  "const": "release"
+                },
+                {
+                  "type": "string",
+                  "const": "release_package"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment_attempt"
+                },
+                {
+                  "type": "string",
+                  "const": "verification_result"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_strategy"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_execution"
+                },
+                {
+                  "type": "string",
+                  "const": "reconciliation"
+                },
+                {
+                  "type": "string",
+                  "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "change_id",
+            "closure_evaluation_id"
+          ],
+          "properties": {
+            "change_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "closure_evaluation_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "actor_id",
+        "project_id",
+        "expected_revision",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "CancelChange"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "work_item"
+                },
+                {
+                  "type": "string",
+                  "const": "agent_run"
+                },
+                {
+                  "type": "string",
+                  "const": "context_pack_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "context_source"
+                },
+                {
+                  "type": "string",
+                  "const": "capability_requirement"
+                },
+                {
+                  "type": "string",
+                  "const": "provider_descriptor"
+                },
+                {
+                  "type": "string",
+                  "const": "capability_binding"
+                },
+                {
+                  "type": "string",
+                  "const": "source_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "artifact"
+                },
+                {
+                  "type": "string",
+                  "const": "resource_lock"
+                },
+                {
+                  "type": "string",
+                  "const": "lease"
+                },
+                {
+                  "type": "string",
+                  "const": "failure"
+                },
+                {
+                  "type": "string",
+                  "const": "blocker"
+                },
+                {
+                  "type": "string",
+                  "const": "claim"
+                },
+                {
+                  "type": "string",
+                  "const": "evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "external_reference"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_requirement_set"
+                },
+                {
+                  "type": "string",
+                  "const": "claim_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "independent_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "evidence_package_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "repair_work_item_link"
+                },
+                {
+                  "type": "string",
+                  "const": "environment"
+                },
+                {
+                  "type": "string",
+                  "const": "release"
+                },
+                {
+                  "type": "string",
+                  "const": "release_package"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment_attempt"
+                },
+                {
+                  "type": "string",
+                  "const": "verification_result"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_strategy"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_execution"
+                },
+                {
+                  "type": "string",
+                  "const": "reconciliation"
+                },
+                {
+                  "type": "string",
+                  "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "change_id",
+            "reason",
+            "cleanup_summary"
+          ],
+          "properties": {
+            "change_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "cleanup_summary": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "actor_id",
+        "project_id",
+        "expected_revision",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "SupersedeChange"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "work_item"
+                },
+                {
+                  "type": "string",
+                  "const": "agent_run"
+                },
+                {
+                  "type": "string",
+                  "const": "context_pack_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "context_source"
+                },
+                {
+                  "type": "string",
+                  "const": "capability_requirement"
+                },
+                {
+                  "type": "string",
+                  "const": "provider_descriptor"
+                },
+                {
+                  "type": "string",
+                  "const": "capability_binding"
+                },
+                {
+                  "type": "string",
+                  "const": "source_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "artifact"
+                },
+                {
+                  "type": "string",
+                  "const": "resource_lock"
+                },
+                {
+                  "type": "string",
+                  "const": "lease"
+                },
+                {
+                  "type": "string",
+                  "const": "failure"
+                },
+                {
+                  "type": "string",
+                  "const": "blocker"
+                },
+                {
+                  "type": "string",
+                  "const": "claim"
+                },
+                {
+                  "type": "string",
+                  "const": "evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "external_reference"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_requirement_set"
+                },
+                {
+                  "type": "string",
+                  "const": "claim_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "independent_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "evidence_package_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "repair_work_item_link"
+                },
+                {
+                  "type": "string",
+                  "const": "environment"
+                },
+                {
+                  "type": "string",
+                  "const": "release"
+                },
+                {
+                  "type": "string",
+                  "const": "release_package"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment_attempt"
+                },
+                {
+                  "type": "string",
+                  "const": "verification_result"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_strategy"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_execution"
+                },
+                {
+                  "type": "string",
+                  "const": "reconciliation"
+                },
+                {
+                  "type": "string",
+                  "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "change_id",
+            "successor_change_id",
+            "reason"
+          ],
+          "properties": {
+            "change_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "successor_change_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "actor_id",
+        "project_id",
+        "expected_revision",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "ArchiveChange"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "work_item"
+                },
+                {
+                  "type": "string",
+                  "const": "agent_run"
+                },
+                {
+                  "type": "string",
+                  "const": "context_pack_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "context_source"
+                },
+                {
+                  "type": "string",
+                  "const": "capability_requirement"
+                },
+                {
+                  "type": "string",
+                  "const": "provider_descriptor"
+                },
+                {
+                  "type": "string",
+                  "const": "capability_binding"
+                },
+                {
+                  "type": "string",
+                  "const": "source_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "artifact"
+                },
+                {
+                  "type": "string",
+                  "const": "resource_lock"
+                },
+                {
+                  "type": "string",
+                  "const": "lease"
+                },
+                {
+                  "type": "string",
+                  "const": "failure"
+                },
+                {
+                  "type": "string",
+                  "const": "blocker"
+                },
+                {
+                  "type": "string",
+                  "const": "claim"
+                },
+                {
+                  "type": "string",
+                  "const": "evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "external_reference"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_requirement_set"
+                },
+                {
+                  "type": "string",
+                  "const": "claim_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "independent_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "evidence_package_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "repair_work_item_link"
+                },
+                {
+                  "type": "string",
+                  "const": "environment"
+                },
+                {
+                  "type": "string",
+                  "const": "release"
+                },
+                {
+                  "type": "string",
+                  "const": "release_package"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment_attempt"
+                },
+                {
+                  "type": "string",
+                  "const": "verification_result"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_strategy"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_execution"
+                },
+                {
+                  "type": "string",
+                  "const": "reconciliation"
+                },
+                {
+                  "type": "string",
+                  "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "change_id",
+            "reason"
+          ],
+          "properties": {
+            "change_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "actor_id",
+        "project_id",
+        "expected_revision",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "CreateLearningCandidate"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "work_item"
+                },
+                {
+                  "type": "string",
+                  "const": "agent_run"
+                },
+                {
+                  "type": "string",
+                  "const": "context_pack_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "context_source"
+                },
+                {
+                  "type": "string",
+                  "const": "capability_requirement"
+                },
+                {
+                  "type": "string",
+                  "const": "provider_descriptor"
+                },
+                {
+                  "type": "string",
+                  "const": "capability_binding"
+                },
+                {
+                  "type": "string",
+                  "const": "source_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "artifact"
+                },
+                {
+                  "type": "string",
+                  "const": "resource_lock"
+                },
+                {
+                  "type": "string",
+                  "const": "lease"
+                },
+                {
+                  "type": "string",
+                  "const": "failure"
+                },
+                {
+                  "type": "string",
+                  "const": "blocker"
+                },
+                {
+                  "type": "string",
+                  "const": "claim"
+                },
+                {
+                  "type": "string",
+                  "const": "evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "external_reference"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_requirement_set"
+                },
+                {
+                  "type": "string",
+                  "const": "claim_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "independent_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "evidence_package_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "repair_work_item_link"
+                },
+                {
+                  "type": "string",
+                  "const": "environment"
+                },
+                {
+                  "type": "string",
+                  "const": "release"
+                },
+                {
+                  "type": "string",
+                  "const": "release_package"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment_attempt"
+                },
+                {
+                  "type": "string",
+                  "const": "verification_result"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_strategy"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_execution"
+                },
+                {
+                  "type": "string",
+                  "const": "reconciliation"
+                },
+                {
+                  "type": "string",
+                  "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "change_id",
+            "source_kind",
+            "source_id",
+            "summary"
+          ],
+          "properties": {
+            "change_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "source_kind": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "failure"
+                },
+                {
+                  "type": "string",
+                  "const": "exception"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery"
+                }
+              ]
+            },
+            "source_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "summary": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "actor_id",
+        "project_id",
+        "expected_revision",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "ExportProject"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "work_item"
+                },
+                {
+                  "type": "string",
+                  "const": "agent_run"
+                },
+                {
+                  "type": "string",
+                  "const": "context_pack_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "context_source"
+                },
+                {
+                  "type": "string",
+                  "const": "capability_requirement"
+                },
+                {
+                  "type": "string",
+                  "const": "provider_descriptor"
+                },
+                {
+                  "type": "string",
+                  "const": "capability_binding"
+                },
+                {
+                  "type": "string",
+                  "const": "source_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "artifact"
+                },
+                {
+                  "type": "string",
+                  "const": "resource_lock"
+                },
+                {
+                  "type": "string",
+                  "const": "lease"
+                },
+                {
+                  "type": "string",
+                  "const": "failure"
+                },
+                {
+                  "type": "string",
+                  "const": "blocker"
+                },
+                {
+                  "type": "string",
+                  "const": "claim"
+                },
+                {
+                  "type": "string",
+                  "const": "evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "external_reference"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_requirement_set"
+                },
+                {
+                  "type": "string",
+                  "const": "claim_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "independent_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "evidence_package_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "repair_work_item_link"
+                },
+                {
+                  "type": "string",
+                  "const": "environment"
+                },
+                {
+                  "type": "string",
+                  "const": "release"
+                },
+                {
+                  "type": "string",
+                  "const": "release_package"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment_attempt"
+                },
+                {
+                  "type": "string",
+                  "const": "verification_result"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_strategy"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_execution"
+                },
+                {
+                  "type": "string",
+                  "const": "reconciliation"
+                },
+                {
+                  "type": "string",
+                  "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "scope"
+          ],
+          "properties": {
+            "scope": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                }
+              ]
+            },
+            "change_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "actor_id",
+        "project_id",
+        "expected_revision",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "StageImport"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "work_item"
+                },
+                {
+                  "type": "string",
+                  "const": "agent_run"
+                },
+                {
+                  "type": "string",
+                  "const": "context_pack_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "context_source"
+                },
+                {
+                  "type": "string",
+                  "const": "capability_requirement"
+                },
+                {
+                  "type": "string",
+                  "const": "provider_descriptor"
+                },
+                {
+                  "type": "string",
+                  "const": "capability_binding"
+                },
+                {
+                  "type": "string",
+                  "const": "source_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "artifact"
+                },
+                {
+                  "type": "string",
+                  "const": "resource_lock"
+                },
+                {
+                  "type": "string",
+                  "const": "lease"
+                },
+                {
+                  "type": "string",
+                  "const": "failure"
+                },
+                {
+                  "type": "string",
+                  "const": "blocker"
+                },
+                {
+                  "type": "string",
+                  "const": "claim"
+                },
+                {
+                  "type": "string",
+                  "const": "evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "external_reference"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_requirement_set"
+                },
+                {
+                  "type": "string",
+                  "const": "claim_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "independent_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "evidence_package_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "repair_work_item_link"
+                },
+                {
+                  "type": "string",
+                  "const": "environment"
+                },
+                {
+                  "type": "string",
+                  "const": "release"
+                },
+                {
+                  "type": "string",
+                  "const": "release_package"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment_attempt"
+                },
+                {
+                  "type": "string",
+                  "const": "verification_result"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_strategy"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_execution"
+                },
+                {
+                  "type": "string",
+                  "const": "reconciliation"
+                },
+                {
+                  "type": "string",
+                  "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "bundle_reference",
+            "bundle_digest"
+          ],
+          "properties": {
+            "bundle_reference": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "bundle_digest": {
+              "type": "object",
+              "required": [
+                "algorithm",
+                "value",
+                "subject"
+              ],
+              "properties": {
+                "algorithm": {
+                  "type": "string",
+                  "const": "sha256"
+                },
+                "value": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "subject": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "actor_id",
+        "project_id",
+        "expected_revision",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "CommitImport"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "work_item"
+                },
+                {
+                  "type": "string",
+                  "const": "agent_run"
+                },
+                {
+                  "type": "string",
+                  "const": "context_pack_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "context_source"
+                },
+                {
+                  "type": "string",
+                  "const": "capability_requirement"
+                },
+                {
+                  "type": "string",
+                  "const": "provider_descriptor"
+                },
+                {
+                  "type": "string",
+                  "const": "capability_binding"
+                },
+                {
+                  "type": "string",
+                  "const": "source_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "artifact"
+                },
+                {
+                  "type": "string",
+                  "const": "resource_lock"
+                },
+                {
+                  "type": "string",
+                  "const": "lease"
+                },
+                {
+                  "type": "string",
+                  "const": "failure"
+                },
+                {
+                  "type": "string",
+                  "const": "blocker"
+                },
+                {
+                  "type": "string",
+                  "const": "claim"
+                },
+                {
+                  "type": "string",
+                  "const": "evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "external_reference"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_requirement_set"
+                },
+                {
+                  "type": "string",
+                  "const": "claim_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "independent_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "evidence_package_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "repair_work_item_link"
+                },
+                {
+                  "type": "string",
+                  "const": "environment"
+                },
+                {
+                  "type": "string",
+                  "const": "release"
+                },
+                {
+                  "type": "string",
+                  "const": "release_package"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment_attempt"
+                },
+                {
+                  "type": "string",
+                  "const": "verification_result"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_strategy"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_execution"
+                },
+                {
+                  "type": "string",
+                  "const": "reconciliation"
+                },
+                {
+                  "type": "string",
+                  "const": "external_operation"
+                },
+                {
+                  "type": "string",
+                  "const": "learning_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_update_evidence"
+                },
+                {
+                  "type": "string",
+                  "const": "closure_evaluation"
+                },
+                {
+                  "type": "string",
+                  "const": "export_manifest"
+                },
+                {
+                  "type": "string",
+                  "const": "import_report"
+                },
+                {
+                  "type": "string",
+                  "const": "portable_object_entry"
+                },
+                {
+                  "type": "string",
+                  "const": "attention_item"
+                },
+                {
+                  "type": "string",
+                  "const": "archive_record"
+                },
+                {
+                  "type": "string",
+                  "const": "cancellation_record"
+                },
+                {
+                  "type": "string",
+                  "const": "supersession_record"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "import_report_id"
+          ],
+          "properties": {
+            "import_report_id": {
               "type": "string",
               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
             }

@@ -764,7 +764,27 @@ export class CimiLoopKernel {
         return this.#authorizeRecovery(transaction, command);
       case "RecordRecovery":
         return this.#recordRecovery(transaction, command);
+      case "RecordKnowledgeUpdate":
+      case "ProposeClose":
+      case "CloseChange":
+      case "CancelChange":
+      case "SupersedeChange":
+      case "ArchiveChange":
+      case "CreateLearningCandidate":
+      case "ExportProject":
+      case "StageImport":
+      case "CommitImport":
+        return this.#unsupported(command);
     }
+  }
+
+  #unsupported(command: AnyCommand): KernelResult {
+    return domainError(
+      command.correlation_id,
+      "COMMAND_UNSUPPORTED",
+      `命令 ${command.command_type} 尚未实现`,
+      "conflict"
+    );
   }
 
   #initializeProject(transaction: StoreTransaction, command: InitializeProjectCommand): KernelResult {

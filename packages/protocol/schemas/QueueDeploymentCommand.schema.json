@@ -279,6 +279,46 @@
             {
               "type": "string",
               "const": "external_operation"
+            },
+            {
+              "type": "string",
+              "const": "learning_candidate"
+            },
+            {
+              "type": "string",
+              "const": "knowledge_update_evidence"
+            },
+            {
+              "type": "string",
+              "const": "closure_evaluation"
+            },
+            {
+              "type": "string",
+              "const": "export_manifest"
+            },
+            {
+              "type": "string",
+              "const": "import_report"
+            },
+            {
+              "type": "string",
+              "const": "portable_object_entry"
+            },
+            {
+              "type": "string",
+              "const": "attention_item"
+            },
+            {
+              "type": "string",
+              "const": "archive_record"
+            },
+            {
+              "type": "string",
+              "const": "cancellation_record"
+            },
+            {
+              "type": "string",
+              "const": "supersession_record"
             }
           ]
         },
