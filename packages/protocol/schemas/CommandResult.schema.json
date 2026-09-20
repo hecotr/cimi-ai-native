@@ -2200,6 +2200,10 @@
                         {
                           "type": "string",
                           "const": "plan"
+                        },
+                        {
+                          "type": "string",
+                          "const": "release"
                         }
                       ]
                     },
@@ -2212,6 +2216,10 @@
                         {
                           "type": "string",
                           "const": "technical_owner"
+                        },
+                        {
+                          "type": "string",
+                          "const": "project_owner"
                         }
                       ]
                     },
@@ -2553,6 +2561,10 @@
                         {
                           "type": "string",
                           "const": "plan"
+                        },
+                        {
+                          "type": "string",
+                          "const": "release"
                         }
                       ]
                     },

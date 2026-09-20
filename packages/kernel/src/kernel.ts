@@ -63,6 +63,8 @@ import {
   type CreateReleaseCommand,
   type QueueDeploymentCommand,
   type RecordOperationResultCommand,
+  type RequestReleaseDecisionCommand,
+  type DecisionRequest,
   type Claim,
   type ClaimAssessment,
   type EvidencePackageManifest,
@@ -126,6 +128,7 @@ import { createArtifact, localReferenceExists } from "./artifact.js";
 import { createSourceSnapshot, snapshotKindValid } from "./source-snapshot.js";
 import { createRepairWorkItem, createRepairWorkItemLink } from "./repair.js";
 import { recoveryStrategyDigest, releaseAuthorizationDigest } from "./delivery/release.js";
+import { releaseDecisionIsCurrent } from "./delivery/release-decision.js";
 import { latestEvaluationAllowsArtifact, releaseDigestMatches, verificationFailed } from "./delivery/test-gate.js";
 import {
   authorizationDigest,
@@ -612,6 +615,7 @@ export class CimiLoopKernel {
       case "RecordOperationResult":
         return this.#recordOperationResult(transaction, command);
       case "RequestReleaseDecision":
+        return this.#requestReleaseDecision(transaction, command);
       case "RequestReconciliation":
       case "RecordReconciliation":
       case "AuthorizeRecovery":
@@ -1052,6 +1056,9 @@ export class CimiLoopKernel {
     }
     const loaded = this.#requireChangeForMutation(transaction, command, request.change_id);
     if ("code" in loaded) return loaded;
+    if (request.request_type === "release") {
+      return this.#submitReleaseDecision(transaction, command, request, loaded);
+    }
     if (request.status !== "open") {
       return domainError(command.correlation_id, "DECISION_REQUEST_EXPIRED", "Decision Request 已过期或已结束", "conflict");
     }
@@ -2764,6 +2771,143 @@ export class CimiLoopKernel {
       [event],
       { impact }
     );
+  }
+
+  #requestReleaseDecision(transaction: StoreTransaction, command: RequestReleaseDecisionCommand): KernelResult {
+    const release = transaction.getRelease(command.payload.release_id);
+    if (!release) {
+      return domainError(command.correlation_id, "RELEASE_NOT_FOUND", "未找到指定 Release", "not_found");
+    }
+    const loaded = this.#requireChangeForMutation(transaction, command, release.change_id);
+    if ("code" in loaded) return loaded;
+    if (release.kind !== "production") {
+      return domainError(
+        command.correlation_id,
+        "RELEASE_DECISION_NOT_REQUIRED",
+        "测试 Release 不走生产 Decision",
+        "conflict"
+      );
+    }
+    const now = this.#now();
+    const request = createDecisionRequest({
+      id: this.#id(),
+      projectId: loaded.project.id,
+      changeId: loaded.change.id,
+      requestType: "release",
+      requiredRoleKey: "project_owner",
+      candidateId: release.id,
+      candidateRevision: release.revision,
+      profileId: release.policy_snapshot_id,
+      profileVersion: 1,
+      riskAssessmentId: release.recovery_strategy_id ?? release.id,
+      knowledgeAssessmentId: release.package_id ?? release.id,
+      policySnapshotId: release.policy_snapshot_id,
+      digest: release.authorization_digest.value,
+      now
+    });
+    transaction.insertDecisionRequest(request);
+    const gate = this.#recordGate(
+      transaction,
+      loaded.change,
+      "release",
+      "REQUIRE_HUMAN",
+      release.policy_snapshot_id,
+      release.authorization_digest.value,
+      now,
+      request.id
+    );
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "ReleaseDecisionRequested",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "decision_request", id: request.id, domain_version: 1 },
+      aggregate_revision: request.revision,
+      actor_id: loaded.actorId,
+      command,
+      payload: { release_id: release.id, request_id: request.id, gate_id: gate.id },
+      occurred_at: now
+    });
+    return this.#success(command, event.aggregate, nextChange.revision, [event], { request });
+  }
+
+  #submitReleaseDecision(
+    transaction: StoreTransaction,
+    command: SubmitDecisionCommand,
+    request: DecisionRequest,
+    loaded: { project: Project; actorId: InternalId; change: Change; expectedRevision: number }
+  ): KernelResult {
+    if (request.status !== "open") {
+      return domainError(command.correlation_id, "DECISION_REQUEST_EXPIRED", "Decision Request 已过期或已结束", "conflict");
+    }
+    const roles = transaction.listRoles();
+    const assignments = transaction.listAssignments(loaded.project.id);
+    if (!actorHasRole(assignments, roles, loaded.actorId, command.payload.acting_role_id, request.required_role_key)) {
+      return domainError(command.correlation_id, "ROLE_NOT_ALLOWED", "当前 acting role 无权提交该 Decision", "forbidden");
+    }
+    const release = transaction.getRelease(request.candidate_id);
+    if (!release || !releaseDecisionIsCurrent(request, release)) {
+      transaction.updateDecisionRequest(
+        { ...request, status: "expired", updated_at: this.#now(), revision: request.revision + 1 },
+        request.revision
+      );
+      return domainError(command.correlation_id, "DECISION_REQUEST_EXPIRED", "Release 授权事实已变化，原 Decision Request 已过期", "conflict");
+    }
+    const now = this.#now();
+    const decision = createDecisionRecord({
+      id: this.#id(),
+      request,
+      actorId: loaded.actorId,
+      actingRoleId: command.payload.acting_role_id,
+      outcome: command.payload.outcome,
+      reason: command.payload.reason,
+      now
+    });
+    transaction.insertDecision(decision);
+    transaction.updateDecisionRequest(
+      { ...request, status: "decided", updated_at: now, revision: request.revision + 1 },
+      request.revision
+    );
+    const gateResult =
+      command.payload.outcome === "approve" ? "ALLOW" : command.payload.outcome === "reject" ? "DENY" : "REQUIRE_HUMAN";
+    const gate = this.#recordGate(
+      transaction,
+      loaded.change,
+      "release",
+      gateResult,
+      release.policy_snapshot_id,
+      release.authorization_digest.value,
+      now,
+      request.id,
+      decision.id
+    );
+    if (gateResult === "ALLOW") {
+      transaction.updateRelease(
+        {
+          ...release,
+          status: "authorized",
+          decision_id: decision.id,
+          updated_at: now,
+          revision: release.revision + 1
+        },
+        release.revision
+      );
+    }
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "ReleaseDecisionSubmitted",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "decision", id: decision.id, domain_version: 1 },
+      aggregate_revision: 1,
+      actor_id: loaded.actorId,
+      command,
+      payload: { release_id: release.id, decision_id: decision.id, outcome: command.payload.outcome, gate_id: gate.id },
+      occurred_at: now
+    });
+    return this.#success(command, event.aggregate, nextChange.revision, [event], {
+      decision,
+      change: nextChange,
+      gate
+    });
   }
 
   #registerEnvironment(transaction: StoreTransaction, command: RegisterEnvironmentCommand): KernelResult {

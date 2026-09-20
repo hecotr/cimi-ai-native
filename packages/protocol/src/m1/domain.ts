@@ -245,7 +245,11 @@ export const DecisionRequestSchema = Type.Object(
     project_id: InternalIdSchema,
     change_id: InternalIdSchema,
     request_type: DecisionRequestTypeSchema,
-    required_role_key: Type.Union([Type.Literal("intent_owner"), Type.Literal("technical_owner")]),
+    required_role_key: Type.Union([
+      Type.Literal("intent_owner"),
+      Type.Literal("technical_owner"),
+      Type.Literal("project_owner")
+    ]),
     candidate_id: InternalIdSchema,
     candidate_revision: Type.Integer({ minimum: 1 }),
     profile_id: InternalIdSchema,
@@ -318,7 +322,11 @@ export const DecisionInboxItemSchema = Type.Object(
     change_id: InternalIdSchema,
     display_key: Type.String({ pattern: "^CHG-\\d{4,}$" }),
     request_type: DecisionRequestTypeSchema,
-    required_role_key: Type.Union([Type.Literal("intent_owner"), Type.Literal("technical_owner")]),
+    required_role_key: Type.Union([
+      Type.Literal("intent_owner"),
+      Type.Literal("technical_owner"),
+      Type.Literal("project_owner")
+    ]),
     status: Type.Literal("open"),
     created_at: ImmutableMetadata.created_at,
     summary: Type.String({ minLength: 1, maxLength: 300 })

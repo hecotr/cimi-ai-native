@@ -46,8 +46,11 @@ export interface RoomFacts {
   timelineEventIds: string[];
 }
 
-const inboxSummary = (requestType: DecisionRequest["request_type"]): string =>
-  requestType === "intent" ? "待批准 Feature Contract" : "待批准 Feature Plan";
+const inboxSummary = (requestType: DecisionRequest["request_type"]): string => {
+  if (requestType === "intent") return "待批准 Feature Contract";
+  if (requestType === "plan") return "待批准 Feature Plan";
+  return "待批准 Production Release";
+};
 
 const eventSummary = (eventType: string): string => {
   switch (eventType) {
