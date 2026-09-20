@@ -539,4 +539,100 @@ describe("M4 test release gate", () => {
     expect(repairs.length).toBe(1);
     expect("operation" in failed.data).toBe(true);
   });
+
+  it("does not queue after later valid refutes change the live authorization digest", () => {
+    const directory = mkdtempSync(join(tmpdir(), "cimiloop-m4-queue-refute-"));
+    temporaryDirectories.push(directory);
+    const store = new SqliteProjectStore(join(directory, "project.db"));
+    openStores.push(store);
+    const kernel = new CimiLoopKernel({ store, now: () => now });
+    const ctx = bootstrap(kernel);
+    const allowed = allowArtifact(store, kernel, ctx);
+    const environment = success(
+      kernel.execute(
+        envelope(
+          "RegisterEnvironment",
+          ctx.projectId,
+          ctx.actorId,
+          {
+            environment_key: "acceptance-test",
+            kind: "test",
+            display_name: "Acceptance Test",
+            adapter_ref: "file://examples/acceptance-target"
+          },
+          allowed.revision,
+          ctx.changeId
+        )
+      )
+    );
+    if (!("environment" in environment.data)) throw new Error("missing environment");
+    const created = success(
+      kernel.execute(
+        envelope(
+          "CreateRelease",
+          ctx.projectId,
+          ctx.actorId,
+          {
+            change_id: ctx.changeId,
+            kind: "test",
+            artifact_id: allowed.artifact.id,
+            artifact_digest: allowed.artifact.digest,
+            environment_id: environment.data.environment.id,
+            scope: { in: ["acceptance.health"], out: [] },
+            window: { starts_at: now, ends_at: "2026-09-21T12:00:00.000Z" },
+            recovery
+          },
+          environment.revision,
+          ctx.changeId
+        )
+      )
+    );
+    if (!("release" in created.data)) throw new Error("missing release");
+    store.transaction((transaction) => {
+      const lateClaimId = createInternalId();
+      transaction.insertClaim({
+        schema_version: SCHEMA_VERSION,
+        id: lateClaimId,
+        project_id: ctx.projectId,
+        change_id: ctx.changeId,
+        claim_key: "AC-late",
+        statement: "Later verification failed.",
+        category: "intent",
+        obligation: "required",
+        source: "acceptance",
+        contract_id: allowed.artifact.contract_id,
+        contract_version: 1,
+        created_at: now
+      });
+      transaction.insertEvidence({
+        schema_version: SCHEMA_VERSION,
+        id: createInternalId(),
+        project_id: ctx.projectId,
+        change_id: ctx.changeId,
+        claim_id: lateClaimId,
+        stance: "Refutes",
+        subject_type: "artifact",
+        subject_id: allowed.artifact.id,
+        subject_digest: allowed.artifact.digest,
+        content_reference: "cimi-object://evidence/later-refute",
+        digest: digest("later_refute"),
+        producer_role: "evaluator",
+        created_at: now
+      });
+    });
+    const queued = kernel.execute(
+      envelope(
+        "QueueDeployment",
+        ctx.projectId,
+        ctx.actorId,
+        {
+          release_id: created.data.release.id,
+          environment_id: environment.data.environment.id
+        },
+        created.revision,
+        ctx.changeId
+      )
+    );
+    expect(queued).toMatchObject({ code: "RELEASE_AUTHORIZATION_EXPIRED" });
+  });
 });

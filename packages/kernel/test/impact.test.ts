@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   SCHEMA_VERSION,
   createInternalId,
+  type Artifact,
   type Claim,
   type CommandSuccess,
   type DomainError,
@@ -14,6 +15,7 @@ import {
 import { SqliteProjectStore } from "../../store-sqlite/src/project-store.js";
 import { classifyImpact, projectValidity } from "../src/evidence/impact.js";
 import { CimiLoopKernel } from "../src/kernel.js";
+import { createPlanningWorkItem } from "../src/work-item.js";
 
 const temporaryDirectories: string[] = [];
 const openStores: SqliteProjectStore[] = [];
@@ -226,7 +228,45 @@ describe("AssessImpact kernel command", () => {
       producer_role: "evaluator",
       created_at: now
     };
+    const sourceWorkItem = createPlanningWorkItem({
+      id: createInternalId(),
+      projectId: initialized.data.project.id,
+      changeId: created.data.change.id,
+      contractId: claim.contract_id,
+      contractVersion: 1,
+      policySnapshotId: createInternalId(),
+      now
+    });
+    const originalArtifact: Artifact = {
+      schema_version: SCHEMA_VERSION,
+      id: recorded.subject_id,
+      project_id: initialized.data.project.id,
+      change_id: created.data.change.id,
+      work_item_id: sourceWorkItem.id,
+      run_id: createInternalId(),
+      context_pack_id: createInternalId(),
+      binding_id: createInternalId(),
+      source_snapshot_id: createInternalId(),
+      contract_id: claim.contract_id,
+      contract_version: 1,
+      plan_id: createInternalId(),
+      plan_version: 1,
+      status: "candidate",
+      summary: "original artifact",
+      digest: recorded.subject_digest,
+      content_reference: "file://artifact.bin",
+      created_at: now
+    };
     store.transaction((transaction) => {
+      transaction.insertWorkItem(sourceWorkItem);
+      transaction.insertArtifact(originalArtifact);
+      transaction.insertArtifact({
+        ...originalArtifact,
+        id: createInternalId(),
+        digest: digest("artifact", "b".repeat(64)),
+        content_reference: "file://artifact-v2.bin",
+        summary: "replacement artifact"
+      });
       transaction.insertClaim(claim);
       transaction.insertEvidence(recorded);
     });
@@ -332,7 +372,39 @@ describe("AssessImpact kernel command", () => {
       producer_role: "evaluator",
       created_at: now
     };
+    const projectId = initialized.data.project.id;
+    const changeId = created.data.change.id;
+    const sourceWorkItem = createPlanningWorkItem({
+      id: createInternalId(),
+      projectId,
+      changeId,
+      contractId: claim.contract_id,
+      contractVersion: 1,
+      policySnapshotId: createInternalId(),
+      now
+    });
     store.transaction((transaction) => {
+      transaction.insertWorkItem(sourceWorkItem);
+      transaction.insertArtifact({
+        schema_version: SCHEMA_VERSION,
+        id: recorded.subject_id,
+        project_id: projectId,
+        change_id: changeId,
+        work_item_id: sourceWorkItem.id,
+        run_id: createInternalId(),
+        context_pack_id: createInternalId(),
+        binding_id: createInternalId(),
+        source_snapshot_id: createInternalId(),
+        contract_id: claim.contract_id,
+        contract_version: 1,
+        plan_id: createInternalId(),
+        plan_version: 1,
+        status: "candidate",
+        summary: "bound artifact",
+        digest: recorded.subject_digest,
+        content_reference: "file://artifact.bin",
+        created_at: now
+      });
       transaction.insertClaim(claim);
       transaction.insertEvidence(recorded);
     });
@@ -348,9 +420,9 @@ describe("AssessImpact kernel command", () => {
           subject_id: recorded.subject_id,
           rule: "artifact_digest_changed",
           old_input_digest: recorded.subject_digest,
-          new_input_digest: digest("artifact", "b".repeat(64)),
+          new_input_digest: recorded.subject_digest,
           old_validity: "Valid",
-          new_validity: "Valid",
+          new_validity: "Stale",
           affected_ids: [recorded.id]
         },
         created.data.change.revision,
@@ -428,7 +500,39 @@ describe("AssessImpact kernel command", () => {
       producer_role: "evaluator",
       created_at: now
     };
+    const projectId = initialized.data.project.id;
+    const changeId = created.data.change.id;
+    const sourceWorkItem = createPlanningWorkItem({
+      id: createInternalId(),
+      projectId,
+      changeId,
+      contractId: claim.contract_id,
+      contractVersion: 1,
+      policySnapshotId: createInternalId(),
+      now
+    });
     store.transaction((transaction) => {
+      transaction.insertWorkItem(sourceWorkItem);
+      transaction.insertArtifact({
+        schema_version: SCHEMA_VERSION,
+        id: recorded.subject_id,
+        project_id: projectId,
+        change_id: changeId,
+        work_item_id: sourceWorkItem.id,
+        run_id: createInternalId(),
+        context_pack_id: createInternalId(),
+        binding_id: createInternalId(),
+        source_snapshot_id: createInternalId(),
+        contract_id: claim.contract_id,
+        contract_version: 1,
+        plan_id: createInternalId(),
+        plan_version: 1,
+        status: "candidate",
+        summary: "bound artifact",
+        digest: recorded.subject_digest,
+        content_reference: "file://artifact.bin",
+        created_at: now
+      });
       transaction.insertClaim(claim);
       transaction.insertEvidence(recorded);
     });
@@ -458,5 +562,133 @@ describe("AssessImpact kernel command", () => {
     if (!("impact" in assessed.data)) throw new Error("missing impact");
     expect(assessed.data.impact.new_validity).toBe("Valid");
     expect(assessed.data.impact.rule).not.toMatch(/integrity/);
+  });
+
+  it("rejects a fabricated subject digest change that would stale valid refutes", () => {
+    const directory = mkdtempSync(join(tmpdir(), "cimiloop-impact-forged-"));
+    temporaryDirectories.push(directory);
+    const store = new SqliteProjectStore(join(directory, "project.db"));
+    openStores.push(store);
+    const kernel = new CimiLoopKernel({ store, now: () => now });
+    const initialized = success(
+      kernel.execute({
+        schema_version: SCHEMA_VERSION,
+        command_id: createInternalId(),
+        correlation_id: createInternalId(),
+        command_type: "InitializeProject",
+        requested_at: now,
+        actor_id: createInternalId(),
+        project_id: createInternalId(),
+        source: { origin: "human_cli" as const, producer: "m3-impact-test" },
+        payload: {
+          name: "M3 Impact Forged",
+          repository_kind: "directory",
+          repository_path: "/tmp/m3-impact-forged",
+          owner_name: "Owner"
+        }
+      })
+    );
+    if (!("project" in initialized.data) || !("actor" in initialized.data)) throw new Error("missing project");
+    const created = success(
+      kernel.execute({
+        schema_version: SCHEMA_VERSION,
+        command_id: createInternalId(),
+        correlation_id: createInternalId(),
+        command_type: "CreateChange",
+        requested_at: now,
+        actor_id: initialized.data.actor.id,
+        project_id: initialized.data.project.id,
+        source: { origin: "human_cli" as const, producer: "m3-impact-test" },
+        payload: { title: "Impact forged" }
+      })
+    );
+    if (!("change" in created.data)) throw new Error("missing change");
+    const sourceWorkItem = createPlanningWorkItem({
+      id: createInternalId(),
+      projectId: initialized.data.project.id,
+      changeId: created.data.change.id,
+      contractId: createInternalId(),
+      contractVersion: 1,
+      policySnapshotId: createInternalId(),
+      now
+    });
+    const artifact: Artifact = {
+      schema_version: SCHEMA_VERSION,
+      id: createInternalId(),
+      project_id: initialized.data.project.id,
+      change_id: created.data.change.id,
+      work_item_id: sourceWorkItem.id,
+      run_id: createInternalId(),
+      context_pack_id: createInternalId(),
+      binding_id: createInternalId(),
+      source_snapshot_id: createInternalId(),
+      contract_id: sourceWorkItem.contract_id,
+      contract_version: 1,
+      plan_id: createInternalId(),
+      plan_version: 1,
+      status: "candidate",
+      summary: "bound artifact",
+      digest: digest("artifact"),
+      content_reference: "file://artifact.bin",
+      created_at: now
+    };
+    const claim: Claim = {
+      schema_version: SCHEMA_VERSION,
+      id: createInternalId(),
+      project_id: initialized.data.project.id,
+      change_id: created.data.change.id,
+      claim_key: "AC-1",
+      statement: "验收通过。",
+      category: "intent",
+      obligation: "required",
+      source: "acceptance",
+      contract_id: sourceWorkItem.contract_id,
+      contract_version: 1,
+      created_at: now
+    };
+    const recorded: Evidence = {
+      schema_version: SCHEMA_VERSION,
+      id: createInternalId(),
+      project_id: initialized.data.project.id,
+      change_id: created.data.change.id,
+      claim_id: claim.id,
+      stance: "Refutes",
+      subject_type: "artifact",
+      subject_id: artifact.id,
+      subject_digest: artifact.digest,
+      content_reference: "cimi-object://evidence/refute",
+      digest: digest("evidence"),
+      producer_role: "evaluator",
+      created_at: now
+    };
+    store.transaction((transaction) => {
+      transaction.insertWorkItem(sourceWorkItem);
+      transaction.insertArtifact(artifact);
+      transaction.insertClaim(claim);
+      transaction.insertEvidence(recorded);
+    });
+    const assessed = kernel.execute(
+      envelope(
+        "AssessImpact",
+        initialized.data.project.id,
+        initialized.data.actor.id,
+        {
+          change_id: created.data.change.id,
+          trigger: "artifact",
+          subject_type: "artifact",
+          subject_id: artifact.id,
+          rule: "artifact_digest_changed",
+          old_input_digest: artifact.digest,
+          new_input_digest: digest("artifact", "b".repeat(64)),
+          old_validity: "Valid",
+          new_validity: "Stale",
+          affected_ids: [recorded.id]
+        },
+        created.data.change.revision,
+        created.data.change.id
+      )
+    );
+    expect(assessed).toMatchObject({ code: "IMPACT_SUBJECT_DIGEST_MISMATCH" });
+    expect(store.transaction((transaction) => transaction.listImpactAssessmentsBySubject(recorded.id))).toEqual([]);
   });
 });

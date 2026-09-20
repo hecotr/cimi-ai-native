@@ -596,6 +596,20 @@ describe("Close Cancel Supersede Archive commands", () => {
         )
       ).code
     ).toBe("CHANGE_ALREADY_ARCHIVED");
+    expect(
+      failure(
+        kernel.execute(
+          envelope(
+            "ResumeChange",
+            ctx.projectId,
+            ctx.actorId,
+            {},
+            archived.revision,
+            ctx.changeId
+          )
+        )
+      ).code
+    ).toBe("CHANGE_ALREADY_TERMINAL");
   });
 
   it("records a learning candidate that is not project knowledge until approved", () => {

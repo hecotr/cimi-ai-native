@@ -1,4 +1,5 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -6,6 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   SCHEMA_VERSION,
   createInternalId,
+  type Artifact,
   type Claim,
   type CommandSuccess,
   type DomainError,
@@ -15,15 +17,17 @@ import { SqliteProjectStore } from "../../store-sqlite/src/project-store.js";
 import { CimiLoopKernel } from "../src/kernel.js";
 import { isIndependentProducer } from "../src/evidence/ingest.js";
 import { parseWhitelistedTestResult } from "../src/evidence/promotion.js";
+import { createPlanningWorkItem } from "../src/work-item.js";
 
 const temporaryDirectories: string[] = [];
 const openStores: SqliteProjectStore[] = [];
 const now = "2026-09-20T00:00:00.000Z";
-const digest = (subject: string) => ({
+const digest = (subject: string, value = "c".repeat(64)) => ({
   algorithm: "sha256" as const,
-  value: "c".repeat(64),
+  value,
   subject
 });
+const fileDigest = (path: string) => digest("test_result", createHash("sha256").update(readFileSync(path)).digest("hex"));
 
 afterEach(() => {
   while (openStores.length > 0) {
@@ -119,13 +123,18 @@ const evidenceOf = (result: CommandSuccess) => {
   return result.data.evidence;
 };
 
-const seedClaim = (store: SqliteProjectStore, projectId: InternalId, changeId: InternalId): Claim => {
+const seedClaim = (
+  store: SqliteProjectStore,
+  projectId: InternalId,
+  changeId: InternalId,
+  claimKey = "AC-1"
+): Claim => {
   const claim: Claim = {
     schema_version: SCHEMA_VERSION,
     id: createInternalId(),
     project_id: projectId,
     change_id: changeId,
-    claim_key: "AC-1",
+    claim_key: claimKey,
     statement: "验收通过。",
     category: "intent",
     obligation: "required",
@@ -136,6 +145,43 @@ const seedClaim = (store: SqliteProjectStore, projectId: InternalId, changeId: I
   };
   store.transaction((transaction) => transaction.insertClaim(claim));
   return claim;
+};
+
+const seedArtifact = (store: SqliteProjectStore, projectId: InternalId, changeId: InternalId): Artifact => {
+  const workItem = createPlanningWorkItem({
+    id: createInternalId(),
+    projectId,
+    changeId,
+    contractId: createInternalId(),
+    contractVersion: 1,
+    policySnapshotId: createInternalId(),
+    now
+  });
+  const artifact: Artifact = {
+    schema_version: SCHEMA_VERSION,
+    id: createInternalId(),
+    project_id: projectId,
+    change_id: changeId,
+    work_item_id: workItem.id,
+    run_id: createInternalId(),
+    context_pack_id: createInternalId(),
+    binding_id: createInternalId(),
+    source_snapshot_id: createInternalId(),
+    contract_id: workItem.contract_id,
+    contract_version: 1,
+    plan_id: createInternalId(),
+    plan_version: 1,
+    status: "candidate",
+    summary: "promoted artifact",
+    digest: digest("artifact"),
+    content_reference: "file://artifact.bin",
+    created_at: now
+  };
+  store.transaction((transaction) => {
+    transaction.insertWorkItem(workItem);
+    transaction.insertArtifact(artifact);
+  });
+  return artifact;
 };
 
 describe("evidence promotion parser", () => {
@@ -229,6 +275,7 @@ describe("evidence ingestion commands", () => {
     const kernel = new CimiLoopKernel({ store, now: () => now });
     const ctx = bootstrap(kernel);
     const claim = seedClaim(store, ctx.projectId, ctx.changeId);
+    const artifact = seedArtifact(store, ctx.projectId, ctx.changeId);
     const junit = join(directory, "junit.xml");
     writeFileSync(junit, '<testsuite failures="0" tests="1"></testsuite>\n');
     const promoted = success(
@@ -240,11 +287,11 @@ describe("evidence ingestion commands", () => {
           {
             change_id: ctx.changeId,
             claim_id: claim.id,
-            artifact_id: createInternalId(),
-            artifact_digest: digest("artifact"),
+            artifact_id: artifact.id,
+            artifact_digest: artifact.digest,
             format: "junit",
             content_reference: pathToFileURL(junit).href,
-            digest: digest("test_result")
+            digest: fileDigest(junit)
           },
           revisionOf(kernel, ctx.changeId),
           ctx.changeId
@@ -253,8 +300,10 @@ describe("evidence ingestion commands", () => {
     );
     expect(evidenceOf(promoted).stance).toBe("Supports");
     expect(evidenceOf(promoted).producer_role).toBe("deterministic_test");
+    expect(evidenceOf(promoted).external_reference_id).toBeTruthy();
     const broken = join(directory, "broken.xml");
     writeFileSync(broken, "????");
+    const invalidClaim = seedClaim(store, ctx.projectId, ctx.changeId, "AC-invalid");
     const invalid = success(
       kernel.execute(
         envelope(
@@ -263,12 +312,12 @@ describe("evidence ingestion commands", () => {
           ctx.actorId,
           {
             change_id: ctx.changeId,
-            claim_id: claim.id,
-            artifact_id: createInternalId(),
-            artifact_digest: digest("artifact"),
+            claim_id: invalidClaim.id,
+            artifact_id: artifact.id,
+            artifact_digest: artifact.digest,
             format: "junit",
             content_reference: pathToFileURL(broken).href,
-            digest: digest("test_result_invalid")
+            digest: fileDigest(broken)
           },
           revisionOf(kernel, ctx.changeId),
           ctx.changeId

@@ -971,6 +971,14 @@ export class CimiLoopKernel {
   #pauseChange(transaction: StoreTransaction, command: Extract<AnyCommand, { command_type: "PauseChange" }>): KernelResult {
     const loaded = this.#requireChangeContext(transaction, command);
     if ("code" in loaded) return loaded;
+    if (this.#changeIsTerminal(transaction, loaded.change.id)) {
+      return domainError(
+        command.correlation_id,
+        "CHANGE_ALREADY_TERMINAL",
+        "已关闭、取消、取代或归档的 Change 不能再暂停",
+        "conflict"
+      );
+    }
     if (loaded.change.operating_status === "Paused") {
       return domainError(command.correlation_id, "CHANGE_ALREADY_PAUSED", "Change 已处于暂停状态", "conflict");
     }
@@ -999,6 +1007,14 @@ export class CimiLoopKernel {
   #resumeChange(transaction: StoreTransaction, command: Extract<AnyCommand, { command_type: "ResumeChange" }>): KernelResult {
     const loaded = this.#requireChangeContext(transaction, command);
     if ("code" in loaded) return loaded;
+    if (this.#changeIsTerminal(transaction, loaded.change.id)) {
+      return domainError(
+        command.correlation_id,
+        "CHANGE_ALREADY_TERMINAL",
+        "已关闭、取消、取代或归档的 Change 不能恢复为 Active",
+        "conflict"
+      );
+    }
     if (loaded.change.operating_status !== "Paused") {
       return domainError(command.correlation_id, "CHANGE_NOT_PAUSED", "Change 当前未暂停", "conflict");
     }
@@ -2926,12 +2942,22 @@ export class CimiLoopKernel {
   #assessImpact(transaction: StoreTransaction, command: AssessImpactCommand): KernelResult {
     const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
     if ("code" in loaded) return loaded;
+    const authoritative = this.#authoritativeImpactDigests(transaction, command, loaded.change.id);
+    if ("code" in authoritative) return authoritative;
     const affected: Evidence[] = [];
     let conclusion: { new_validity: ImpactAssessment["new_validity"]; rule: string } | undefined;
     for (const id of command.payload.affected_ids) {
       const evidence = transaction.getEvidence(id);
       if (!evidence || evidence.change_id !== loaded.change.id) {
         return domainError(command.correlation_id, "EVIDENCE_NOT_FOUND", "影响评估只能针对已存在的 Evidence", "not_found");
+      }
+      if (evidence.subject_digest.value !== authoritative.old.value) {
+        return domainError(
+          command.correlation_id,
+          "IMPACT_SUBJECT_DIGEST_MISMATCH",
+          "Impact old digest 必须等于 Evidence 已绑定主体的 digest",
+          "conflict"
+        );
       }
       const classified = classifyImpact({
         trigger: command.payload.trigger,
@@ -2945,8 +2971,8 @@ export class CimiLoopKernel {
         change: {
           subject_type: command.payload.subject_type,
           subject_id: command.payload.subject_id,
-          old_digest: command.payload.old_input_digest,
-          new_digest: command.payload.new_input_digest
+          old_digest: authoritative.old,
+          new_digest: authoritative.new
         }
       });
       if (!classified.applies) {
@@ -2983,8 +3009,8 @@ export class CimiLoopKernel {
       subject_type: command.payload.subject_type,
       subject_id: command.payload.subject_id,
       rule: conclusion.rule,
-      old_input_digest: command.payload.old_input_digest,
-      new_input_digest: command.payload.new_input_digest,
+      old_input_digest: authoritative.old,
+      new_input_digest: authoritative.new,
       old_validity: command.payload.old_validity ?? previous,
       new_validity: conclusion.new_validity,
       affected_ids: command.payload.affected_ids,
@@ -3411,6 +3437,26 @@ export class CimiLoopKernel {
         command.correlation_id,
         "ARTIFACT_EVALUATION_NOT_ALLOWED",
         "部署前最新 Independent Evaluation 必须仍为 ALLOW",
+        "conflict"
+      );
+    }
+    const liveDigest = this.#releaseLiveDigest(transaction, release);
+    if (!liveDigest || liveDigest.value !== release.authorization_digest.value) {
+      return domainError(
+        command.correlation_id,
+        "RELEASE_AUTHORIZATION_EXPIRED",
+        "Release 授权事实已变化，必须重新授权后才能部署",
+        "conflict"
+      );
+    }
+    const unresolvedRefutes = transaction
+      .listEvidenceByChange(loaded.change.id)
+      .some((item) => item.stance === "Refutes" && projectValidity(transaction.listImpactAssessmentsBySubject(item.id)) === "Valid");
+    if (unresolvedRefutes) {
+      return domainError(
+        command.correlation_id,
+        "ARTIFACT_EVALUATION_NOT_ALLOWED",
+        "未解决的 Refutes Evidence 阻止部署",
         "conflict"
       );
     }
@@ -4296,13 +4342,39 @@ export class CimiLoopKernel {
     if (!claim || claim.change_id !== loaded.change.id) {
       return domainError(command.correlation_id, "EVIDENCE_CLAIM_NOT_FOUND", "提升测试结果需要已存在的 Claim", "not_found");
     }
+    const artifact = transaction.getArtifact(command.payload.artifact_id);
+    if (!artifact || artifact.change_id !== loaded.change.id) {
+      return domainError(command.correlation_id, "ARTIFACT_NOT_FOUND", "提升测试结果必须绑定已存在的 Artifact", "not_found");
+    }
+    if (
+      artifact.digest.algorithm !== command.payload.artifact_digest.algorithm ||
+      artifact.digest.value !== command.payload.artifact_digest.value
+    ) {
+      return domainError(
+        command.correlation_id,
+        "ARTIFACT_DIGEST_MISMATCH",
+        "提升测试结果必须绑定 Artifact 当前 Digest",
+        "conflict"
+      );
+    }
+    if (command.payload.content_reference.startsWith("file:")) {
+      const fileDigest = localReferenceDigest(command.payload.content_reference);
+      if (!fileDigest || fileDigest !== command.payload.digest.value) {
+        return domainError(
+          command.correlation_id,
+          "ARTIFACT_DIGEST_MISMATCH",
+          "测试结果 digest 必须等于本地文件字节的 sha256",
+          "validation"
+        );
+      }
+    }
     const referenced = readPromotableReference(command.payload.content_reference);
     const parsed =
       referenced.kind === "contents"
         ? parseWhitelistedTestResult(command.payload.format, referenced.value)
         : { kind: "invalid" as const, reason: "unparseable" as const };
     const now = this.#now();
-    const evidence: Evidence = {
+    let evidence: Evidence = {
       schema_version: SCHEMA_VERSION,
       id: this.#id(),
       project_id: loaded.project.id,
@@ -4311,13 +4383,24 @@ export class CimiLoopKernel {
       stance: parsed.kind === "parsed" ? parsed.stance : "Inconclusive",
       subject_type: "artifact",
       subject_id: command.payload.artifact_id,
-      subject_digest: command.payload.artifact_digest,
+      subject_digest: artifact.digest,
       content_reference: command.payload.content_reference,
       digest: command.payload.digest,
       producer_role: "deterministic_test",
       created_at: now,
       ...(command.payload.environment_ref ? { environment_ref: command.payload.environment_ref } : {})
     };
+    const reference = {
+      schema_version: SCHEMA_VERSION,
+      id: this.#id(),
+      project_id: loaded.project.id,
+      reference: evidence.content_reference,
+      digest: evidence.digest,
+      summary: evidence.content_reference.slice(0, 1000),
+      created_at: now
+    };
+    transaction.insertExternalReference(reference);
+    evidence = { ...evidence, external_reference_id: reference.id };
     transaction.insertEvidence(evidence);
     if (parsed.kind === "invalid") {
       const impact: ImpactAssessment = {
@@ -5300,7 +5383,13 @@ export class CimiLoopKernel {
         { current_revision: change.revision }
       );
     }
-    if (this.#changeIsTerminal(transaction, change.id) && command.command_type !== "ArchiveChange") {
+    const allowedWhenTerminal =
+      command.command_type === "ArchiveChange" ||
+      command.command_type === "CompleteRun" ||
+      command.command_type === "FailRun" ||
+      command.command_type === "CancelRun" ||
+      command.command_type === "HeartbeatRun";
+    if (this.#changeIsTerminal(transaction, change.id) && !allowedWhenTerminal) {
       return domainError(
         command.correlation_id,
         "CHANGE_ALREADY_TERMINAL",
@@ -5309,6 +5398,103 @@ export class CimiLoopKernel {
       );
     }
     return { ...context, change, expectedRevision: command.expected_revision };
+  }
+
+  #authoritativeImpactDigests(
+    transaction: StoreTransaction,
+    command: AssessImpactCommand,
+    changeId: InternalId
+  ): { old: Digest; new: Digest } | DomainError {
+    const claimedOld = command.payload.old_input_digest;
+    const claimedNew = command.payload.new_input_digest;
+    if (command.payload.subject_type === "artifact") {
+      const subject = transaction.getArtifact(command.payload.subject_id);
+      if (!subject || subject.change_id !== changeId) {
+        return domainError(
+          command.correlation_id,
+          "IMPACT_SUBJECT_NOT_FOUND",
+          "影响评估必须绑定已持久化的 Artifact",
+          "not_found"
+        );
+      }
+      if (claimedOld.value !== subject.digest.value) {
+        return domainError(
+          command.correlation_id,
+          "IMPACT_SUBJECT_DIGEST_MISMATCH",
+          "Impact old digest 必须等于已持久化 Artifact digest",
+          "conflict"
+        );
+      }
+      const replacementExists =
+        claimedNew.value === subject.digest.value ||
+        transaction.listArtifactsByChange(changeId).some((item) => item.digest.value === claimedNew.value);
+      if (!replacementExists) {
+        return domainError(
+          command.correlation_id,
+          "IMPACT_SUBJECT_DIGEST_MISMATCH",
+          "Impact new digest 必须等于同一 Change 上已记录的 Artifact digest",
+          "conflict"
+        );
+      }
+      return { old: subject.digest, new: claimedNew };
+    }
+    if (command.payload.subject_type === "environment") {
+      const environment = transaction.getEnvironment(command.payload.subject_id);
+      if (!environment) {
+        return domainError(
+          command.correlation_id,
+          "IMPACT_SUBJECT_NOT_FOUND",
+          "影响评估必须绑定已持久化的 Environment",
+          "not_found"
+        );
+      }
+      const current = {
+        algorithm: "sha256" as const,
+        value: requestDigest({
+          id: environment.id,
+          revision: environment.revision,
+          adapter_ref: environment.adapter_ref,
+          kind: environment.kind,
+          environment_key: environment.environment_key
+        }),
+        subject: "environment"
+      };
+      if (claimedNew.value !== current.value || claimedOld.value !== current.value) {
+        return domainError(
+          command.correlation_id,
+          "IMPACT_SUBJECT_DIGEST_MISMATCH",
+          "Environment Impact digest 必须等于当前 Environment 事实",
+          "conflict"
+        );
+      }
+      return { old: current, new: current };
+    }
+    if (command.payload.subject_type === "context_pack" || command.payload.trigger === "context") {
+      const pack = transaction.getContextPackManifest(command.payload.subject_id);
+      if (!pack) {
+        return domainError(
+          command.correlation_id,
+          "IMPACT_SUBJECT_NOT_FOUND",
+          "影响评估必须绑定已持久化的 Context Pack",
+          "not_found"
+        );
+      }
+      if (claimedNew.value !== pack.digest.value || claimedOld.value !== pack.digest.value) {
+        return domainError(
+          command.correlation_id,
+          "IMPACT_SUBJECT_DIGEST_MISMATCH",
+          "Context Impact digest 必须等于已持久化 Context Pack digest",
+          "conflict"
+        );
+      }
+      return { old: pack.digest, new: pack.digest };
+    }
+    return domainError(
+      command.correlation_id,
+      "IMPACT_SUBJECT_NOT_FOUND",
+      "影响评估只能作用于已持久化的权威主体",
+      "not_found"
+    );
   }
 
   #changeIsTerminal(transaction: StoreTransaction, changeId: InternalId): boolean {
