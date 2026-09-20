@@ -52,6 +52,7 @@
 - [M0 实施架构](implementation/2026-09-19-cimiloop-m0实施架构-v0.1.md)
 - [M1 实施架构](implementation/2026-09-20-cimiloop-m1实施架构-v0.1.md)
 - [M2 实施架构](implementation/2026-09-20-cimiloop-m2实施架构-v0.1.md)
+- [M3 实施架构](implementation/2026-09-20-cimiloop-m3实施架构-v0.1.md)
 
 ## 文档职责
 

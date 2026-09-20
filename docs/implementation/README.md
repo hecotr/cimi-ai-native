@@ -4,10 +4,10 @@
 
 ## 当前阶段
 
-- 当前里程碑：M2 执行、上下文与不可变产物已冻结。
-- 当前状态：M0 Kernel 最小闭环、M1 `Draft → IntentReady → Planned` 治理闭环，以及 M2 `Planned → Work Item → Run → Snapshot → Artifact` 执行切片均已交付。Evidence、Independent Evaluation、Release 与 Portable Export/Import 仍未实现。
-- 下一里程碑：M3 Claim–Evidence 与 Independent Evaluation。
-- 实施基线：[CimiLoop M2 实施架构 v0.1](2026-09-20-cimiloop-m2实施架构-v0.1.md)；前序基线为 [M1](2026-09-20-cimiloop-m1实施架构-v0.1.md) 与 [M0](2026-09-19-cimiloop-m0实施架构-v0.1.md)。
+- 当前里程碑：M3 Claim–Evidence 与 Independent Evaluation 已冻结。
+- 当前状态：M0 Kernel 最小闭环、M1 `Draft → IntentReady → Planned` 治理闭环、M2 执行切片，以及 M3 Claim/Evidence/Evaluation/Repair 均已交付。Test/Production Deployment、Recovery 与 Portable Export/Import 仍未实现。
+- 下一里程碑：M4 Test、Production 与 Recovery。
+- 实施基线：[CimiLoop M3 实施架构 v0.1](2026-09-20-cimiloop-m3实施架构-v0.1.md)；前序基线为 [M2](2026-09-20-cimiloop-m2实施架构-v0.1.md)、[M1](2026-09-20-cimiloop-m1实施架构-v0.1.md) 与 [M0](2026-09-19-cimiloop-m0实施架构-v0.1.md)。
 
 ## 已确认技术决策
 
@@ -48,14 +48,15 @@ packages/
 ├─ workspace-git/       # 隔离 Git worktree 与 Source Snapshot
 ├─ runtime/             # Runtime Adapter Port
 ├─ runtime-claude-code/ # Claude Code command adapter
-└─ orchestrator/        # Run 编排与恢复（只发 Kernel Command）
+├─ orchestrator/        # Run 编排与恢复（只发 Kernel Command）
+└─ evaluator/           # 独立评价规划、只读上下文与写权限拒绝
 tests/
 └─ scenarios/           # 跨模块的 Change 端到端行为场景
 ```
 
 依赖规则：`kernel` 依赖 `protocol` 与 `store`，`store` 只依赖 `protocol`，`store-sqlite` 依赖 `store` 与 `protocol`。`context` / `workspace-git` / `runtime*` / `orchestrator` 位于 Kernel 之外，只能通过 Command 回传事实。Kernel 不得依赖 CLI、SQLite 或具体 Agent Runtime。
 
-M2 已接入首个 Claude Code Runtime Adapter。Team Server、Evidence Evaluator 与 DevOps Adapter 仍不进入当前工程骨架。
+M2 已接入首个 Claude Code Runtime Adapter。M3 已接入独立 Evaluator 包（无生产写权限）。Team Server 与 DevOps Adapter 仍不进入当前工程骨架。
 
 ## M0 已实现的工程设计
 

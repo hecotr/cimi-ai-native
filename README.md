@@ -13,7 +13,7 @@ CimiLoop 是一个面向 AI-Native 软件研发的 Runtime-neutral Harness（运
 - 已补充 Knowledge Closure（知识闭环），把受影响文档更新纳入 Change 的任务、证据和关闭条件。
 - V1 首批 Agent Runtime 目标为 OpenCode 和 Claude Code；cimicode 是企业内部基于 OpenCode 二次开发的 Runtime，后续通过同一适配边界接入。
 
-项目已经进入正式实现阶段。M0 可恢复 Kernel 切片、M1 `Draft → IntentReady → Planned` 治理闭环，以及 M2 `Planned → Work Item → Run → Artifact` 执行切片均已冻结。Evidence、独立 Evaluation、生产发布与 Portable Export/Import 从后续里程碑加入。
+项目已经进入正式实现阶段。M0 可恢复 Kernel 切片、M1 `Draft → IntentReady → Planned` 治理闭环、M2 `Planned → Work Item → Run → Artifact` 执行切片，以及 M3 Claim / Evidence / Independent Evaluation 均已冻结。Test/Production Deployment、Recovery 与 Portable Export/Import 从后续里程碑加入。
 
 ## 建议阅读顺序
 
@@ -92,9 +92,10 @@ Agent 或脚本在命令中增加 `--json` 即可获得经过 Protocol Schema �
 
 ## 下一阶段
 
-M0–M2 已在 Node.js 24.15.0 + pnpm 12.4.2 基线上冻结。下一步进入 M3：Claim、Evidence 与 Independent Evaluation。实施边界见 [M2 实施架构](docs/implementation/2026-09-20-cimiloop-m2实施架构-v0.1.md)。
+M0–M3 已在 Node.js 24.15.0 + pnpm 12.4.2 基线上冻结。下一步进入 M4：Test、Production 与 Recovery。实施边界见 [M3 实施架构](docs/implementation/2026-09-20-cimiloop-m3实施架构-v0.1.md)。
 
 ```text
 powershell -NoProfile -File scripts/demo-m1.ps1
 powershell -NoProfile -File scripts/demo-m2.ps1
+powershell -NoProfile -File scripts/demo-m3.ps1
 ```
