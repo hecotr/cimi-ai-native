@@ -12,6 +12,7 @@ import {
 } from "../schemas.js";
 import { M2CommandSuccessDataSchema } from "../m2/results.js";
 import { M3CommandSuccessDataSchema } from "../m3/results.js";
+import { M4CommandSuccessDataSchema } from "../m4/results.js";
 import {
   ChangeRoomViewSchema,
   ContractCandidateSchema,
@@ -72,7 +73,8 @@ export const CommandSuccessDataSchema = Type.Union([
     { additionalProperties: false }
   ),
   M2CommandSuccessDataSchema,
-  M3CommandSuccessDataSchema
+  M3CommandSuccessDataSchema,
+  M4CommandSuccessDataSchema
 ]);
 
 export const CommandSuccessSchema = Type.Object(

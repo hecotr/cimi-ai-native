@@ -86,6 +86,14 @@ import {
   type RequirementSetShowResult
 } from "./m3/results.js";
 import {
+  DeploymentShowResultSchema,
+  EnvironmentShowResultSchema,
+  ReleaseShowResultSchema,
+  type DeploymentShowResult,
+  type EnvironmentShowResult,
+  type ReleaseShowResult
+} from "./m4/results.js";
+import {
   ChangeListResultSchema,
   ChangeShowResultSchema,
   DoctorResultSchema,
@@ -169,6 +177,9 @@ export const parseRequirementSetShowResult =
 export const parseEvaluationShowResult = compileValidator<EvaluationShowResult>(EvaluationShowResultSchema);
 export const parseEvidencePackageShowResult =
   compileValidator<EvidencePackageShowResult>(EvidencePackageShowResultSchema);
+export const parseEnvironmentShowResult = compileValidator<EnvironmentShowResult>(EnvironmentShowResultSchema);
+export const parseReleaseShowResult = compileValidator<ReleaseShowResult>(ReleaseShowResultSchema);
+export const parseDeploymentShowResult = compileValidator<DeploymentShowResult>(DeploymentShowResultSchema);
 
 export const formatValidationErrors = (errors: readonly ErrorObject[]): string[] =>
   errors.map((error) => `${error.instancePath || "/"} ${error.message ?? "校验失败"}`);

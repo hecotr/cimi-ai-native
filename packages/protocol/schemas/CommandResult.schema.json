@@ -222,6 +222,46 @@
                 {
                   "type": "string",
                   "const": "repair_work_item_link"
+                },
+                {
+                  "type": "string",
+                  "const": "environment"
+                },
+                {
+                  "type": "string",
+                  "const": "release"
+                },
+                {
+                  "type": "string",
+                  "const": "release_package"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment"
+                },
+                {
+                  "type": "string",
+                  "const": "deployment_attempt"
+                },
+                {
+                  "type": "string",
+                  "const": "verification_result"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_strategy"
+                },
+                {
+                  "type": "string",
+                  "const": "recovery_execution"
+                },
+                {
+                  "type": "string",
+                  "const": "reconciliation"
+                },
+                {
+                  "type": "string",
+                  "const": "external_operation"
                 }
               ]
             },
@@ -471,6 +511,46 @@
                       {
                         "type": "string",
                         "const": "repair_work_item_link"
+                      },
+                      {
+                        "type": "string",
+                        "const": "environment"
+                      },
+                      {
+                        "type": "string",
+                        "const": "release"
+                      },
+                      {
+                        "type": "string",
+                        "const": "release_package"
+                      },
+                      {
+                        "type": "string",
+                        "const": "deployment"
+                      },
+                      {
+                        "type": "string",
+                        "const": "deployment_attempt"
+                      },
+                      {
+                        "type": "string",
+                        "const": "verification_result"
+                      },
+                      {
+                        "type": "string",
+                        "const": "recovery_strategy"
+                      },
+                      {
+                        "type": "string",
+                        "const": "recovery_execution"
+                      },
+                      {
+                        "type": "string",
+                        "const": "reconciliation"
+                      },
+                      {
+                        "type": "string",
+                        "const": "external_operation"
                       }
                     ]
                   },
@@ -5794,6 +5874,1733 @@
                             }
                           },
                           "additionalProperties": false
+                        },
+                        "extensions": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            },
+            {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "environment"
+                  ],
+                  "properties": {
+                    "environment": {
+                      "type": "object",
+                      "required": [
+                        "schema_version",
+                        "created_at",
+                        "updated_at",
+                        "revision",
+                        "id",
+                        "project_id",
+                        "environment_key",
+                        "kind",
+                        "display_name",
+                        "owner_actor_id",
+                        "adapter_ref",
+                        "status"
+                      ],
+                      "properties": {
+                        "schema_version": {
+                          "type": "string",
+                          "const": "1.0.0"
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                        },
+                        "updated_at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "project_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "environment_key": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64
+                        },
+                        "kind": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "test"
+                            },
+                            {
+                              "type": "string",
+                              "const": "production"
+                            }
+                          ]
+                        },
+                        "display_name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "owner_actor_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "adapter_ref": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "status": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "active"
+                            },
+                            {
+                              "type": "string",
+                              "const": "retired"
+                            }
+                          ]
+                        },
+                        "extensions": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "release"
+                  ],
+                  "properties": {
+                    "release": {
+                      "type": "object",
+                      "required": [
+                        "schema_version",
+                        "created_at",
+                        "updated_at",
+                        "revision",
+                        "id",
+                        "project_id",
+                        "change_id",
+                        "kind",
+                        "artifact_id",
+                        "artifact_digest",
+                        "environment_id",
+                        "contract_id",
+                        "contract_version",
+                        "policy_snapshot_id",
+                        "status",
+                        "authorization_digest"
+                      ],
+                      "properties": {
+                        "schema_version": {
+                          "type": "string",
+                          "const": "1.0.0"
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                        },
+                        "updated_at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "project_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "change_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "kind": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "test"
+                            },
+                            {
+                              "type": "string",
+                              "const": "production"
+                            }
+                          ]
+                        },
+                        "artifact_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "artifact_digest": {
+                          "type": "object",
+                          "required": [
+                            "algorithm",
+                            "value",
+                            "subject"
+                          ],
+                          "properties": {
+                            "algorithm": {
+                              "type": "string",
+                              "const": "sha256"
+                            },
+                            "value": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$"
+                            },
+                            "subject": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "environment_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "contract_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "contract_version": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "package_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "recovery_strategy_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "decision_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "evidence_package_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "policy_snapshot_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "status": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "drafted"
+                            },
+                            {
+                              "type": "string",
+                              "const": "authorized"
+                            },
+                            {
+                              "type": "string",
+                              "const": "queued"
+                            },
+                            {
+                              "type": "string",
+                              "const": "deploying"
+                            },
+                            {
+                              "type": "string",
+                              "const": "verified"
+                            },
+                            {
+                              "type": "string",
+                              "const": "failed"
+                            },
+                            {
+                              "type": "string",
+                              "const": "superseded"
+                            },
+                            {
+                              "type": "string",
+                              "const": "cancelled"
+                            }
+                          ]
+                        },
+                        "authorization_digest": {
+                          "type": "object",
+                          "required": [
+                            "algorithm",
+                            "value",
+                            "subject"
+                          ],
+                          "properties": {
+                            "algorithm": {
+                              "type": "string",
+                              "const": "sha256"
+                            },
+                            "value": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$"
+                            },
+                            "subject": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "extensions": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "package": {
+                      "type": "object",
+                      "required": [
+                        "schema_version",
+                        "created_at",
+                        "id",
+                        "project_id",
+                        "change_id",
+                        "release_id",
+                        "artifact_id",
+                        "artifact_digest",
+                        "environment_id",
+                        "evidence_package_id",
+                        "scope",
+                        "window",
+                        "recovery_strategy_id",
+                        "digest"
+                      ],
+                      "properties": {
+                        "schema_version": {
+                          "type": "string",
+                          "const": "1.0.0"
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                        },
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "project_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "change_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "release_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "artifact_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "artifact_digest": {
+                          "type": "object",
+                          "required": [
+                            "algorithm",
+                            "value",
+                            "subject"
+                          ],
+                          "properties": {
+                            "algorithm": {
+                              "type": "string",
+                              "const": "sha256"
+                            },
+                            "value": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$"
+                            },
+                            "subject": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "environment_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "evidence_package_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "scope": {
+                          "type": "object",
+                          "required": [
+                            "in",
+                            "out"
+                          ],
+                          "properties": {
+                            "in": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 300
+                              },
+                              "minItems": 1
+                            },
+                            "out": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 300
+                              }
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "window": {
+                          "type": "object",
+                          "required": [
+                            "starts_at",
+                            "ends_at"
+                          ],
+                          "properties": {
+                            "starts_at": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                            },
+                            "ends_at": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "recovery_strategy_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "digest": {
+                          "type": "object",
+                          "required": [
+                            "algorithm",
+                            "value",
+                            "subject"
+                          ],
+                          "properties": {
+                            "algorithm": {
+                              "type": "string",
+                              "const": "sha256"
+                            },
+                            "value": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$"
+                            },
+                            "subject": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "extensions": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "recovery_strategy": {
+                      "type": "object",
+                      "required": [
+                        "schema_version",
+                        "created_at",
+                        "id",
+                        "project_id",
+                        "change_id",
+                        "release_id",
+                        "trigger",
+                        "kind",
+                        "target_digest",
+                        "scope",
+                        "steps",
+                        "verify_checks",
+                        "authorization",
+                        "digest"
+                      ],
+                      "properties": {
+                        "schema_version": {
+                          "type": "string",
+                          "const": "1.0.0"
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                        },
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "project_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "change_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "release_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "trigger": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "verify_fail"
+                            },
+                            {
+                              "type": "string",
+                              "const": "deploy_fail"
+                            },
+                            {
+                              "type": "string",
+                              "const": "unknown_timeout"
+                            }
+                          ]
+                        },
+                        "kind": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "rollback"
+                            },
+                            {
+                              "type": "string",
+                              "const": "roll_forward"
+                            },
+                            {
+                              "type": "string",
+                              "const": "feature_disable"
+                            },
+                            {
+                              "type": "string",
+                              "const": "traffic_shift"
+                            },
+                            {
+                              "type": "string",
+                              "const": "data_restore"
+                            },
+                            {
+                              "type": "string",
+                              "const": "compensation"
+                            },
+                            {
+                              "type": "string",
+                              "const": "manual"
+                            }
+                          ]
+                        },
+                        "target_digest": {
+                          "type": "object",
+                          "required": [
+                            "algorithm",
+                            "value",
+                            "subject"
+                          ],
+                          "properties": {
+                            "algorithm": {
+                              "type": "string",
+                              "const": "sha256"
+                            },
+                            "value": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$"
+                            },
+                            "subject": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "scope": {
+                          "type": "object",
+                          "required": [
+                            "in",
+                            "out"
+                          ],
+                          "properties": {
+                            "in": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 300
+                              },
+                              "minItems": 1
+                            },
+                            "out": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 300
+                              }
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "steps": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "minItems": 1
+                        },
+                        "verify_checks": {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "const": "digest"
+                              },
+                              {
+                                "type": "string",
+                                "const": "health"
+                              },
+                              {
+                                "type": "string",
+                                "const": "core_path"
+                              }
+                            ]
+                          },
+                          "minItems": 1
+                        },
+                        "authorization": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "preauthorized"
+                            },
+                            {
+                              "type": "string",
+                              "const": "human_required"
+                            }
+                          ]
+                        },
+                        "digest": {
+                          "type": "object",
+                          "required": [
+                            "algorithm",
+                            "value",
+                            "subject"
+                          ],
+                          "properties": {
+                            "algorithm": {
+                              "type": "string",
+                              "const": "sha256"
+                            },
+                            "value": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$"
+                            },
+                            "subject": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "extensions": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "deployment"
+                  ],
+                  "properties": {
+                    "deployment": {
+                      "type": "object",
+                      "required": [
+                        "schema_version",
+                        "created_at",
+                        "updated_at",
+                        "revision",
+                        "id",
+                        "project_id",
+                        "change_id",
+                        "release_id",
+                        "environment_id",
+                        "artifact_digest",
+                        "status"
+                      ],
+                      "properties": {
+                        "schema_version": {
+                          "type": "string",
+                          "const": "1.0.0"
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                        },
+                        "updated_at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "project_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "change_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "release_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "environment_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "artifact_digest": {
+                          "type": "object",
+                          "required": [
+                            "algorithm",
+                            "value",
+                            "subject"
+                          ],
+                          "properties": {
+                            "algorithm": {
+                              "type": "string",
+                              "const": "sha256"
+                            },
+                            "value": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$"
+                            },
+                            "subject": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "status": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "queued"
+                            },
+                            {
+                              "type": "string",
+                              "const": "in_progress"
+                            },
+                            {
+                              "type": "string",
+                              "const": "unknown"
+                            },
+                            {
+                              "type": "string",
+                              "const": "succeeded"
+                            },
+                            {
+                              "type": "string",
+                              "const": "failed"
+                            },
+                            {
+                              "type": "string",
+                              "const": "recovered"
+                            }
+                          ]
+                        },
+                        "current_operation_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "extensions": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "attempt": {
+                      "type": "object",
+                      "required": [
+                        "schema_version",
+                        "created_at",
+                        "id",
+                        "project_id",
+                        "change_id",
+                        "deployment_id",
+                        "attempt_kind",
+                        "operation_key",
+                        "artifact_digest",
+                        "requested_at"
+                      ],
+                      "properties": {
+                        "schema_version": {
+                          "type": "string",
+                          "const": "1.0.0"
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                        },
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "project_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "change_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "deployment_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "attempt_kind": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "deploy"
+                            },
+                            {
+                              "type": "string",
+                              "const": "verify"
+                            },
+                            {
+                              "type": "string",
+                              "const": "recover"
+                            },
+                            {
+                              "type": "string",
+                              "const": "reconcile"
+                            }
+                          ]
+                        },
+                        "operation_key": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "artifact_digest": {
+                          "type": "object",
+                          "required": [
+                            "algorithm",
+                            "value",
+                            "subject"
+                          ],
+                          "properties": {
+                            "algorithm": {
+                              "type": "string",
+                              "const": "sha256"
+                            },
+                            "value": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$"
+                            },
+                            "subject": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "requested_at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                        },
+                        "previous_attempt_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "extensions": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "operation": {
+                      "type": "object",
+                      "required": [
+                        "schema_version",
+                        "created_at",
+                        "updated_at",
+                        "revision",
+                        "id",
+                        "project_id",
+                        "change_id",
+                        "operation_key",
+                        "operation_kind",
+                        "environment_id",
+                        "release_id",
+                        "deployment_id",
+                        "artifact_digest",
+                        "state",
+                        "log_reference",
+                        "log_digest",
+                        "summary"
+                      ],
+                      "properties": {
+                        "schema_version": {
+                          "type": "string",
+                          "const": "1.0.0"
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                        },
+                        "updated_at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "project_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "change_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "operation_key": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "operation_kind": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "build"
+                            },
+                            {
+                              "type": "string",
+                              "const": "deploy"
+                            },
+                            {
+                              "type": "string",
+                              "const": "status"
+                            },
+                            {
+                              "type": "string",
+                              "const": "verify"
+                            },
+                            {
+                              "type": "string",
+                              "const": "recover"
+                            },
+                            {
+                              "type": "string",
+                              "const": "reconcile"
+                            }
+                          ]
+                        },
+                        "environment_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "release_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "deployment_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "artifact_digest": {
+                          "type": "object",
+                          "required": [
+                            "algorithm",
+                            "value",
+                            "subject"
+                          ],
+                          "properties": {
+                            "algorithm": {
+                              "type": "string",
+                              "const": "sha256"
+                            },
+                            "value": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$"
+                            },
+                            "subject": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "state": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "pending"
+                            },
+                            {
+                              "type": "string",
+                              "const": "unknown"
+                            },
+                            {
+                              "type": "string",
+                              "const": "succeeded"
+                            },
+                            {
+                              "type": "string",
+                              "const": "failed"
+                            },
+                            {
+                              "type": "string",
+                              "const": "not_found"
+                            }
+                          ]
+                        },
+                        "log_reference": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "log_digest": {
+                          "type": "object",
+                          "required": [
+                            "algorithm",
+                            "value",
+                            "subject"
+                          ],
+                          "properties": {
+                            "algorithm": {
+                              "type": "string",
+                              "const": "sha256"
+                            },
+                            "value": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$"
+                            },
+                            "subject": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "summary": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 2000
+                        },
+                        "extensions": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "operation"
+                  ],
+                  "properties": {
+                    "operation": {
+                      "type": "object",
+                      "required": [
+                        "schema_version",
+                        "created_at",
+                        "updated_at",
+                        "revision",
+                        "id",
+                        "project_id",
+                        "change_id",
+                        "operation_key",
+                        "operation_kind",
+                        "environment_id",
+                        "release_id",
+                        "deployment_id",
+                        "artifact_digest",
+                        "state",
+                        "log_reference",
+                        "log_digest",
+                        "summary"
+                      ],
+                      "properties": {
+                        "schema_version": {
+                          "type": "string",
+                          "const": "1.0.0"
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                        },
+                        "updated_at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "project_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "change_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "operation_key": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "operation_kind": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "build"
+                            },
+                            {
+                              "type": "string",
+                              "const": "deploy"
+                            },
+                            {
+                              "type": "string",
+                              "const": "status"
+                            },
+                            {
+                              "type": "string",
+                              "const": "verify"
+                            },
+                            {
+                              "type": "string",
+                              "const": "recover"
+                            },
+                            {
+                              "type": "string",
+                              "const": "reconcile"
+                            }
+                          ]
+                        },
+                        "environment_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "release_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "deployment_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "artifact_digest": {
+                          "type": "object",
+                          "required": [
+                            "algorithm",
+                            "value",
+                            "subject"
+                          ],
+                          "properties": {
+                            "algorithm": {
+                              "type": "string",
+                              "const": "sha256"
+                            },
+                            "value": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$"
+                            },
+                            "subject": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "state": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "pending"
+                            },
+                            {
+                              "type": "string",
+                              "const": "unknown"
+                            },
+                            {
+                              "type": "string",
+                              "const": "succeeded"
+                            },
+                            {
+                              "type": "string",
+                              "const": "failed"
+                            },
+                            {
+                              "type": "string",
+                              "const": "not_found"
+                            }
+                          ]
+                        },
+                        "log_reference": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "log_digest": {
+                          "type": "object",
+                          "required": [
+                            "algorithm",
+                            "value",
+                            "subject"
+                          ],
+                          "properties": {
+                            "algorithm": {
+                              "type": "string",
+                              "const": "sha256"
+                            },
+                            "value": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$"
+                            },
+                            "subject": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "summary": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 2000
+                        },
+                        "extensions": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "verification"
+                  ],
+                  "properties": {
+                    "verification": {
+                      "type": "object",
+                      "required": [
+                        "schema_version",
+                        "created_at",
+                        "id",
+                        "project_id",
+                        "change_id",
+                        "deployment_id",
+                        "environment_id",
+                        "expected_digest",
+                        "actual_digest",
+                        "health",
+                        "core_path",
+                        "result",
+                        "digest"
+                      ],
+                      "properties": {
+                        "schema_version": {
+                          "type": "string",
+                          "const": "1.0.0"
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                        },
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "project_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "change_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "deployment_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "environment_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "expected_digest": {
+                          "type": "object",
+                          "required": [
+                            "algorithm",
+                            "value",
+                            "subject"
+                          ],
+                          "properties": {
+                            "algorithm": {
+                              "type": "string",
+                              "const": "sha256"
+                            },
+                            "value": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$"
+                            },
+                            "subject": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "actual_digest": {
+                          "type": "object",
+                          "required": [
+                            "algorithm",
+                            "value",
+                            "subject"
+                          ],
+                          "properties": {
+                            "algorithm": {
+                              "type": "string",
+                              "const": "sha256"
+                            },
+                            "value": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$"
+                            },
+                            "subject": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "health": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "healthy"
+                            },
+                            {
+                              "type": "string",
+                              "const": "unhealthy"
+                            },
+                            {
+                              "type": "string",
+                              "const": "unknown"
+                            }
+                          ]
+                        },
+                        "core_path": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "pass"
+                            },
+                            {
+                              "type": "string",
+                              "const": "fail"
+                            },
+                            {
+                              "type": "string",
+                              "const": "unknown"
+                            }
+                          ]
+                        },
+                        "result": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "pass"
+                            },
+                            {
+                              "type": "string",
+                              "const": "fail"
+                            },
+                            {
+                              "type": "string",
+                              "const": "invalid"
+                            }
+                          ]
+                        },
+                        "evidence_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "digest": {
+                          "type": "object",
+                          "required": [
+                            "algorithm",
+                            "value",
+                            "subject"
+                          ],
+                          "properties": {
+                            "algorithm": {
+                              "type": "string",
+                              "const": "sha256"
+                            },
+                            "value": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$"
+                            },
+                            "subject": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "extensions": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "reconciliation"
+                  ],
+                  "properties": {
+                    "reconciliation": {
+                      "type": "object",
+                      "required": [
+                        "schema_version",
+                        "created_at",
+                        "id",
+                        "project_id",
+                        "change_id",
+                        "operation_id",
+                        "conclusion",
+                        "summary"
+                      ],
+                      "properties": {
+                        "schema_version": {
+                          "type": "string",
+                          "const": "1.0.0"
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                        },
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "project_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "change_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "operation_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "conclusion": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "confirmed_success"
+                            },
+                            {
+                              "type": "string",
+                              "const": "confirmed_failure"
+                            },
+                            {
+                              "type": "string",
+                              "const": "not_found"
+                            },
+                            {
+                              "type": "string",
+                              "const": "still_unknown"
+                            }
+                          ]
+                        },
+                        "observed_digest": {
+                          "type": "object",
+                          "required": [
+                            "algorithm",
+                            "value",
+                            "subject"
+                          ],
+                          "properties": {
+                            "algorithm": {
+                              "type": "string",
+                              "const": "sha256"
+                            },
+                            "value": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$"
+                            },
+                            "subject": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "observed_state": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "pending"
+                            },
+                            {
+                              "type": "string",
+                              "const": "unknown"
+                            },
+                            {
+                              "type": "string",
+                              "const": "succeeded"
+                            },
+                            {
+                              "type": "string",
+                              "const": "failed"
+                            },
+                            {
+                              "type": "string",
+                              "const": "not_found"
+                            }
+                          ]
+                        },
+                        "summary": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 2000
+                        },
+                        "extensions": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "recovery_execution"
+                  ],
+                  "properties": {
+                    "recovery_execution": {
+                      "type": "object",
+                      "required": [
+                        "schema_version",
+                        "created_at",
+                        "updated_at",
+                        "revision",
+                        "id",
+                        "project_id",
+                        "change_id",
+                        "strategy_id",
+                        "source_deployment_id",
+                        "deployment_id",
+                        "status"
+                      ],
+                      "properties": {
+                        "schema_version": {
+                          "type": "string",
+                          "const": "1.0.0"
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                        },
+                        "updated_at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "project_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "change_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "strategy_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "source_deployment_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "deployment_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "status": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "authorized"
+                            },
+                            {
+                              "type": "string",
+                              "const": "executing"
+                            },
+                            {
+                              "type": "string",
+                              "const": "verified"
+                            },
+                            {
+                              "type": "string",
+                              "const": "failed"
+                            },
+                            {
+                              "type": "string",
+                              "const": "require_human"
+                            }
+                          ]
+                        },
+                        "authorization_decision_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "verification_id": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
                         },
                         "extensions": {
                           "type": "object",

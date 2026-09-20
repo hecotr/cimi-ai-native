@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "RecoveryStrategy.v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "created_at",
+    "id",
+    "project_id",
+    "change_id",
+    "release_id",
+    "trigger",
+    "kind",
+    "target_digest",
+    "scope",
+    "steps",
+    "verify_checks",
+    "authorization",
+    "digest"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "created_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "change_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "release_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "trigger": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "verify_fail"
+        },
+        {
+          "type": "string",
+          "const": "deploy_fail"
+        },
+        {
+          "type": "string",
+          "const": "unknown_timeout"
+        }
+      ]
+    },
+    "kind": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "rollback"
+        },
+        {
+          "type": "string",
+          "const": "roll_forward"
+        },
+        {
+          "type": "string",
+          "const": "feature_disable"
+        },
+        {
+          "type": "string",
+          "const": "traffic_shift"
+        },
+        {
+          "type": "string",
+          "const": "data_restore"
+        },
+        {
+          "type": "string",
+          "const": "compensation"
+        },
+        {
+          "type": "string",
+          "const": "manual"
+        }
+      ]
+    },
+    "target_digest": {
+      "type": "object",
+      "required": [
+        "algorithm",
+        "value",
+        "subject"
+      ],
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "const": "sha256"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      },
+      "additionalProperties": false
+    },
+    "scope": {
+      "type": "object",
+      "required": [
+        "in",
+        "out"
+      ],
+      "properties": {
+        "in": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "minItems": 1
+        },
+        "out": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      },
+      "minItems": 1
+    },
+    "verify_checks": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "string",
+            "const": "digest"
+          },
+          {
+            "type": "string",
+            "const": "health"
+          },
+          {
+            "type": "string",
+            "const": "core_path"
+          }
+        ]
+      },
+      "minItems": 1
+    },
+    "authorization": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "preauthorized"
+        },
+        {
+          "type": "string",
+          "const": "human_required"
+        }
+      ]
+    },
+    "digest": {
+      "type": "object",
+      "required": [
+        "algorithm",
+        "value",
+        "subject"
+      ],
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "const": "sha256"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      },
+      "additionalProperties": false
+    },
+    "extensions": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9_.]*$": {}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -236,6 +236,46 @@
             {
               "type": "string",
               "const": "repair_work_item_link"
+            },
+            {
+              "type": "string",
+              "const": "environment"
+            },
+            {
+              "type": "string",
+              "const": "release"
+            },
+            {
+              "type": "string",
+              "const": "release_package"
+            },
+            {
+              "type": "string",
+              "const": "deployment"
+            },
+            {
+              "type": "string",
+              "const": "deployment_attempt"
+            },
+            {
+              "type": "string",
+              "const": "verification_result"
+            },
+            {
+              "type": "string",
+              "const": "recovery_strategy"
+            },
+            {
+              "type": "string",
+              "const": "recovery_execution"
+            },
+            {
+              "type": "string",
+              "const": "reconciliation"
+            },
+            {
+              "type": "string",
+              "const": "external_operation"
             }
           ]
         },

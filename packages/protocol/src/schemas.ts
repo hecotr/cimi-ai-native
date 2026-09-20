@@ -57,7 +57,17 @@ export const ObjectTypeSchema = Type.Union([
   Type.Literal("independent_evaluation"),
   Type.Literal("evidence_package_manifest"),
   Type.Literal("impact_assessment"),
-  Type.Literal("repair_work_item_link")
+  Type.Literal("repair_work_item_link"),
+  Type.Literal("environment"),
+  Type.Literal("release"),
+  Type.Literal("release_package"),
+  Type.Literal("deployment"),
+  Type.Literal("deployment_attempt"),
+  Type.Literal("verification_result"),
+  Type.Literal("recovery_strategy"),
+  Type.Literal("recovery_execution"),
+  Type.Literal("reconciliation"),
+  Type.Literal("external_operation")
 ]);
 
 export const TypedReferenceSchema = Type.Object(

@@ -7,6 +7,9 @@ import { m2ResultSchemas } from "./m2/results.js";
 import { m3CommandSchemas } from "./m3/commands.js";
 import { m3ProtocolSchemas } from "./m3/domain.js";
 import { m3ResultSchemas } from "./m3/results.js";
+import { m4CommandSchemas } from "./m4/commands.js";
+import { m4ProtocolSchemas } from "./m4/domain.js";
+import { m4ResultSchemas } from "./m4/results.js";
 import { m0ProtocolSchemas } from "./schemas.js";
 
 export const protocolSchemas = {
@@ -19,5 +22,8 @@ export const protocolSchemas = {
   ...m2ResultSchemas,
   ...m3ProtocolSchemas,
   ...m3CommandSchemas,
-  ...m3ResultSchemas
+  ...m3ResultSchemas,
+  ...m4ProtocolSchemas,
+  ...m4CommandSchemas,
+  ...m4ResultSchemas
 } as const;

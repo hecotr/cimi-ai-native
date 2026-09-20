@@ -592,6 +592,21 @@ export class CimiLoopKernel {
         return this.#createRepairWorkItem(transaction, command);
       case "SubmitClaim":
         return this.#submitClaim(transaction, command);
+      case "RegisterEnvironment":
+      case "CreateRelease":
+      case "RequestReleaseDecision":
+      case "QueueDeployment":
+      case "RecordOperationResult":
+      case "RequestReconciliation":
+      case "RecordReconciliation":
+      case "AuthorizeRecovery":
+      case "RecordRecovery":
+        return domainError(
+          command.correlation_id,
+          "COMMAND_UNSUPPORTED",
+          `暂不支持 ${command.command_type}`,
+          "conflict"
+        );
     }
   }
 
