@@ -129,7 +129,12 @@ import { createSourceSnapshot, snapshotKindValid } from "./source-snapshot.js";
 import { createRepairWorkItem, createRepairWorkItemLink } from "./repair.js";
 import { recoveryStrategyDigest, releaseAuthorizationDigest } from "./delivery/release.js";
 import { releaseDecisionIsCurrent } from "./delivery/release-decision.js";
-import { latestEvaluationAllowsArtifact, releaseDigestMatches, verificationFailed } from "./delivery/test-gate.js";
+import {
+  canPromoteProductionDigest,
+  nextDeliveryOperationKind,
+  productionNeedsRecovery
+} from "./delivery/production.js";
+import { latestEvaluationAllowsArtifact, releaseDigestMatches } from "./delivery/test-gate.js";
 import {
   authorizationDigest,
   createEvaluationWorkItem,
@@ -2994,6 +2999,17 @@ export class CimiLoopKernel {
         "conflict"
       );
     }
+    if (
+      command.payload.kind === "production" &&
+      !canPromoteProductionDigest(transaction.listReleasesByChange(loaded.change.id), artifact.digest)
+    ) {
+      return domainError(
+        command.correlation_id,
+        "ARTIFACT_DIGEST_MISMATCH",
+        "生产 Release 必须晋升已通过测试验证的同一 Artifact digest",
+        "conflict"
+      );
+    }
     const now = this.#now();
     const releaseId = this.#id();
     const strategy = {
@@ -3114,65 +3130,123 @@ export class CimiLoopKernel {
     if (release.status !== "authorized" && release.status !== "queued" && release.status !== "deploying") {
       return domainError(command.correlation_id, "RELEASE_NOT_AUTHORIZED", "只有已授权 Release 可以排队部署", "conflict");
     }
+    if (
+      release.kind === "production" &&
+      !canPromoteProductionDigest(transaction.listReleasesByChange(loaded.change.id), release.artifact_digest)
+    ) {
+      return domainError(
+        command.correlation_id,
+        "ARTIFACT_DIGEST_MISMATCH",
+        "生产部署前必须再次核对已验证测试 Artifact digest",
+        "conflict"
+      );
+    }
     const now = this.#now();
-    const deployment = {
-      schema_version: SCHEMA_VERSION,
-      id: this.#id(),
-      project_id: loaded.project.id,
-      change_id: loaded.change.id,
-      release_id: release.id,
-      environment_id: release.environment_id,
-      artifact_digest: release.artifact_digest,
-      status: "queued" as const,
-      created_at: now,
-      updated_at: now,
-      revision: 1
-    };
-    const operationKey = `op:deploy:${release.id}:${deployment.id}`;
-    const attempt = {
-      schema_version: SCHEMA_VERSION,
-      id: this.#id(),
-      project_id: loaded.project.id,
-      change_id: loaded.change.id,
-      deployment_id: deployment.id,
-      attempt_kind: "deploy" as const,
-      operation_key: operationKey,
-      artifact_digest: release.artifact_digest,
-      requested_at: now,
-      created_at: now
-    };
+    const existingOperations = transaction
+      .listExternalOperationsByChange(loaded.change.id)
+      .filter((item) => item.release_id === release.id);
+    const operationKind = nextDeliveryOperationKind(existingOperations);
+    const currentDeployment = transaction.listDeploymentsByRelease(release.id).at(-1);
+    const deployment =
+      operationKind === "deploy" || !currentDeployment
+        ? {
+            schema_version: SCHEMA_VERSION,
+            id: this.#id(),
+            project_id: loaded.project.id,
+            change_id: loaded.change.id,
+            release_id: release.id,
+            environment_id: release.environment_id,
+            artifact_digest: release.artifact_digest,
+            status: "queued" as const,
+            created_at: now,
+            updated_at: now,
+            revision: 1
+          }
+        : currentDeployment;
+    const operationKey = `op:${operationKind}:${release.id}:${deployment.id}`;
+    const attempt =
+      operationKind === "status"
+        ? undefined
+        : {
+            schema_version: SCHEMA_VERSION,
+            id: this.#id(),
+            project_id: loaded.project.id,
+            change_id: loaded.change.id,
+            deployment_id: deployment.id,
+            attempt_kind: operationKind === "verify" ? ("verify" as const) : ("deploy" as const),
+            operation_key: operationKey,
+            artifact_digest: release.artifact_digest,
+            requested_at: now,
+            created_at: now
+          };
     const operation = {
       schema_version: SCHEMA_VERSION,
       id: this.#id(),
       project_id: loaded.project.id,
       change_id: loaded.change.id,
       operation_key: operationKey,
-      operation_kind: "deploy" as const,
+      operation_kind: operationKind,
       environment_id: release.environment_id,
       release_id: release.id,
       deployment_id: deployment.id,
       artifact_digest: release.artifact_digest,
       state: "pending" as const,
       log_reference: "file://logs/pending.log",
-      log_digest: authorizationDigest({ operation_key: operationKey }, "deploy_log"),
-      summary: "deployment queued",
+      log_digest: authorizationDigest({ operation_key: operationKey }, `${operationKind}_log`),
+      summary: `${operationKind} queued`,
       created_at: now,
       updated_at: now,
       revision: 1
     };
-    transaction.insertDeployment({ ...deployment, current_operation_id: operation.id });
-    transaction.insertDeploymentAttempt(attempt);
+    if (operationKind === "deploy" || !currentDeployment) {
+      transaction.insertDeployment({ ...deployment, current_operation_id: operation.id });
+    } else {
+      transaction.updateDeployment(
+        {
+          ...deployment,
+          current_operation_id: operation.id,
+          status: "in_progress",
+          updated_at: now,
+          revision: deployment.revision + 1
+        },
+        deployment.revision
+      );
+    }
+    if (attempt) transaction.insertDeploymentAttempt(attempt);
     transaction.insertExternalOperation(operation);
-    transaction.updateRelease({ ...release, status: "queued", updated_at: now, revision: release.revision + 1 }, release.revision);
+    transaction.updateRelease(
+      {
+        ...release,
+        status: operationKind === "deploy" ? "queued" : "deploying",
+        updated_at: now,
+        revision: release.revision + 1
+      },
+      release.revision
+    );
     const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const persistedDeployment =
+      operationKind === "deploy" || !currentDeployment
+        ? { ...deployment, current_operation_id: operation.id }
+        : {
+            ...deployment,
+            current_operation_id: operation.id,
+            status: "in_progress" as const,
+            updated_at: now,
+            revision: deployment.revision + 1
+          };
     const event = this.#appendEvent(transaction, {
       event_type: "DeploymentQueued",
       project_id: loaded.project.id,
       aggregate: { object_type: "deployment", id: deployment.id, domain_version: 1 },
-      aggregate_revision: 1,
+      aggregate_revision: persistedDeployment.revision,
       actor_id: loaded.actorId,
       command,
-      payload: { deployment_id: deployment.id, operation_id: operation.id, operation_key: operationKey },
+      payload: {
+        deployment_id: deployment.id,
+        operation_id: operation.id,
+        operation_key: operationKey,
+        operation_kind: operationKind
+      },
       occurred_at: now
     });
     return this.#success(
@@ -3180,7 +3254,7 @@ export class CimiLoopKernel {
       { object_type: "deployment", id: deployment.id, domain_version: 1 },
       nextChange.revision,
       [event],
-      { deployment: { ...deployment, current_operation_id: operation.id }, attempt, operation }
+      { deployment: persistedDeployment, ...(attempt ? { attempt } : {}), operation }
     );
   }
 
@@ -3256,64 +3330,127 @@ export class CimiLoopKernel {
           { ...deployment, status: "succeeded", updated_at: now, revision: deployment.revision + 1 },
           deployment.revision
         );
+        transaction.updateRelease(
+          { ...release, status: "deploying", updated_at: now, revision: release.revision + 1 },
+          release.revision
+        );
       }
     }
-    if (operation.operation_kind === "verify" || verificationFailed(command.payload)) {
+    if (operation.operation_kind === "status" || operation.operation_kind === "verify") {
       const environment = transaction.getEnvironment(release.environment_id);
-      const claims = transaction.listClaimsByChange(loaded.change.id);
-      const claim = claims[0];
-      if (claim && environment && verificationFailed(command.payload)) {
-        const failedEvidence = {
+      const digestMatches = releaseDigestMatches(release, command.payload.actual_digest);
+      const needsRecovery = productionNeedsRecovery({
+        state: command.payload.state,
+        ...(command.payload.health ? { health: command.payload.health } : {}),
+        ...(command.payload.core_path ? { core_path: command.payload.core_path } : {}),
+        digest_matches: digestMatches
+      });
+      if (operation.operation_kind === "verify" || needsRecovery) {
+        transaction.insertVerificationResult({
           schema_version: SCHEMA_VERSION,
           id: this.#id(),
           project_id: loaded.project.id,
           change_id: loaded.change.id,
-          claim_id: claim.id,
-          stance: "Refutes" as const,
-          subject_type: "environment" as const,
-          subject_id: environment.id,
-          subject_digest: release.artifact_digest,
-          content_reference: command.payload.log_reference,
-          digest: command.payload.log_digest,
-          producer_role: "deterministic_test" as const,
-          environment_ref: environment.adapter_ref,
+          deployment_id: deployment.id,
+          environment_id: release.environment_id,
+          expected_digest: release.artifact_digest,
+          actual_digest: command.payload.actual_digest ?? release.artifact_digest,
+          health: command.payload.health ?? "unknown",
+          core_path: command.payload.core_path ?? "unknown",
+          result: !digestMatches ? "invalid" : needsRecovery ? "fail" : "pass",
+          digest: authorizationDigest(
+            {
+              deployment_id: deployment.id,
+              actual: command.payload.actual_digest?.value ?? release.artifact_digest.value
+            },
+            "verification"
+          ),
           created_at: now
-        };
-        transaction.insertEvidence(failedEvidence);
-        const source = transaction
-          .listWorkItemsByChange(loaded.change.id)
-          .find((item) => item.id === (transaction.getArtifact(release.artifact_id)?.work_item_id ?? ""));
-        const artifact = transaction.getArtifact(release.artifact_id);
-        if (source && artifact) {
-          const repair = createRepairWorkItem({
+        });
+      }
+      if (needsRecovery && environment?.kind === "production") {
+        transaction.insertBlocker({
+          schema_version: SCHEMA_VERSION,
+          id: this.#id(),
+          project_id: loaded.project.id,
+          change_id: loaded.change.id,
+          code: "PRODUCTION_VERIFICATION_FAILED",
+          summary: command.payload.summary,
+          status: "open",
+          resolution_condition: "execute the preauthorized recovery or request a human decision",
+          created_at: now,
+          updated_at: now,
+          revision: 1
+        });
+        transaction.updateDeployment(
+          { ...deployment, status: "failed", updated_at: now, revision: deployment.revision + 1 },
+          deployment.revision
+        );
+        transaction.updateRelease(
+          { ...release, status: "failed", updated_at: now, revision: release.revision + 1 },
+          release.revision
+        );
+      } else if (needsRecovery) {
+        const claims = transaction.listClaimsByChange(loaded.change.id);
+        const claim = claims[0];
+        if (claim && environment) {
+          const failedEvidence = {
+            schema_version: SCHEMA_VERSION,
             id: this.#id(),
-            projectId: loaded.project.id,
-            changeId: loaded.change.id,
-            contractId: artifact.contract_id,
-            contractVersion: artifact.contract_version,
-            planId: source.plan_id ?? artifact.plan_id,
-            planVersion: source.plan_version ?? artifact.plan_version,
-            taskId: source.task_id ?? source.id,
-            policySnapshotId: source.policy_snapshot_id,
-            failedArtifactId: artifact.id,
-            now
-          });
-          const link = createRepairWorkItemLink({
-            id: this.#id(),
-            projectId: loaded.project.id,
-            changeId: loaded.change.id,
-            failedEvidenceId: failedEvidence.id,
-            sourceWorkItemId: source.id,
-            taskId: source.task_id ?? source.id,
-            artifactId: artifact.id,
-            repairWorkItemId: repair.id,
-            now
-          });
-          transaction.insertWorkItem(repair);
-          transaction.insertRepairWorkItemLink(link);
+            project_id: loaded.project.id,
+            change_id: loaded.change.id,
+            claim_id: claim.id,
+            stance: "Refutes" as const,
+            subject_type: "environment" as const,
+            subject_id: environment.id,
+            subject_digest: release.artifact_digest,
+            content_reference: command.payload.log_reference,
+            digest: command.payload.log_digest,
+            producer_role: "deterministic_test" as const,
+            environment_ref: environment.adapter_ref,
+            created_at: now
+          };
+          transaction.insertEvidence(failedEvidence);
+          const source = transaction
+            .listWorkItemsByChange(loaded.change.id)
+            .find((item) => item.id === (transaction.getArtifact(release.artifact_id)?.work_item_id ?? ""));
+          const artifact = transaction.getArtifact(release.artifact_id);
+          if (source && artifact) {
+            const repair = createRepairWorkItem({
+              id: this.#id(),
+              projectId: loaded.project.id,
+              changeId: loaded.change.id,
+              contractId: artifact.contract_id,
+              contractVersion: artifact.contract_version,
+              planId: source.plan_id ?? artifact.plan_id,
+              planVersion: source.plan_version ?? artifact.plan_version,
+              taskId: source.task_id ?? source.id,
+              policySnapshotId: source.policy_snapshot_id,
+              failedArtifactId: artifact.id,
+              now
+            });
+            const link = createRepairWorkItemLink({
+              id: this.#id(),
+              projectId: loaded.project.id,
+              changeId: loaded.change.id,
+              failedEvidenceId: failedEvidence.id,
+              sourceWorkItemId: source.id,
+              taskId: source.task_id ?? source.id,
+              artifactId: artifact.id,
+              repairWorkItemId: repair.id,
+              now
+            });
+            transaction.insertWorkItem(repair);
+            transaction.insertRepairWorkItemLink(link);
+          }
         }
         transaction.updateRelease(
           { ...release, status: "failed", updated_at: now, revision: release.revision + 1 },
+          release.revision
+        );
+      } else if (operation.operation_kind === "verify") {
+        transaction.updateRelease(
+          { ...release, status: "verified", updated_at: now, revision: release.revision + 1 },
           release.revision
         );
       }

@@ -228,10 +228,57 @@ const allowArtifact = (store: SqliteProjectStore, kernel: CimiLoopKernel, ctx: R
 
 const createProductionRelease = (
   kernel: CimiLoopKernel,
+  store: SqliteProjectStore,
   ctx: ReturnType<typeof bootstrap>,
   artifact: Artifact,
   revision: number
 ) => {
+  const testEnvironment = success(
+    kernel.execute(
+      envelope(
+        "RegisterEnvironment",
+        ctx.projectId,
+        ctx.actorId,
+        {
+          environment_key: "acceptance-test",
+          kind: "test",
+          display_name: "Acceptance Test",
+          adapter_ref: "file://examples/acceptance-target"
+        },
+        revision,
+        ctx.changeId
+      )
+    )
+  );
+  if (!("environment" in testEnvironment.data)) throw new Error("missing test environment");
+  const testRelease = success(
+    kernel.execute(
+      envelope(
+        "CreateRelease",
+        ctx.projectId,
+        ctx.actorId,
+        {
+          change_id: ctx.changeId,
+          kind: "test",
+          artifact_id: artifact.id,
+          artifact_digest: artifact.digest,
+          environment_id: testEnvironment.data.environment.id,
+          scope: { in: ["acceptance.service"], out: [] },
+          window: { starts_at: now, ends_at: "2026-09-21T12:00:00.000Z" },
+          recovery
+        },
+        testEnvironment.revision,
+        ctx.changeId
+      )
+    )
+  );
+  if (!("release" in testRelease.data)) throw new Error("missing test release");
+  const verifiedTestReleaseId = testRelease.data.release.id;
+  store.transaction((transaction) => {
+    const release = transaction.getRelease(verifiedTestReleaseId);
+    if (!release) throw new Error("missing stored test release");
+    transaction.updateRelease({ ...release, status: "verified", revision: release.revision + 1 }, release.revision);
+  });
   const environment = success(
     kernel.execute(
       envelope(
@@ -244,7 +291,7 @@ const createProductionRelease = (
           display_name: "Production",
           adapter_ref: "file://examples/acceptance-target"
         },
-        revision,
+        testRelease.revision,
         ctx.changeId
       )
     )
@@ -284,7 +331,7 @@ describe("M4 production release decision", () => {
     const kernel = new CimiLoopKernel({ store, now: () => now });
     const ctx = bootstrap(kernel);
     const allowed = allowArtifact(store, kernel, ctx);
-    const first = createProductionRelease(kernel, ctx, allowed.artifact, allowed.revision);
+    const first = createProductionRelease(kernel, store, ctx, allowed.artifact, allowed.revision);
     expect(first.release.status).toBe("drafted");
 
     const requested = success(
