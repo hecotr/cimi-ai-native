@@ -472,6 +472,123 @@ CREATE INDEX IF NOT EXISTS idx_requirement_sets_change ON gate_requirement_sets(
 CREATE INDEX IF NOT EXISTS idx_evaluations_change ON independent_evaluations(change_id);
 CREATE INDEX IF NOT EXISTS idx_impact_subject ON impact_assessments(subject_type, subject_id);
 `
+  },
+  {
+    version: 5,
+    sql: `
+CREATE TABLE IF NOT EXISTS environments (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  environment_key TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  status TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL,
+  UNIQUE(project_id, environment_key)
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS releases (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  environment_id TEXT NOT NULL REFERENCES environments(id),
+  kind TEXT NOT NULL,
+  artifact_digest TEXT NOT NULL,
+  status TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS recovery_strategies (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  release_id TEXT NOT NULL REFERENCES releases(id),
+  digest TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS release_packages (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  release_id TEXT NOT NULL REFERENCES releases(id),
+  artifact_digest TEXT NOT NULL,
+  digest TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS deployments (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  release_id TEXT NOT NULL REFERENCES releases(id),
+  environment_id TEXT NOT NULL REFERENCES environments(id),
+  artifact_digest TEXT NOT NULL,
+  status TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS deployment_attempts (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  deployment_id TEXT NOT NULL REFERENCES deployments(id),
+  attempt_kind TEXT NOT NULL,
+  operation_key TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS verification_results (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  deployment_id TEXT NOT NULL REFERENCES deployments(id),
+  result TEXT NOT NULL,
+  digest TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS recovery_executions (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  strategy_id TEXT NOT NULL REFERENCES recovery_strategies(id),
+  source_deployment_id TEXT NOT NULL REFERENCES deployments(id),
+  deployment_id TEXT NOT NULL REFERENCES deployments(id),
+  status TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS external_operations (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  operation_key TEXT NOT NULL,
+  operation_kind TEXT NOT NULL,
+  state TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS reconciliations (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  operation_id TEXT NOT NULL REFERENCES external_operations(id),
+  conclusion TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_external_operations_key ON external_operations(operation_key);
+CREATE INDEX IF NOT EXISTS idx_releases_change ON releases(change_id, status);
+CREATE INDEX IF NOT EXISTS idx_deployments_release ON deployments(release_id, status);
+CREATE INDEX IF NOT EXISTS idx_deployment_attempts_deployment ON deployment_attempts(deployment_id);
+CREATE INDEX IF NOT EXISTS idx_external_operations_state ON external_operations(state);
+CREATE INDEX IF NOT EXISTS idx_reconciliations_operation ON reconciliations(operation_id);
+`
   }
 ];
 

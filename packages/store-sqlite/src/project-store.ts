@@ -18,7 +18,11 @@ import {
   ContractVersionSchema,
   DecisionRequestSchema,
   DecisionSchema,
+  DeploymentAttemptSchema,
+  DeploymentSchema,
+  EnvironmentSchema,
   EventEnvelopeSchema,
+  ExternalOperationSchema,
   EvidencePackageManifestSchema,
   EvidenceSchema,
   ExternalReferenceSchema,
@@ -36,6 +40,11 @@ import {
   ProjectPolicySchema,
   ProjectSchema,
   ProviderDescriptorSchema,
+  ReconciliationSchema,
+  RecoveryExecutionSchema,
+  RecoveryStrategySchema,
+  ReleasePackageSchema,
+  ReleaseSchema,
   RepairWorkItemLinkSchema,
   ResourceLockSchema,
   RiskAssessmentSchema,
@@ -44,6 +53,7 @@ import {
   SCHEMA_VERSION,
   SourceSnapshotSchema,
   TaskSchema,
+  VerificationResultSchema,
   WorkItemSchema,
   compileValidator,
   type Actor,
@@ -63,7 +73,11 @@ import {
   type ContractVersion,
   type Decision,
   type DecisionRequest,
+  type Deployment,
+  type DeploymentAttempt,
+  type Environment,
   type EventEnvelope,
+  type ExternalOperation,
   type Evidence,
   type EvidencePackageManifest,
   type ExternalReference,
@@ -82,7 +96,13 @@ import {
   type Project,
   type ProjectPolicy,
   type ProviderDescriptor,
+  type Reconciliation,
+  type RecoveryExecution,
+  type RecoveryStrategy,
+  type Release,
+  type ReleasePackage,
   type RepairWorkItemLink,
+  type VerificationResult,
   type ResourceLock,
   type RiskAssessment,
   type RiskProfile,
@@ -144,6 +164,16 @@ const parseClaimAssessment = compileValidator<ClaimAssessment>(ClaimAssessmentSc
 const parseEvidencePackage = compileValidator<EvidencePackageManifest>(EvidencePackageManifestSchema);
 const parseImpactAssessment = compileValidator<ImpactAssessment>(ImpactAssessmentSchema);
 const parseRepairLink = compileValidator<RepairWorkItemLink>(RepairWorkItemLinkSchema);
+const parseEnvironment = compileValidator<Environment>(EnvironmentSchema);
+const parseRelease = compileValidator<Release>(ReleaseSchema);
+const parseReleasePackage = compileValidator<ReleasePackage>(ReleasePackageSchema);
+const parseDeployment = compileValidator<Deployment>(DeploymentSchema);
+const parseDeploymentAttempt = compileValidator<DeploymentAttempt>(DeploymentAttemptSchema);
+const parseVerificationResult = compileValidator<VerificationResult>(VerificationResultSchema);
+const parseRecoveryStrategy = compileValidator<RecoveryStrategy>(RecoveryStrategySchema);
+const parseRecoveryExecution = compileValidator<RecoveryExecution>(RecoveryExecutionSchema);
+const parseReconciliation = compileValidator<Reconciliation>(ReconciliationSchema);
+const parseExternalOperation = compileValidator<ExternalOperation>(ExternalOperationSchema);
 
 const isUniqueConstraint = (error: unknown): boolean =>
   error instanceof Error && /UNIQUE constraint failed/i.test(error.message);
@@ -1180,6 +1210,342 @@ class SqliteTransaction implements StoreTransaction {
       "SELECT payload_json FROM repair_work_item_links WHERE change_id = ? ORDER BY rowid",
       parseRepairLink,
       changeId
+    );
+  }
+
+  insertEnvironment(environment: Environment): void {
+    this.insertUnique(
+      "INSERT INTO environments(id, project_id, environment_key, kind, status, revision, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [
+        environment.id,
+        environment.project_id,
+        environment.environment_key,
+        environment.kind,
+        environment.status,
+        environment.revision,
+        json(environment)
+      ],
+      "Environment key already registered"
+    );
+  }
+
+  updateEnvironment(environment: Environment, expectedRevision: number): void {
+    this.updateRevision(
+      "environments",
+      environment.id,
+      environment.revision,
+      expectedRevision,
+      environment,
+      ", status = ?",
+      [environment.status]
+    );
+  }
+
+  getEnvironment(id: InternalId): Environment | undefined {
+    return this.getPayload("SELECT payload_json FROM environments WHERE id = ?", parseEnvironment, id);
+  }
+
+  getEnvironmentByKey(projectId: InternalId, environmentKey: string): Environment | undefined {
+    return this.getPayload(
+      "SELECT payload_json FROM environments WHERE project_id = ? AND environment_key = ?",
+      parseEnvironment,
+      projectId,
+      environmentKey
+    );
+  }
+
+  listEnvironments(projectId: InternalId): Environment[] {
+    return this.listPayload(
+      "SELECT payload_json FROM environments WHERE project_id = ? ORDER BY rowid",
+      parseEnvironment,
+      projectId
+    );
+  }
+
+  insertRelease(release: Release): void {
+    this.database
+      .prepare(
+        "INSERT INTO releases(id, project_id, change_id, environment_id, kind, artifact_digest, status, revision, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      )
+      .run(
+        release.id,
+        release.project_id,
+        release.change_id,
+        release.environment_id,
+        release.kind,
+        release.artifact_digest.value,
+        release.status,
+        release.revision,
+        json(release)
+      );
+  }
+
+  updateRelease(release: Release, expectedRevision: number): void {
+    this.updateRevision(
+      "releases",
+      release.id,
+      release.revision,
+      expectedRevision,
+      release,
+      ", status = ?",
+      [release.status]
+    );
+  }
+
+  getRelease(id: InternalId): Release | undefined {
+    return this.getPayload("SELECT payload_json FROM releases WHERE id = ?", parseRelease, id);
+  }
+
+  listReleasesByChange(changeId: InternalId): Release[] {
+    return this.listPayload("SELECT payload_json FROM releases WHERE change_id = ? ORDER BY rowid", parseRelease, changeId);
+  }
+
+  insertReleasePackage(releasePackage: ReleasePackage): void {
+    this.database
+      .prepare(
+        "INSERT INTO release_packages(id, project_id, change_id, release_id, artifact_digest, digest, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      )
+      .run(
+        releasePackage.id,
+        releasePackage.project_id,
+        releasePackage.change_id,
+        releasePackage.release_id,
+        releasePackage.artifact_digest.value,
+        releasePackage.digest.value,
+        json(releasePackage)
+      );
+  }
+
+  getReleasePackage(id: InternalId): ReleasePackage | undefined {
+    return this.getPayload("SELECT payload_json FROM release_packages WHERE id = ?", parseReleasePackage, id);
+  }
+
+  insertDeployment(deployment: Deployment): void {
+    this.database
+      .prepare(
+        "INSERT INTO deployments(id, project_id, change_id, release_id, environment_id, artifact_digest, status, revision, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      )
+      .run(
+        deployment.id,
+        deployment.project_id,
+        deployment.change_id,
+        deployment.release_id,
+        deployment.environment_id,
+        deployment.artifact_digest.value,
+        deployment.status,
+        deployment.revision,
+        json(deployment)
+      );
+  }
+
+  updateDeployment(deployment: Deployment, expectedRevision: number): void {
+    this.updateRevision(
+      "deployments",
+      deployment.id,
+      deployment.revision,
+      expectedRevision,
+      deployment,
+      ", status = ?",
+      [deployment.status]
+    );
+  }
+
+  getDeployment(id: InternalId): Deployment | undefined {
+    return this.getPayload("SELECT payload_json FROM deployments WHERE id = ?", parseDeployment, id);
+  }
+
+  listDeploymentsByRelease(releaseId: InternalId): Deployment[] {
+    return this.listPayload(
+      "SELECT payload_json FROM deployments WHERE release_id = ? ORDER BY rowid",
+      parseDeployment,
+      releaseId
+    );
+  }
+
+  insertDeploymentAttempt(attempt: DeploymentAttempt): void {
+    this.database
+      .prepare(
+        "INSERT INTO deployment_attempts(id, project_id, change_id, deployment_id, attempt_kind, operation_key, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      )
+      .run(
+        attempt.id,
+        attempt.project_id,
+        attempt.change_id,
+        attempt.deployment_id,
+        attempt.attempt_kind,
+        attempt.operation_key,
+        json(attempt)
+      );
+  }
+
+  listDeploymentAttempts(deploymentId: InternalId): DeploymentAttempt[] {
+    return this.listPayload(
+      "SELECT payload_json FROM deployment_attempts WHERE deployment_id = ? ORDER BY rowid",
+      parseDeploymentAttempt,
+      deploymentId
+    );
+  }
+
+  insertVerificationResult(result: VerificationResult): void {
+    this.database
+      .prepare(
+        "INSERT INTO verification_results(id, project_id, change_id, deployment_id, result, digest, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      )
+      .run(
+        result.id,
+        result.project_id,
+        result.change_id,
+        result.deployment_id,
+        result.result,
+        result.digest.value,
+        json(result)
+      );
+  }
+
+  getVerificationResult(id: InternalId): VerificationResult | undefined {
+    return this.getPayload("SELECT payload_json FROM verification_results WHERE id = ?", parseVerificationResult, id);
+  }
+
+  listVerificationResultsByDeployment(deploymentId: InternalId): VerificationResult[] {
+    return this.listPayload(
+      "SELECT payload_json FROM verification_results WHERE deployment_id = ? ORDER BY rowid",
+      parseVerificationResult,
+      deploymentId
+    );
+  }
+
+  insertRecoveryStrategy(strategy: RecoveryStrategy): void {
+    this.database
+      .prepare(
+        "INSERT INTO recovery_strategies(id, project_id, change_id, release_id, digest, payload_json) VALUES (?, ?, ?, ?, ?, ?)"
+      )
+      .run(strategy.id, strategy.project_id, strategy.change_id, strategy.release_id, strategy.digest.value, json(strategy));
+  }
+
+  getRecoveryStrategy(id: InternalId): RecoveryStrategy | undefined {
+    return this.getPayload("SELECT payload_json FROM recovery_strategies WHERE id = ?", parseRecoveryStrategy, id);
+  }
+
+  insertRecoveryExecution(execution: RecoveryExecution): void {
+    this.database
+      .prepare(
+        "INSERT INTO recovery_executions(id, project_id, change_id, strategy_id, source_deployment_id, deployment_id, status, revision, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      )
+      .run(
+        execution.id,
+        execution.project_id,
+        execution.change_id,
+        execution.strategy_id,
+        execution.source_deployment_id,
+        execution.deployment_id,
+        execution.status,
+        execution.revision,
+        json(execution)
+      );
+  }
+
+  updateRecoveryExecution(execution: RecoveryExecution, expectedRevision: number): void {
+    this.updateRevision(
+      "recovery_executions",
+      execution.id,
+      execution.revision,
+      expectedRevision,
+      execution,
+      ", status = ?",
+      [execution.status]
+    );
+  }
+
+  getRecoveryExecution(id: InternalId): RecoveryExecution | undefined {
+    return this.getPayload("SELECT payload_json FROM recovery_executions WHERE id = ?", parseRecoveryExecution, id);
+  }
+
+  listRecoveryExecutionsByRelease(releaseId: InternalId): RecoveryExecution[] {
+    return this.listPayload(
+      `SELECT payload_json FROM recovery_executions
+       WHERE strategy_id IN (SELECT id FROM recovery_strategies WHERE release_id = ?)
+       ORDER BY rowid`,
+      parseRecoveryExecution,
+      releaseId
+    );
+  }
+
+  insertReconciliation(reconciliation: Reconciliation): void {
+    this.database
+      .prepare(
+        "INSERT INTO reconciliations(id, project_id, change_id, operation_id, conclusion, payload_json) VALUES (?, ?, ?, ?, ?, ?)"
+      )
+      .run(
+        reconciliation.id,
+        reconciliation.project_id,
+        reconciliation.change_id,
+        reconciliation.operation_id,
+        reconciliation.conclusion,
+        json(reconciliation)
+      );
+  }
+
+  listReconciliationsByOperation(operationId: InternalId): Reconciliation[] {
+    return this.listPayload(
+      "SELECT payload_json FROM reconciliations WHERE operation_id = ? ORDER BY rowid",
+      parseReconciliation,
+      operationId
+    );
+  }
+
+  insertExternalOperation(operation: ExternalOperation): void {
+    this.insertUnique(
+      "INSERT INTO external_operations(id, project_id, change_id, operation_key, operation_kind, state, revision, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [
+        operation.id,
+        operation.project_id,
+        operation.change_id,
+        operation.operation_key,
+        operation.operation_kind,
+        operation.state,
+        operation.revision,
+        json(operation)
+      ],
+      "External operation key already recorded"
+    );
+  }
+
+  updateExternalOperation(operation: ExternalOperation, expectedRevision: number): void {
+    this.updateRevision(
+      "external_operations",
+      operation.id,
+      operation.revision,
+      expectedRevision,
+      operation,
+      ", state = ?",
+      [operation.state]
+    );
+  }
+
+  getExternalOperation(id: InternalId): ExternalOperation | undefined {
+    return this.getPayload("SELECT payload_json FROM external_operations WHERE id = ?", parseExternalOperation, id);
+  }
+
+  getExternalOperationByKey(operationKey: string): ExternalOperation | undefined {
+    return this.getPayload(
+      "SELECT payload_json FROM external_operations WHERE operation_key = ?",
+      parseExternalOperation,
+      operationKey
+    );
+  }
+
+  listExternalOperationsByChange(changeId: InternalId): ExternalOperation[] {
+    return this.listPayload(
+      "SELECT payload_json FROM external_operations WHERE change_id = ? ORDER BY rowid",
+      parseExternalOperation,
+      changeId
+    );
+  }
+
+  listUnknownExternalOperations(): ExternalOperation[] {
+    return this.listPayload(
+      "SELECT payload_json FROM external_operations WHERE state = 'unknown' ORDER BY rowid",
+      parseExternalOperation
     );
   }
 

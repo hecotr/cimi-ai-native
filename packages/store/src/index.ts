@@ -16,8 +16,12 @@ import type {
   ContractVersion,
   Decision,
   DecisionRequest,
+  Deployment,
+  DeploymentAttempt,
+  Environment,
   EventEnvelope,
   Evidence,
+  ExternalOperation,
   EvidencePackageManifest,
   ExternalReference,
   Feedback,
@@ -35,7 +39,13 @@ import type {
   Project,
   ProjectPolicy,
   ProviderDescriptor,
+  Reconciliation,
+  RecoveryExecution,
+  RecoveryStrategy,
+  Release,
+  ReleasePackage,
   RepairWorkItemLink,
+  VerificationResult,
   ResourceLock,
   RiskAssessment,
   RiskProfile,
@@ -247,6 +257,50 @@ export interface StoreTransaction {
 
   insertRepairWorkItemLink(link: RepairWorkItemLink): void;
   listRepairWorkItemLinksByChange(changeId: InternalId): RepairWorkItemLink[];
+
+  insertEnvironment(environment: Environment): void;
+  updateEnvironment(environment: Environment, expectedRevision: number): void;
+  getEnvironment(id: InternalId): Environment | undefined;
+  getEnvironmentByKey(projectId: InternalId, environmentKey: string): Environment | undefined;
+  listEnvironments(projectId: InternalId): Environment[];
+
+  insertRelease(release: Release): void;
+  updateRelease(release: Release, expectedRevision: number): void;
+  getRelease(id: InternalId): Release | undefined;
+  listReleasesByChange(changeId: InternalId): Release[];
+
+  insertReleasePackage(releasePackage: ReleasePackage): void;
+  getReleasePackage(id: InternalId): ReleasePackage | undefined;
+
+  insertDeployment(deployment: Deployment): void;
+  updateDeployment(deployment: Deployment, expectedRevision: number): void;
+  getDeployment(id: InternalId): Deployment | undefined;
+  listDeploymentsByRelease(releaseId: InternalId): Deployment[];
+
+  insertDeploymentAttempt(attempt: DeploymentAttempt): void;
+  listDeploymentAttempts(deploymentId: InternalId): DeploymentAttempt[];
+
+  insertVerificationResult(result: VerificationResult): void;
+  getVerificationResult(id: InternalId): VerificationResult | undefined;
+  listVerificationResultsByDeployment(deploymentId: InternalId): VerificationResult[];
+
+  insertRecoveryStrategy(strategy: RecoveryStrategy): void;
+  getRecoveryStrategy(id: InternalId): RecoveryStrategy | undefined;
+
+  insertRecoveryExecution(execution: RecoveryExecution): void;
+  updateRecoveryExecution(execution: RecoveryExecution, expectedRevision: number): void;
+  getRecoveryExecution(id: InternalId): RecoveryExecution | undefined;
+  listRecoveryExecutionsByRelease(releaseId: InternalId): RecoveryExecution[];
+
+  insertReconciliation(reconciliation: Reconciliation): void;
+  listReconciliationsByOperation(operationId: InternalId): Reconciliation[];
+
+  insertExternalOperation(operation: ExternalOperation): void;
+  updateExternalOperation(operation: ExternalOperation, expectedRevision: number): void;
+  getExternalOperation(id: InternalId): ExternalOperation | undefined;
+  getExternalOperationByKey(operationKey: string): ExternalOperation | undefined;
+  listExternalOperationsByChange(changeId: InternalId): ExternalOperation[];
+  listUnknownExternalOperations(): ExternalOperation[];
 }
 
 export interface ProjectStore {
