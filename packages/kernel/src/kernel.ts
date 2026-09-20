@@ -51,7 +51,11 @@ import {
   type ReclaimExpiredLeaseCommand,
   type RecordSourceSnapshotCommand,
   type RecordArtifactCommand,
+  type RecordEvidenceCommand,
+  type PromoteTestResultCommand,
   type Artifact,
+  type Evidence,
+  type ImpactAssessment,
   type Lease,
   type PolicySnapshot,
   type ResourceLock,
@@ -77,6 +81,8 @@ import {
 } from "./decision.js";
 import { evaluateIntentGate } from "./gates/intent-gate.js";
 import { evaluatePlanGate } from "./gates/plan-gate.js";
+import { createEvidenceFromCommand } from "./evidence/ingest.js";
+import { parseWhitelistedTestResult, readPromotableReference } from "./evidence/promotion.js";
 import { createKnowledgeImpactAssessment, validateKnowledgeImpact } from "./knowledge-impact.js";
 import { createPlanCandidate, createPlanTasks, createPlanVersion, validateKnowledgeTasks } from "./plan.js";
 import { ReadModelBuilder } from "./read-models.js";
@@ -193,6 +199,9 @@ export class CimiLoopKernel {
         }
         if (error.message === "Resource lock already held") {
           return domainError(command.correlation_id, "RESOURCE_LOCK_CONFLICT", "资源锁已被占用", "conflict");
+        }
+        if (error.message === "Evidence subject binding already recorded") {
+          return domainError(command.correlation_id, "EVIDENCE_BINDING_CONFLICT", "同一 Claim 与主体绑定的 Evidence 不可改写", "conflict");
         }
         return domainError(
           command.correlation_id,
@@ -412,6 +421,11 @@ export class CimiLoopKernel {
     return this.#store.transaction((transaction) => transaction.getActiveLeaseByWorkItem(workItemId));
   }
 
+  getEvidence(id: InternalId): Evidence | DomainError {
+    const evidence = this.#store.transaction((transaction) => transaction.getEvidence(id));
+    return evidence ?? domainError(this.#id(), "EVIDENCE_NOT_FOUND", "未找到指定 Evidence", "not_found", false, { id });
+  }
+
   listTasksByChange(changeId: InternalId): Task[] {
     return this.#store.transaction((transaction) => {
       const plan = transaction.getCurrentPlan(changeId);
@@ -467,9 +481,11 @@ export class CimiLoopKernel {
         return this.#recordSourceSnapshot(transaction, command);
       case "RecordArtifact":
         return this.#recordArtifact(transaction, command);
-      case "SubmitClaim":
       case "RecordEvidence":
+        return this.#recordEvidence(transaction, command);
       case "PromoteTestResult":
+        return this.#promoteTestResult(transaction, command);
+      case "SubmitClaim":
       case "RequestEvaluation":
       case "CompleteEvaluation":
       case "AssessImpact":
@@ -2325,6 +2341,105 @@ export class CimiLoopKernel {
       nextChange.revision,
       [event],
       { artifact }
+    );
+  }
+
+  #recordEvidence(transaction: StoreTransaction, command: RecordEvidenceCommand): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
+    if ("code" in loaded) return loaded;
+    const claim = transaction.getClaim(command.payload.claim_id);
+    if (!claim || claim.change_id !== loaded.change.id) {
+      return domainError(command.correlation_id, "EVIDENCE_CLAIM_NOT_FOUND", "记录 Evidence 需要已存在的 Claim", "not_found");
+    }
+    const now = this.#now();
+    const evidence = createEvidenceFromCommand({ id: this.#id(), claim, command, now });
+    transaction.insertEvidence(evidence);
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "EvidenceRecorded",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "evidence", id: evidence.id, domain_version: 1 },
+      aggregate_revision: 1,
+      actor_id: loaded.actorId,
+      command,
+      payload: { evidence_id: evidence.id, claim_id: claim.id, stance: evidence.stance },
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "evidence", id: evidence.id, domain_version: 1 },
+      nextChange.revision,
+      [event],
+      { evidence }
+    );
+  }
+
+  #promoteTestResult(transaction: StoreTransaction, command: PromoteTestResultCommand): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
+    if ("code" in loaded) return loaded;
+    const claim = transaction.getClaim(command.payload.claim_id);
+    if (!claim || claim.change_id !== loaded.change.id) {
+      return domainError(command.correlation_id, "EVIDENCE_CLAIM_NOT_FOUND", "提升测试结果需要已存在的 Claim", "not_found");
+    }
+    const referenced = readPromotableReference(command.payload.content_reference);
+    const parsed =
+      referenced.kind === "contents"
+        ? parseWhitelistedTestResult(command.payload.format, referenced.value)
+        : { kind: "invalid" as const, reason: "unparseable" as const };
+    const now = this.#now();
+    const evidence: Evidence = {
+      schema_version: SCHEMA_VERSION,
+      id: this.#id(),
+      project_id: loaded.project.id,
+      change_id: loaded.change.id,
+      claim_id: claim.id,
+      stance: parsed.kind === "parsed" ? parsed.stance : "Inconclusive",
+      subject_type: "artifact",
+      subject_id: command.payload.artifact_id,
+      subject_digest: command.payload.artifact_digest,
+      content_reference: command.payload.content_reference,
+      digest: command.payload.digest,
+      producer_role: "deterministic_test",
+      created_at: now,
+      ...(command.payload.environment_ref ? { environment_ref: command.payload.environment_ref } : {})
+    };
+    transaction.insertEvidence(evidence);
+    if (parsed.kind === "invalid") {
+      const impact: ImpactAssessment = {
+        schema_version: SCHEMA_VERSION,
+        id: this.#id(),
+        project_id: loaded.project.id,
+        change_id: loaded.change.id,
+        trigger: "artifact",
+        subject_type: "evidence",
+        subject_id: evidence.id,
+        rule: "test_result_unparseable",
+        old_input_digest: command.payload.digest,
+        new_input_digest: command.payload.digest,
+        old_validity: "Valid",
+        new_validity: "Invalid",
+        affected_ids: [evidence.id],
+        created_at: now
+      };
+      transaction.insertImpactAssessment(impact);
+    }
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "TestResultPromoted",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "evidence", id: evidence.id, domain_version: 1 },
+      aggregate_revision: 1,
+      actor_id: loaded.actorId,
+      command,
+      payload: { evidence_id: evidence.id, stance: evidence.stance, format: command.payload.format },
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "evidence", id: evidence.id, domain_version: 1 },
+      nextChange.revision,
+      [event],
+      { evidence }
     );
   }
 
