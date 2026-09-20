@@ -244,6 +244,9 @@ importers:
 
   packages/kernel:
     dependencies:
+      '@cimiloop/portability':
+        specifier: workspace:*
+        version: link:../portability
       '@cimiloop/protocol':
         specifier: workspace:*
         version: link:../protocol
@@ -274,6 +277,12 @@ importers:
       '@cimiloop/store':
         specifier: workspace:*
         version: link:../store
+
+  packages/portability:
+    dependencies:
+      '@cimiloop/protocol':
+        specifier: workspace:*
+        version: link:../protocol
 
   packages/protocol:
     dependencies:

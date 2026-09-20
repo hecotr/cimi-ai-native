@@ -13,6 +13,7 @@
     { "path": "packages/devops" },
     { "path": "packages/devops-command" },
     { "path": "packages/store-sqlite" },
+    { "path": "packages/portability" },
     { "path": "apps/cli" },
     { "path": "apps/workbench" }
   ]

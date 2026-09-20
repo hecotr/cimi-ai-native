@@ -1,5 +1,5 @@
 {
-  "name": "@cimiloop/kernel",
+  "name": "@cimiloop/portability",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,8 +10,6 @@
     }
   },
   "dependencies": {
-    "@cimiloop/protocol": "workspace:*",
-    "@cimiloop/portability": "workspace:*",
-    "@cimiloop/store": "workspace:*"
+    "@cimiloop/protocol": "workspace:*"
   }
 }

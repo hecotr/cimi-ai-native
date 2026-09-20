@@ -77,6 +77,7 @@ import {
   type SupersedeChangeCommand,
   type ArchiveChangeCommand,
   type CreateLearningCandidateCommand,
+  type ExportProjectCommand,
   type RequestReleaseDecisionCommand,
   type DecisionRequest,
   type Claim,
@@ -131,6 +132,7 @@ import { evaluateEvidenceGate, evaluationInputDigest, findReusableEvaluation } f
 import { classifyImpact, projectValidity } from "./evidence/impact.js";
 import { createEvidenceFromCommand } from "./evidence/ingest.js";
 import { parseWhitelistedTestResult, readPromotableReference } from "./evidence/promotion.js";
+import { exportProjectBundle, PortableExportError } from "@cimiloop/portability";
 import { evaluateKnowledgeClosureGate } from "./closure/gate.js";
 import { createProposedLearningCandidate } from "./closure/learning.js";
 import {
@@ -799,6 +801,7 @@ export class CimiLoopKernel {
       case "CreateLearningCandidate":
         return this.#createLearningCandidate(transaction, command);
       case "ExportProject":
+        return this.#exportProject(transaction, command);
       case "StageImport":
       case "CommitImport":
         return this.#unsupported(command);
@@ -4733,6 +4736,105 @@ export class CimiLoopKernel {
       [event],
       { archive_record: record }
     );
+  }
+
+  #exportProject(transaction: StoreTransaction, command: ExportProjectCommand): KernelResult {
+    const context = this.#requireProjectActor(transaction, command);
+    if ("code" in context) return context;
+    if (command.expected_revision !== context.project.revision) {
+      return domainError(
+        command.correlation_id,
+        "REVISION_CONFLICT",
+        "目标对象已被其他命令修改，请刷新后重试",
+        "conflict",
+        false,
+        { current_revision: context.project.revision }
+      );
+    }
+    if (command.payload.scope === "change" && !command.payload.change_id) {
+      return domainError(command.correlation_id, "CHANGE_TARGET_REQUIRED", "按 Change 导出必须提供 change_id", "validation");
+    }
+    if (command.payload.change_id) {
+      const change = transaction.getChange(command.payload.change_id);
+      if (!change || change.project_id !== context.project.id) {
+        return domainError(command.correlation_id, "CHANGE_NOT_FOUND", "未找到指定 Change", "not_found");
+      }
+    }
+    const changes = this.#store
+      .listChanges()
+      .filter((item) => !command.payload.change_id || item.id === command.payload.change_id);
+    const events = this.#store.listEvents().filter((event) => {
+      if (event.project_id !== context.project.id) return false;
+      if (!command.payload.change_id) return true;
+      return (
+        event.aggregate.id === command.payload.change_id ||
+        event.payload.change_id === command.payload.change_id
+      );
+    });
+    const facts = [
+      {
+        object_type: "project",
+        schema_version: SCHEMA_VERSION,
+        id: context.project.id,
+        domain_version: context.project.revision,
+        payload: { ...context.project }
+      },
+      ...changes.map((change) => ({
+        object_type: "change",
+        schema_version: SCHEMA_VERSION,
+        id: change.id,
+        domain_version: change.revision,
+        payload: { ...change }
+      })),
+      ...events.map((event) => ({
+        object_type: "event",
+        schema_version: SCHEMA_VERSION,
+        id: event.event_id,
+        domain_version: event.event_sequence,
+        payload: { ...event }
+      }))
+    ];
+    try {
+      const manifest = exportProjectBundle({
+        projectId: context.project.id,
+        exporterActorId: context.actorId,
+        sourceInstanceId: context.project.instance_id,
+        exportedAt: this.#now(),
+        manifestId: this.#id(),
+        facts,
+        events: events.map((event) => ({ event_id: event.event_id, event_sequence: event.event_sequence })),
+        outbox: this.#store.listOutbox().map((item) => ({ id: item.id, status: item.status })),
+        ownershipState: "active",
+        latestRevision: Math.max(context.project.revision, ...changes.map((item) => item.revision))
+      });
+      const now = this.#now();
+      const event = this.#appendEvent(transaction, {
+        event_type: "ProjectExported",
+        project_id: context.project.id,
+        aggregate: { object_type: "export_manifest", id: manifest.id, domain_version: 1 },
+        aggregate_revision: 1,
+        actor_id: context.actorId,
+        command,
+        payload: {
+          export_manifest_id: manifest.id,
+          content_digest: manifest.content_digest.value,
+          ownership_state: manifest.ownership_state
+        },
+        occurred_at: now
+      });
+      return this.#success(
+        command,
+        { object_type: "export_manifest", id: manifest.id, domain_version: 1 },
+        context.project.revision,
+        [event],
+        { export_manifest: manifest }
+      );
+    } catch (error) {
+      if (error instanceof PortableExportError) {
+        return domainError(command.correlation_id, error.code, error.message, "conflict");
+      }
+      throw error;
+    }
   }
 
   #createLearningCandidate(transaction: StoreTransaction, command: CreateLearningCandidateCommand): KernelResult {
