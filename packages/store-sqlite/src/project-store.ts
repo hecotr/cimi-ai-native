@@ -9,6 +9,8 @@ import {
   CapabilityBindingSchema,
   ChangeProfileSchema,
   ChangeSchema,
+  ClaimAssessmentSchema,
+  ClaimSchema,
   CommandSuccessSchema,
   ContextPackManifestSchema,
   ContractAmendmentSchema,
@@ -17,8 +19,14 @@ import {
   DecisionRequestSchema,
   DecisionSchema,
   EventEnvelopeSchema,
+  EvidencePackageManifestSchema,
+  EvidenceSchema,
+  ExternalReferenceSchema,
   FeedbackSchema,
   GateEvaluationSchema,
+  GateRequirementSetSchema,
+  ImpactAssessmentSchema,
+  IndependentEvaluationSchema,
   KnowledgeImpactAssessmentSchema,
   LeaseSchema,
   PlanAmendmentSchema,
@@ -28,6 +36,7 @@ import {
   ProjectPolicySchema,
   ProjectSchema,
   ProviderDescriptorSchema,
+  RepairWorkItemLinkSchema,
   ResourceLockSchema,
   RiskAssessmentSchema,
   RiskProfileSchema,
@@ -45,6 +54,8 @@ import {
   type CapabilityBinding,
   type Change,
   type ChangeProfile,
+  type Claim,
+  type ClaimAssessment,
   type CommandSuccess,
   type ContextPackManifest,
   type ContractAmendment,
@@ -53,8 +64,14 @@ import {
   type Decision,
   type DecisionRequest,
   type EventEnvelope,
+  type Evidence,
+  type EvidencePackageManifest,
+  type ExternalReference,
   type Feedback,
   type GateEvaluation,
+  type GateRequirementSet,
+  type ImpactAssessment,
+  type IndependentEvaluation,
   type InternalId,
   type KnowledgeImpactAssessment,
   type Lease,
@@ -65,6 +82,7 @@ import {
   type Project,
   type ProjectPolicy,
   type ProviderDescriptor,
+  type RepairWorkItemLink,
   type ResourceLock,
   type RiskAssessment,
   type RiskProfile,
@@ -117,6 +135,15 @@ const parseAgentRun = compileValidator<AgentRunRecord>(AgentRunRecordSchema);
 const parseSourceSnapshot = compileValidator<SourceSnapshot>(SourceSnapshotSchema);
 const parseArtifact = compileValidator<Artifact>(ArtifactSchema);
 const parseBlocker = compileValidator<Blocker>(BlockerSchema);
+const parseClaim = compileValidator<Claim>(ClaimSchema);
+const parseExternalReference = compileValidator<ExternalReference>(ExternalReferenceSchema);
+const parseEvidence = compileValidator<Evidence>(EvidenceSchema);
+const parseGateRequirementSet = compileValidator<GateRequirementSet>(GateRequirementSetSchema);
+const parseIndependentEvaluation = compileValidator<IndependentEvaluation>(IndependentEvaluationSchema);
+const parseClaimAssessment = compileValidator<ClaimAssessment>(ClaimAssessmentSchema);
+const parseEvidencePackage = compileValidator<EvidencePackageManifest>(EvidencePackageManifestSchema);
+const parseImpactAssessment = compileValidator<ImpactAssessment>(ImpactAssessmentSchema);
+const parseRepairLink = compileValidator<RepairWorkItemLink>(RepairWorkItemLinkSchema);
 
 const isUniqueConstraint = (error: unknown): boolean =>
   error instanceof Error && /UNIQUE constraint failed/i.test(error.message);
@@ -966,6 +993,192 @@ class SqliteTransaction implements StoreTransaction {
     return this.listPayload(
       "SELECT payload_json FROM blockers WHERE change_id = ? AND status = 'open' ORDER BY rowid",
       parseBlocker,
+      changeId
+    );
+  }
+
+  insertClaim(claim: Claim): void {
+    this.database
+      .prepare("INSERT INTO claims(id, project_id, change_id, claim_key, payload_json) VALUES (?, ?, ?, ?, ?)")
+      .run(claim.id, claim.project_id, claim.change_id, claim.claim_key, json(claim));
+  }
+
+  getClaim(id: InternalId): Claim | undefined {
+    return this.getPayload("SELECT payload_json FROM claims WHERE id = ?", parseClaim, id);
+  }
+
+  listClaimsByChange(changeId: InternalId): Claim[] {
+    return this.listPayload("SELECT payload_json FROM claims WHERE change_id = ? ORDER BY rowid", parseClaim, changeId);
+  }
+
+  insertExternalReference(reference: ExternalReference): void {
+    this.database
+      .prepare("INSERT INTO external_references(id, project_id, digest, payload_json) VALUES (?, ?, ?, ?)")
+      .run(reference.id, reference.project_id, reference.digest.value, json(reference));
+  }
+
+  getExternalReference(id: InternalId): ExternalReference | undefined {
+    return this.getPayload("SELECT payload_json FROM external_references WHERE id = ?", parseExternalReference, id);
+  }
+
+  insertEvidence(evidence: Evidence): void {
+    this.insertUnique(
+      "INSERT INTO evidence(id, project_id, change_id, claim_id, stance, subject_type, subject_id, subject_digest, environment_ref, context_pack_id, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [
+        evidence.id,
+        evidence.project_id,
+        evidence.change_id,
+        evidence.claim_id,
+        evidence.stance,
+        evidence.subject_type,
+        evidence.subject_id,
+        evidence.subject_digest.value,
+        evidence.environment_ref ?? null,
+        evidence.context_pack_id ?? null,
+        json(evidence)
+      ],
+      "Evidence subject binding already recorded"
+    );
+  }
+
+  getEvidence(id: InternalId): Evidence | undefined {
+    return this.getPayload("SELECT payload_json FROM evidence WHERE id = ?", parseEvidence, id);
+  }
+
+  listEvidenceByClaim(claimId: InternalId): Evidence[] {
+    return this.listPayload("SELECT payload_json FROM evidence WHERE claim_id = ? ORDER BY rowid", parseEvidence, claimId);
+  }
+
+  listEvidenceByChange(changeId: InternalId): Evidence[] {
+    return this.listPayload("SELECT payload_json FROM evidence WHERE change_id = ? ORDER BY rowid", parseEvidence, changeId);
+  }
+
+  insertGateRequirementSet(requirementSet: GateRequirementSet): void {
+    this.database
+      .prepare(
+        "INSERT INTO gate_requirement_sets(id, project_id, change_id, version, digest, payload_json) VALUES (?, ?, ?, ?, ?, ?)"
+      )
+      .run(
+        requirementSet.id,
+        requirementSet.project_id,
+        requirementSet.change_id,
+        requirementSet.version,
+        requirementSet.digest.value,
+        json(requirementSet)
+      );
+  }
+
+  getGateRequirementSet(id: InternalId): GateRequirementSet | undefined {
+    return this.getPayload("SELECT payload_json FROM gate_requirement_sets WHERE id = ?", parseGateRequirementSet, id);
+  }
+
+  getLatestGateRequirementSet(changeId: InternalId): GateRequirementSet | undefined {
+    return this.getPayload(
+      "SELECT payload_json FROM gate_requirement_sets WHERE change_id = ? ORDER BY version DESC LIMIT 1",
+      parseGateRequirementSet,
+      changeId
+    );
+  }
+
+  insertIndependentEvaluation(evaluation: IndependentEvaluation): void {
+    this.database
+      .prepare(
+        "INSERT INTO independent_evaluations(id, project_id, change_id, artifact_id, artifact_digest, requirement_set_id, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      )
+      .run(
+        evaluation.id,
+        evaluation.project_id,
+        evaluation.change_id,
+        evaluation.artifact_id,
+        evaluation.artifact_digest.value,
+        evaluation.requirement_set_id,
+        json(evaluation)
+      );
+  }
+
+  getIndependentEvaluation(id: InternalId): IndependentEvaluation | undefined {
+    return this.getPayload("SELECT payload_json FROM independent_evaluations WHERE id = ?", parseIndependentEvaluation, id);
+  }
+
+  listIndependentEvaluationsByChange(changeId: InternalId): IndependentEvaluation[] {
+    return this.listPayload(
+      "SELECT payload_json FROM independent_evaluations WHERE change_id = ? ORDER BY rowid",
+      parseIndependentEvaluation,
+      changeId
+    );
+  }
+
+  insertClaimAssessment(assessment: ClaimAssessment): void {
+    this.database
+      .prepare(
+        "INSERT INTO claim_assessments(id, project_id, change_id, claim_id, evaluation_id, payload_json) VALUES (?, ?, ?, ?, ?, ?)"
+      )
+      .run(
+        assessment.id,
+        assessment.project_id,
+        assessment.change_id,
+        assessment.claim_id,
+        assessment.evaluation_id,
+        json(assessment)
+      );
+  }
+
+  listClaimAssessmentsByEvaluation(evaluationId: InternalId): ClaimAssessment[] {
+    return this.listPayload(
+      "SELECT payload_json FROM claim_assessments WHERE evaluation_id = ? ORDER BY rowid",
+      parseClaimAssessment,
+      evaluationId
+    );
+  }
+
+  insertEvidencePackageManifest(manifest: EvidencePackageManifest): void {
+    this.database
+      .prepare(
+        "INSERT INTO evidence_package_manifests(id, project_id, change_id, package_kind, digest, payload_json) VALUES (?, ?, ?, ?, ?, ?)"
+      )
+      .run(manifest.id, manifest.project_id, manifest.change_id, manifest.package_kind, manifest.digest.value, json(manifest));
+  }
+
+  getEvidencePackageManifest(id: InternalId): EvidencePackageManifest | undefined {
+    return this.getPayload("SELECT payload_json FROM evidence_package_manifests WHERE id = ?", parseEvidencePackage, id);
+  }
+
+  insertImpactAssessment(assessment: ImpactAssessment): void {
+    this.database
+      .prepare(
+        "INSERT INTO impact_assessments(id, project_id, change_id, subject_type, subject_id, new_validity, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      )
+      .run(
+        assessment.id,
+        assessment.project_id,
+        assessment.change_id,
+        assessment.subject_type,
+        assessment.subject_id,
+        assessment.new_validity,
+        json(assessment)
+      );
+  }
+
+  listImpactAssessmentsBySubject(subjectId: InternalId): ImpactAssessment[] {
+    return this.listPayload(
+      "SELECT payload_json FROM impact_assessments WHERE subject_id = ? ORDER BY rowid",
+      parseImpactAssessment,
+      subjectId
+    );
+  }
+
+  insertRepairWorkItemLink(link: RepairWorkItemLink): void {
+    this.database
+      .prepare(
+        "INSERT INTO repair_work_item_links(id, project_id, change_id, failed_evidence_id, repair_work_item_id, payload_json) VALUES (?, ?, ?, ?, ?, ?)"
+      )
+      .run(link.id, link.project_id, link.change_id, link.failed_evidence_id, link.repair_work_item_id, json(link));
+  }
+
+  listRepairWorkItemLinksByChange(changeId: InternalId): RepairWorkItemLink[] {
+    return this.listPayload(
+      "SELECT payload_json FROM repair_work_item_links WHERE change_id = ? ORDER BY rowid",
+      parseRepairLink,
       changeId
     );
   }

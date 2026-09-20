@@ -374,6 +374,104 @@ CREATE TABLE IF NOT EXISTS blockers (
 
 CREATE INDEX IF NOT EXISTS idx_blockers_open ON blockers(change_id, status) WHERE status = 'open';
 `
+  },
+  {
+    version: 4,
+    sql: `
+CREATE TABLE IF NOT EXISTS claims (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  claim_key TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS external_references (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  digest TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS evidence (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  claim_id TEXT NOT NULL REFERENCES claims(id),
+  stance TEXT NOT NULL,
+  subject_type TEXT NOT NULL,
+  subject_id TEXT NOT NULL,
+  subject_digest TEXT NOT NULL,
+  environment_ref TEXT,
+  context_pack_id TEXT,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS gate_requirement_sets (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  version INTEGER NOT NULL,
+  digest TEXT NOT NULL,
+  payload_json TEXT NOT NULL,
+  UNIQUE(change_id, version)
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS independent_evaluations (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  artifact_id TEXT NOT NULL,
+  artifact_digest TEXT NOT NULL,
+  requirement_set_id TEXT NOT NULL REFERENCES gate_requirement_sets(id),
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS claim_assessments (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  claim_id TEXT NOT NULL REFERENCES claims(id),
+  evaluation_id TEXT NOT NULL REFERENCES independent_evaluations(id),
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS evidence_package_manifests (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  package_kind TEXT NOT NULL,
+  digest TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS impact_assessments (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  subject_type TEXT NOT NULL,
+  subject_id TEXT NOT NULL,
+  new_validity TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS repair_work_item_links (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  failed_evidence_id TEXT NOT NULL REFERENCES evidence(id),
+  repair_work_item_id TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_evidence_subject_binding
+  ON evidence(claim_id, subject_type, subject_id, subject_digest, COALESCE(environment_ref, ''), COALESCE(context_pack_id, ''));
+CREATE INDEX IF NOT EXISTS idx_claims_change ON claims(change_id, claim_key);
+CREATE INDEX IF NOT EXISTS idx_evidence_change ON evidence(change_id, stance);
+CREATE INDEX IF NOT EXISTS idx_requirement_sets_change ON gate_requirement_sets(change_id, version);
+CREATE INDEX IF NOT EXISTS idx_evaluations_change ON independent_evaluations(change_id);
+CREATE INDEX IF NOT EXISTS idx_impact_subject ON impact_assessments(subject_type, subject_id);
+`
   }
 ];
 

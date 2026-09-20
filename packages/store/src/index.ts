@@ -7,6 +7,8 @@ import type {
   CapabilityBinding,
   Change,
   ChangeProfile,
+  Claim,
+  ClaimAssessment,
   CommandSuccess,
   ContextPackManifest,
   ContractAmendment,
@@ -15,8 +17,14 @@ import type {
   Decision,
   DecisionRequest,
   EventEnvelope,
+  Evidence,
+  EvidencePackageManifest,
+  ExternalReference,
   Feedback,
   GateEvaluation,
+  GateRequirementSet,
+  ImpactAssessment,
+  IndependentEvaluation,
   InternalId,
   KnowledgeImpactAssessment,
   Lease,
@@ -27,6 +35,7 @@ import type {
   Project,
   ProjectPolicy,
   ProviderDescriptor,
+  RepairWorkItemLink,
   ResourceLock,
   RiskAssessment,
   RiskProfile,
@@ -206,6 +215,38 @@ export interface StoreTransaction {
   insertBlocker(blocker: Blocker): void;
   updateBlocker(blocker: Blocker, expectedRevision: number): void;
   listOpenBlockers(changeId: InternalId): Blocker[];
+
+  insertClaim(claim: Claim): void;
+  getClaim(id: InternalId): Claim | undefined;
+  listClaimsByChange(changeId: InternalId): Claim[];
+
+  insertExternalReference(reference: ExternalReference): void;
+  getExternalReference(id: InternalId): ExternalReference | undefined;
+
+  insertEvidence(evidence: Evidence): void;
+  getEvidence(id: InternalId): Evidence | undefined;
+  listEvidenceByClaim(claimId: InternalId): Evidence[];
+  listEvidenceByChange(changeId: InternalId): Evidence[];
+
+  insertGateRequirementSet(requirementSet: GateRequirementSet): void;
+  getGateRequirementSet(id: InternalId): GateRequirementSet | undefined;
+  getLatestGateRequirementSet(changeId: InternalId): GateRequirementSet | undefined;
+
+  insertIndependentEvaluation(evaluation: IndependentEvaluation): void;
+  getIndependentEvaluation(id: InternalId): IndependentEvaluation | undefined;
+  listIndependentEvaluationsByChange(changeId: InternalId): IndependentEvaluation[];
+
+  insertClaimAssessment(assessment: ClaimAssessment): void;
+  listClaimAssessmentsByEvaluation(evaluationId: InternalId): ClaimAssessment[];
+
+  insertEvidencePackageManifest(manifest: EvidencePackageManifest): void;
+  getEvidencePackageManifest(id: InternalId): EvidencePackageManifest | undefined;
+
+  insertImpactAssessment(assessment: ImpactAssessment): void;
+  listImpactAssessmentsBySubject(subjectId: InternalId): ImpactAssessment[];
+
+  insertRepairWorkItemLink(link: RepairWorkItemLink): void;
+  listRepairWorkItemLinksByChange(changeId: InternalId): RepairWorkItemLink[];
 }
 
 export interface ProjectStore {

@@ -184,7 +184,7 @@ describe("M1 store migrations", () => {
     });
 
     const inspect = new DatabaseSync(databasePath, { readOnly: true });
-    expect(getProjectStoreSchemaVersion(inspect)).toBe(3);
+    expect(getProjectStoreSchemaVersion(inspect)).toBe(4);
     expect(
       inspect.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'decision_requests'").get()
     ).toBeTruthy();
@@ -198,8 +198,8 @@ describe("M1 store migrations", () => {
     first.close();
     const second = new SqliteProjectStore(databasePath);
     const inspect = new DatabaseSync(databasePath, { readOnly: true });
-    expect(getProjectStoreSchemaVersion(inspect)).toBe(3);
-    expect(inspect.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get()).toMatchObject({ count: 3 });
+    expect(getProjectStoreSchemaVersion(inspect)).toBe(4);
+    expect(inspect.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get()).toMatchObject({ count: 4 });
     inspect.close();
     second.close();
   });
