@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "RunTransition.v1",
+  "anyOf": [
+    {
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "type": "string",
+          "const": "queued"
+        },
+        "to": {
+          "type": "string",
+          "const": "starting"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "type": "string",
+          "const": "queued"
+        },
+        "to": {
+          "type": "string",
+          "const": "cancelled"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "type": "string",
+          "const": "starting"
+        },
+        "to": {
+          "type": "string",
+          "const": "running"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "type": "string",
+          "const": "starting"
+        },
+        "to": {
+          "type": "string",
+          "const": "failed"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "type": "string",
+          "const": "starting"
+        },
+        "to": {
+          "type": "string",
+          "const": "cancelled"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "type": "string",
+          "const": "starting"
+        },
+        "to": {
+          "type": "string",
+          "const": "unknown"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "type": "string",
+          "const": "running"
+        },
+        "to": {
+          "type": "string",
+          "const": "completed"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "type": "string",
+          "const": "running"
+        },
+        "to": {
+          "type": "string",
+          "const": "failed"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "type": "string",
+          "const": "running"
+        },
+        "to": {
+          "type": "string",
+          "const": "cancelled"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "type": "string",
+          "const": "running"
+        },
+        "to": {
+          "type": "string",
+          "const": "unknown"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

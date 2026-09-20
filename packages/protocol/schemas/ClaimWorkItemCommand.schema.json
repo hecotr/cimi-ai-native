@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "CreateChangeCommand.v1",
+  "$id": "ClaimWorkItemCommand.v1",
   "type": "object",
   "required": [
     "schema_version",
@@ -8,6 +8,9 @@
     "correlation_id",
     "command_type",
     "requested_at",
+    "actor_id",
+    "project_id",
+    "expected_revision",
     "source",
     "payload"
   ],
@@ -26,7 +29,7 @@
     },
     "command_type": {
       "type": "string",
-      "const": "CreateChange"
+      "const": "ClaimWorkItem"
     },
     "requested_at": {
       "type": "string",
@@ -255,13 +258,12 @@
     "payload": {
       "type": "object",
       "required": [
-        "title"
+        "work_item_id"
       ],
       "properties": {
-        "title": {
+        "work_item_id": {
           "type": "string",
-          "minLength": 1,
-          "maxLength": 300
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
         }
       },
       "additionalProperties": false

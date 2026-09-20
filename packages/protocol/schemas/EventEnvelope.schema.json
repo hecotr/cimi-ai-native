@@ -141,6 +141,58 @@
             {
               "type": "string",
               "const": "gate_evaluation"
+            },
+            {
+              "type": "string",
+              "const": "work_item"
+            },
+            {
+              "type": "string",
+              "const": "agent_run"
+            },
+            {
+              "type": "string",
+              "const": "context_pack_manifest"
+            },
+            {
+              "type": "string",
+              "const": "context_source"
+            },
+            {
+              "type": "string",
+              "const": "capability_requirement"
+            },
+            {
+              "type": "string",
+              "const": "provider_descriptor"
+            },
+            {
+              "type": "string",
+              "const": "capability_binding"
+            },
+            {
+              "type": "string",
+              "const": "source_snapshot"
+            },
+            {
+              "type": "string",
+              "const": "artifact"
+            },
+            {
+              "type": "string",
+              "const": "resource_lock"
+            },
+            {
+              "type": "string",
+              "const": "lease"
+            },
+            {
+              "type": "string",
+              "const": "failure"
+            },
+            {
+              "type": "string",
+              "const": "blocker"
             }
           ]
         },

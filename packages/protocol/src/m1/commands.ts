@@ -1,12 +1,5 @@
 import { Type, type Static } from "typebox";
-import {
-  CreateChangeCommandSchema,
-  InitializeProjectCommandSchema,
-  InternalIdSchema,
-  PauseChangeCommandSchema,
-  ResumeChangeCommandSchema,
-  mutatingCommandSchema
-} from "../schemas.js";
+import { InternalIdSchema, mutatingCommandSchema } from "../schemas.js";
 import {
   AcceptanceCriterionSchema,
   ChangeProfileKeySchema,
@@ -135,21 +128,6 @@ export const SubmitPlanAmendmentCommandSchema = mutatingCommandSchema(
   )
 );
 
-export const AnyCommandSchema = Type.Union([
-  InitializeProjectCommandSchema,
-  CreateChangeCommandSchema,
-  PauseChangeCommandSchema,
-  ResumeChangeCommandSchema,
-  BootstrapSoloGovernanceCommandSchema,
-  SubmitContractCandidateCommandSchema,
-  RequestIntentDecisionCommandSchema,
-  SubmitDecisionCommandSchema,
-  SubmitContractAmendmentCommandSchema,
-  SubmitPlanCandidateCommandSchema,
-  RequestPlanDecisionCommandSchema,
-  SubmitPlanAmendmentCommandSchema
-]);
-
 export const m1CommandSchemas = {
   BootstrapSoloGovernanceCommand: BootstrapSoloGovernanceCommandSchema,
   SubmitContractCandidateCommand: SubmitContractCandidateCommandSchema,
@@ -158,8 +136,7 @@ export const m1CommandSchemas = {
   SubmitContractAmendmentCommand: SubmitContractAmendmentCommandSchema,
   SubmitPlanCandidateCommand: SubmitPlanCandidateCommandSchema,
   RequestPlanDecisionCommand: RequestPlanDecisionCommandSchema,
-  SubmitPlanAmendmentCommand: SubmitPlanAmendmentCommandSchema,
-  AnyCommand: AnyCommandSchema
+  SubmitPlanAmendmentCommand: SubmitPlanAmendmentCommandSchema
 } as const;
 
 export type DecisionOutcomePayload = Static<typeof DecisionOutcomeSchema>;
@@ -171,4 +148,3 @@ export type SubmitContractAmendmentCommand = Static<typeof SubmitContractAmendme
 export type SubmitPlanCandidateCommand = Static<typeof SubmitPlanCandidateCommandSchema>;
 export type RequestPlanDecisionCommand = Static<typeof RequestPlanDecisionCommandSchema>;
 export type SubmitPlanAmendmentCommand = Static<typeof SubmitPlanAmendmentCommandSchema>;
-export type AnyCommand = Static<typeof AnyCommandSchema>;

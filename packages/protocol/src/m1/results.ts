@@ -10,6 +10,7 @@ import {
   TypedReferenceSchema,
   UtcTimestampSchema
 } from "../schemas.js";
+import { M2CommandSuccessDataSchema } from "../m2/results.js";
 import {
   ChangeRoomViewSchema,
   ContractCandidateSchema,
@@ -68,7 +69,8 @@ export const CommandSuccessDataSchema = Type.Union([
       tasks: Type.Optional(Type.Array(TaskSchema))
     },
     { additionalProperties: false }
-  )
+  ),
+  M2CommandSuccessDataSchema
 ]);
 
 export const CommandSuccessSchema = Type.Object(

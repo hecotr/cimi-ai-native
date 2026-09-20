@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ContextSource.v1",
+  "type": "object",
+  "required": [
+    "key",
+    "authority",
+    "location_ref",
+    "digest",
+    "freshness"
+  ],
+  "properties": {
+    "key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "authority": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "canonical"
+        },
+        {
+          "type": "string",
+          "const": "derived"
+        },
+        {
+          "type": "string",
+          "const": "reference"
+        },
+        {
+          "type": "string",
+          "const": "runtime_observation"
+        }
+      ]
+    },
+    "location_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "digest": {
+      "type": "object",
+      "required": [
+        "algorithm",
+        "value",
+        "subject"
+      ],
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "const": "sha256"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      },
+      "additionalProperties": false
+    },
+    "freshness": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "current"
+        },
+        {
+          "type": "string",
+          "const": "stale"
+        },
+        {
+          "type": "string",
+          "const": "unavailable"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

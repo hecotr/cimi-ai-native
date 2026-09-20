@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "CreateChangeCommand.v1",
+  "$id": "RecordSourceSnapshotCommand.v1",
   "type": "object",
   "required": [
     "schema_version",
@@ -8,6 +8,9 @@
     "correlation_id",
     "command_type",
     "requested_at",
+    "actor_id",
+    "project_id",
+    "expected_revision",
     "source",
     "payload"
   ],
@@ -26,7 +29,7 @@
     },
     "command_type": {
       "type": "string",
-      "const": "CreateChange"
+      "const": "RecordSourceSnapshot"
     },
     "requested_at": {
       "type": "string",
@@ -255,13 +258,68 @@
     "payload": {
       "type": "object",
       "required": [
-        "title"
+        "run_id",
+        "snapshot_kind",
+        "dirty",
+        "digest",
+        "content_reference"
       ],
       "properties": {
-        "title": {
+        "run_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "snapshot_kind": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "git_commit"
+            },
+            {
+              "type": "string",
+              "const": "explicit_dirty_manifest"
+            }
+          ]
+        },
+        "dirty": {
+          "type": "boolean"
+        },
+        "commit_sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "tree_sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "digest": {
+          "type": "object",
+          "required": [
+            "algorithm",
+            "value",
+            "subject"
+          ],
+          "properties": {
+            "algorithm": {
+              "type": "string",
+              "const": "sha256"
+            },
+            "value": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "subject": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "additionalProperties": false
+        },
+        "content_reference": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 300
+          "maxLength": 500
         }
       },
       "additionalProperties": false

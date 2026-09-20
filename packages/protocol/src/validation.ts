@@ -40,7 +40,7 @@ import {
   type RiskProfile,
   type Task
 } from "./m1/domain.js";
-import { AnyCommandSchema, type AnyCommand } from "./m1/commands.js";
+import { AnyCommandSchema, type AnyCommand } from "./m2/commands.js";
 import {
   ChangeRoomResultSchema,
   CommandResultSchema,

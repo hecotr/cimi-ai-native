@@ -35,7 +35,20 @@ export const ObjectTypeSchema = Type.Union([
   Type.Literal("decision_request"),
   Type.Literal("decision"),
   Type.Literal("feedback"),
-  Type.Literal("gate_evaluation")
+  Type.Literal("gate_evaluation"),
+  Type.Literal("work_item"),
+  Type.Literal("agent_run"),
+  Type.Literal("context_pack_manifest"),
+  Type.Literal("context_source"),
+  Type.Literal("capability_requirement"),
+  Type.Literal("provider_descriptor"),
+  Type.Literal("capability_binding"),
+  Type.Literal("source_snapshot"),
+  Type.Literal("artifact"),
+  Type.Literal("resource_lock"),
+  Type.Literal("lease"),
+  Type.Literal("failure"),
+  Type.Literal("blocker")
 ]);
 
 export const TypedReferenceSchema = Type.Object(

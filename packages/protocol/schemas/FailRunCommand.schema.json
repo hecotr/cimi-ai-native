@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "CreateChangeCommand.v1",
+  "$id": "FailRunCommand.v1",
   "type": "object",
   "required": [
     "schema_version",
@@ -8,6 +8,9 @@
     "correlation_id",
     "command_type",
     "requested_at",
+    "actor_id",
+    "project_id",
+    "expected_revision",
     "source",
     "payload"
   ],
@@ -26,7 +29,7 @@
     },
     "command_type": {
       "type": "string",
-      "const": "CreateChange"
+      "const": "FailRun"
     },
     "requested_at": {
       "type": "string",
@@ -255,13 +258,52 @@
     "payload": {
       "type": "object",
       "required": [
-        "title"
+        "run_id",
+        "summary",
+        "failure_code"
       ],
       "properties": {
-        "title": {
+        "run_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "summary": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 300
+          "maxLength": 2000
+        },
+        "failure_code": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]+$"
+        },
+        "log_reference": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "log_digest": {
+          "type": "object",
+          "required": [
+            "algorithm",
+            "value",
+            "subject"
+          ],
+          "properties": {
+            "algorithm": {
+              "type": "string",
+              "const": "sha256"
+            },
+            "value": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "subject": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

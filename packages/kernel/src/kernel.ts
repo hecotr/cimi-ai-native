@@ -337,6 +337,23 @@ export class CimiLoopKernel {
         return this.#submitContractAmendment(transaction, command);
       case "SubmitPlanAmendment":
         return this.#submitPlanAmendment(transaction, command);
+      case "CreatePlanningWorkItem":
+      case "CreateExecutionWorkItems":
+      case "ClaimWorkItem":
+      case "StartRun":
+      case "HeartbeatRun":
+      case "CompleteRun":
+      case "FailRun":
+      case "CancelRun":
+      case "RecordSourceSnapshot":
+      case "RecordArtifact":
+      case "ReclaimExpiredLease":
+        return domainError(
+          command.correlation_id,
+          "COMMAND_UNSUPPORTED",
+          "该执行命令将在后续 M2 任务中实现",
+          "validation"
+        );
     }
   }
 
