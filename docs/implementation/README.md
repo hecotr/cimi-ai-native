@@ -4,10 +4,10 @@
 
 ## 当前阶段
 
-- 当前里程碑：M1 意图、计划与人工决策已冻结。
-- 当前状态：M0 Kernel 最小闭环与 M1 `Draft → IntentReady → Planned` 治理闭环均已交付。Contract / Plan 版本、Human Decision、Gate、Inbox / Room / Timeline、CLI 与本地 Workbench 已实现；Agent Runtime、Artifact、Evidence 与发布恢复仍未实现。
-- 下一里程碑：M2 执行、上下文与不可变产物。
-- 实施基线：[CimiLoop M1 实施架构 v0.1](2026-09-20-cimiloop-m1实施架构-v0.1.md)；M0 基线仍为 [CimiLoop M0 实施架构 v0.1](2026-09-19-cimiloop-m0实施架构-v0.1.md)。
+- 当前里程碑：M2 执行、上下文与不可变产物已冻结。
+- 当前状态：M0 Kernel 最小闭环、M1 `Draft → IntentReady → Planned` 治理闭环，以及 M2 `Planned → Work Item → Run → Snapshot → Artifact` 执行切片均已交付。Evidence、Independent Evaluation、Release 与 Portable Export/Import 仍未实现。
+- 下一里程碑：M3 Claim–Evidence 与 Independent Evaluation。
+- 实施基线：[CimiLoop M2 实施架构 v0.1](2026-09-20-cimiloop-m2实施架构-v0.1.md)；前序基线为 [M1](2026-09-20-cimiloop-m1实施架构-v0.1.md) 与 [M0](2026-09-19-cimiloop-m0实施架构-v0.1.md)。
 
 ## 已确认技术决策
 
@@ -38,19 +38,24 @@ TypeScript 与 Node.js 的常规工程选择由实现负责人按稳定性、可
 ```text
 apps/
 ├─ cli/                 # V1 用户入口与本地编排
-└─ workbench/           # M1 本地 Decision Workbench（Node http SSR）
+└─ workbench/           # 本地 Decision / Change Room（Node http SSR）
 packages/
 ├─ protocol/            # 稳定 ID、引用、Command/Event Envelope 与 Schema
 ├─ kernel/              # 聚合规则、状态机、Gate 与命令处理
 ├─ store/               # Kernel 使用的逻辑 Store Port
-└─ store-sqlite/        # Embedded Solo Mode 的 SQLite 实现
+├─ store-sqlite/        # Embedded Solo Mode 的 SQLite 实现
+├─ context/             # Context Pack 与 Capability Resolver
+├─ workspace-git/       # 隔离 Git worktree 与 Source Snapshot
+├─ runtime/             # Runtime Adapter Port
+├─ runtime-claude-code/ # Claude Code command adapter
+└─ orchestrator/        # Run 编排与恢复（只发 Kernel Command）
 tests/
 └─ scenarios/           # 跨模块的 Change 端到端行为场景
 ```
 
-依赖规则：`kernel` 依赖 `protocol` 与 `store`，`store` 只依赖 `protocol`，`store-sqlite` 依赖 `store` 与 `protocol`，`cli` 负责组装 `kernel` 与 `store-sqlite`。Kernel 不得依赖 CLI、SQLite 或具体 Agent Runtime。
+依赖规则：`kernel` 依赖 `protocol` 与 `store`，`store` 只依赖 `protocol`，`store-sqlite` 依赖 `store` 与 `protocol`。`context` / `workspace-git` / `runtime*` / `orchestrator` 位于 Kernel 之外，只能通过 Command 回传事实。Kernel 不得依赖 CLI、SQLite 或具体 Agent Runtime。
 
-M1 已加入本地 Workbench。Team Server 和具体 Agent Runtime Adapter 仍不进入当前工程骨架。
+M2 已接入首个 Claude Code Runtime Adapter。Team Server、Evidence Evaluator 与 DevOps Adapter 仍不进入当前工程骨架。
 
 ## M0 已实现的工程设计
 

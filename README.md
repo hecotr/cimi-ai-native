@@ -13,7 +13,7 @@ CimiLoop 是一个面向 AI-Native 软件研发的 Runtime-neutral Harness（运
 - 已补充 Knowledge Closure（知识闭环），把受影响文档更新纳入 Change 的任务、证据和关闭条件。
 - V1 首批 Agent Runtime 目标为 OpenCode 和 Claude Code；cimicode 是企业内部基于 OpenCode 二次开发的 Runtime，后续通过同一适配边界接入。
 
-项目已经进入正式实现阶段。M0 首个可恢复纵向切片已经可以运行：初始化 Project、创建 Draft Change、查询、暂停、恢复、幂等重放、Revision 冲突检查、Event/Outbox 原子提交及重启恢复。Contract、Plan、Gate 和 Agent Runtime Adapter 从后续里程碑逐步加入。
+项目已经进入正式实现阶段。M0 可恢复 Kernel 切片、M1 `Draft → IntentReady → Planned` 治理闭环，以及 M2 `Planned → Work Item → Run → Artifact` 执行切片均已冻结。Evidence、独立 Evaluation、生产发布与 Portable Export/Import 从后续里程碑加入。
 
 ## 建议阅读顺序
 
@@ -36,12 +36,18 @@ CimiLoop 是一个面向 AI-Native 软件研发的 Runtime-neutral Harness（运
 ```text
 .
 ├─ apps/
-│  └─ cli/            # cimiloop 命令行入口与本地装配
+│  ├─ cli/            # cimiloop 命令行入口与本地装配
+│  └─ workbench/      # 本地 Decision / Change Room
 ├─ packages/
 │  ├─ protocol/       # Protocol Schema、ID、Command/Event 与校验
 │  ├─ kernel/         # 聚合规则、状态转换和命令处理
 │  ├─ store/          # Kernel 使用的逻辑 Store Port
-│  └─ store-sqlite/   # Embedded Solo Mode SQLite 实现
+│  ├─ store-sqlite/   # Embedded Solo Mode SQLite 实现
+│  ├─ context/        # Context Pack 与 Capability Resolver
+│  ├─ workspace-git/  # 隔离 Git worktree
+│  ├─ runtime/        # Runtime Adapter Port
+│  ├─ runtime-claude-code/
+│  └─ orchestrator/   # Run 编排与恢复
 ├─ tests/
 │  └─ scenarios/      # 跨模块和 CLI 端到端场景
 ├─ docs/
@@ -86,4 +92,9 @@ Agent 或脚本在命令中增加 `--json` 即可获得经过 Protocol Schema �
 
 ## 下一阶段
 
-M0 已补齐 CLI 机器输出 Schema、JSON Schema 制品同步与全量注册、共享 Store Port 契约，以及事务回滚、幂等重放、双客户端 Revision 竞争、响应丢失恢复、数据库重开与 Outbox Lease 恢复测试，并已在 Node.js 24.15.0 + pnpm 12.4.2 基线上完成复验。M0 现已冻结，下一步进入 M1：真实 Contract、Risk、Profile、Decision、Gate、Plan 与 Knowledge Impact Assessment。实施边界见 [M0 实施架构](docs/implementation/2026-09-19-cimiloop-m0实施架构-v0.1.md)。
+M0–M2 已在 Node.js 24.15.0 + pnpm 12.4.2 基线上冻结。下一步进入 M3：Claim、Evidence 与 Independent Evaluation。实施边界见 [M2 实施架构](docs/implementation/2026-09-20-cimiloop-m2实施架构-v0.1.md)。
+
+```text
+powershell -NoProfile -File scripts/demo-m1.ps1
+powershell -NoProfile -File scripts/demo-m2.ps1
+```
