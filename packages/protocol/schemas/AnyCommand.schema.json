@@ -1,0 +1,4122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "AnyCommand.v1",
+  "anyOf": [
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "InitializeProject"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "name",
+            "repository_kind",
+            "repository_path",
+            "owner_name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "repository_kind": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "git"
+                },
+                {
+                  "type": "string",
+                  "const": "directory"
+                }
+              ]
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "owner_name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "owner_email": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 320
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "CreateChange"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "title"
+          ],
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "PauseChange"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "reason"
+          ],
+          "properties": {
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "ResumeChange"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "actor_id",
+        "project_id",
+        "expected_revision",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "BootstrapSoloGovernance"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "change_id",
+            "intent_owner_actor_id",
+            "technical_owner_actor_id"
+          ],
+          "properties": {
+            "change_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "intent_owner_actor_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "technical_owner_actor_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "actor_id",
+        "project_id",
+        "expected_revision",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "SubmitContractCandidate"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "profile_key",
+            "intent",
+            "outcomes",
+            "scope",
+            "non_goals",
+            "acceptance",
+            "constraints",
+            "risk",
+            "knowledge_impact"
+          ],
+          "properties": {
+            "profile_key": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "feature"
+                },
+                {
+                  "type": "string",
+                  "const": "bugfix"
+                },
+                {
+                  "type": "string",
+                  "const": "incident"
+                }
+              ]
+            },
+            "intent": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "outcomes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "minItems": 1
+            },
+            "scope": {
+              "type": "object",
+              "required": [
+                "in",
+                "out"
+              ],
+              "properties": {
+                "in": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  },
+                  "minItems": 1
+                },
+                "out": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            "non_goals": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "minItems": 1
+            },
+            "acceptance": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "key",
+                  "statement"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "statement": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  }
+                },
+                "additionalProperties": false
+              },
+              "minItems": 1
+            },
+            "constraints": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "minItems": 1
+            },
+            "risk": {
+              "type": "object",
+              "required": [
+                "data_exposure",
+                "security",
+                "reliability",
+                "reversibility"
+              ],
+              "properties": {
+                "data_exposure": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "security": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "reliability": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "reversibility": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              },
+              "additionalProperties": false
+            },
+            "knowledge_impact": {
+              "type": "object",
+              "required": [
+                "product_business",
+                "technical",
+                "operations",
+                "communication"
+              ],
+              "properties": {
+                "product_business": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "conclusion",
+                        "rationale"
+                      ],
+                      "properties": {
+                        "conclusion": {
+                          "type": "string",
+                          "const": "NoImpact"
+                        },
+                        "rationale": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1000
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "conclusion",
+                        "owner_role",
+                        "gate",
+                        "summary"
+                      ],
+                      "properties": {
+                        "conclusion": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "Create"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Update"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Deprecate"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Verify"
+                            }
+                          ]
+                        },
+                        "owner_role": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "change_owner"
+                            },
+                            {
+                              "type": "string",
+                              "const": "intent_owner"
+                            },
+                            {
+                              "type": "string",
+                              "const": "technical_owner"
+                            }
+                          ]
+                        },
+                        "gate": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "intent"
+                            },
+                            {
+                              "type": "string",
+                              "const": "plan"
+                            },
+                            {
+                              "type": "string",
+                              "const": "production_release"
+                            },
+                            {
+                              "type": "string",
+                              "const": "change_closure"
+                            }
+                          ]
+                        },
+                        "summary": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1000
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "technical": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "conclusion",
+                        "rationale"
+                      ],
+                      "properties": {
+                        "conclusion": {
+                          "type": "string",
+                          "const": "NoImpact"
+                        },
+                        "rationale": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1000
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "conclusion",
+                        "owner_role",
+                        "gate",
+                        "summary"
+                      ],
+                      "properties": {
+                        "conclusion": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "Create"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Update"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Deprecate"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Verify"
+                            }
+                          ]
+                        },
+                        "owner_role": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "change_owner"
+                            },
+                            {
+                              "type": "string",
+                              "const": "intent_owner"
+                            },
+                            {
+                              "type": "string",
+                              "const": "technical_owner"
+                            }
+                          ]
+                        },
+                        "gate": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "intent"
+                            },
+                            {
+                              "type": "string",
+                              "const": "plan"
+                            },
+                            {
+                              "type": "string",
+                              "const": "production_release"
+                            },
+                            {
+                              "type": "string",
+                              "const": "change_closure"
+                            }
+                          ]
+                        },
+                        "summary": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1000
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "operations": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "conclusion",
+                        "rationale"
+                      ],
+                      "properties": {
+                        "conclusion": {
+                          "type": "string",
+                          "const": "NoImpact"
+                        },
+                        "rationale": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1000
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "conclusion",
+                        "owner_role",
+                        "gate",
+                        "summary"
+                      ],
+                      "properties": {
+                        "conclusion": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "Create"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Update"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Deprecate"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Verify"
+                            }
+                          ]
+                        },
+                        "owner_role": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "change_owner"
+                            },
+                            {
+                              "type": "string",
+                              "const": "intent_owner"
+                            },
+                            {
+                              "type": "string",
+                              "const": "technical_owner"
+                            }
+                          ]
+                        },
+                        "gate": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "intent"
+                            },
+                            {
+                              "type": "string",
+                              "const": "plan"
+                            },
+                            {
+                              "type": "string",
+                              "const": "production_release"
+                            },
+                            {
+                              "type": "string",
+                              "const": "change_closure"
+                            }
+                          ]
+                        },
+                        "summary": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1000
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "communication": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "conclusion",
+                        "rationale"
+                      ],
+                      "properties": {
+                        "conclusion": {
+                          "type": "string",
+                          "const": "NoImpact"
+                        },
+                        "rationale": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1000
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "conclusion",
+                        "owner_role",
+                        "gate",
+                        "summary"
+                      ],
+                      "properties": {
+                        "conclusion": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "Create"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Update"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Deprecate"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Verify"
+                            }
+                          ]
+                        },
+                        "owner_role": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "change_owner"
+                            },
+                            {
+                              "type": "string",
+                              "const": "intent_owner"
+                            },
+                            {
+                              "type": "string",
+                              "const": "technical_owner"
+                            }
+                          ]
+                        },
+                        "gate": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "intent"
+                            },
+                            {
+                              "type": "string",
+                              "const": "plan"
+                            },
+                            {
+                              "type": "string",
+                              "const": "production_release"
+                            },
+                            {
+                              "type": "string",
+                              "const": "change_closure"
+                            }
+                          ]
+                        },
+                        "summary": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1000
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "actor_id",
+        "project_id",
+        "expected_revision",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "RequestIntentDecision"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "change_id"
+          ],
+          "properties": {
+            "change_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "actor_id",
+        "project_id",
+        "expected_revision",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "SubmitDecision"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "request_id",
+                "outcome",
+                "acting_role_id",
+                "reason"
+              ],
+              "properties": {
+                "request_id": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                },
+                "outcome": {
+                  "type": "string",
+                  "const": "approve"
+                },
+                "acting_role_id": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000
+                },
+                "feedback": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "category",
+                      "body"
+                    ],
+                    "properties": {
+                      "category": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "const": "scope"
+                          },
+                          {
+                            "type": "string",
+                            "const": "acceptance"
+                          },
+                          {
+                            "type": "string",
+                            "const": "risk"
+                          },
+                          {
+                            "type": "string",
+                            "const": "plan"
+                          },
+                          {
+                            "type": "string",
+                            "const": "knowledge"
+                          },
+                          {
+                            "type": "string",
+                            "const": "other"
+                          }
+                        ]
+                      },
+                      "body": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4000
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "request_id",
+                "outcome",
+                "acting_role_id",
+                "reason",
+                "feedback"
+              ],
+              "properties": {
+                "request_id": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                },
+                "outcome": {
+                  "type": "string",
+                  "const": "request_changes"
+                },
+                "acting_role_id": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000
+                },
+                "feedback": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "category",
+                      "body"
+                    ],
+                    "properties": {
+                      "category": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "const": "scope"
+                          },
+                          {
+                            "type": "string",
+                            "const": "acceptance"
+                          },
+                          {
+                            "type": "string",
+                            "const": "risk"
+                          },
+                          {
+                            "type": "string",
+                            "const": "plan"
+                          },
+                          {
+                            "type": "string",
+                            "const": "knowledge"
+                          },
+                          {
+                            "type": "string",
+                            "const": "other"
+                          }
+                        ]
+                      },
+                      "body": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4000
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "minItems": 1
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "request_id",
+                "outcome",
+                "acting_role_id",
+                "reason"
+              ],
+              "properties": {
+                "request_id": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                },
+                "outcome": {
+                  "type": "string",
+                  "const": "reject"
+                },
+                "acting_role_id": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000
+                },
+                "feedback": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "category",
+                      "body"
+                    ],
+                    "properties": {
+                      "category": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "const": "scope"
+                          },
+                          {
+                            "type": "string",
+                            "const": "acceptance"
+                          },
+                          {
+                            "type": "string",
+                            "const": "risk"
+                          },
+                          {
+                            "type": "string",
+                            "const": "plan"
+                          },
+                          {
+                            "type": "string",
+                            "const": "knowledge"
+                          },
+                          {
+                            "type": "string",
+                            "const": "other"
+                          }
+                        ]
+                      },
+                      "body": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4000
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "actor_id",
+        "project_id",
+        "expected_revision",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "SubmitContractAmendment"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "profile_key",
+            "intent",
+            "outcomes",
+            "scope",
+            "non_goals",
+            "acceptance",
+            "constraints",
+            "risk",
+            "knowledge_impact",
+            "base_version"
+          ],
+          "properties": {
+            "profile_key": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "feature"
+                },
+                {
+                  "type": "string",
+                  "const": "bugfix"
+                },
+                {
+                  "type": "string",
+                  "const": "incident"
+                }
+              ]
+            },
+            "intent": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "outcomes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "minItems": 1
+            },
+            "scope": {
+              "type": "object",
+              "required": [
+                "in",
+                "out"
+              ],
+              "properties": {
+                "in": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  },
+                  "minItems": 1
+                },
+                "out": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            "non_goals": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "minItems": 1
+            },
+            "acceptance": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "key",
+                  "statement"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "statement": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  }
+                },
+                "additionalProperties": false
+              },
+              "minItems": 1
+            },
+            "constraints": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "minItems": 1
+            },
+            "risk": {
+              "type": "object",
+              "required": [
+                "data_exposure",
+                "security",
+                "reliability",
+                "reversibility"
+              ],
+              "properties": {
+                "data_exposure": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "security": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "reliability": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "reversibility": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              },
+              "additionalProperties": false
+            },
+            "knowledge_impact": {
+              "type": "object",
+              "required": [
+                "product_business",
+                "technical",
+                "operations",
+                "communication"
+              ],
+              "properties": {
+                "product_business": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "conclusion",
+                        "rationale"
+                      ],
+                      "properties": {
+                        "conclusion": {
+                          "type": "string",
+                          "const": "NoImpact"
+                        },
+                        "rationale": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1000
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "conclusion",
+                        "owner_role",
+                        "gate",
+                        "summary"
+                      ],
+                      "properties": {
+                        "conclusion": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "Create"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Update"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Deprecate"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Verify"
+                            }
+                          ]
+                        },
+                        "owner_role": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "change_owner"
+                            },
+                            {
+                              "type": "string",
+                              "const": "intent_owner"
+                            },
+                            {
+                              "type": "string",
+                              "const": "technical_owner"
+                            }
+                          ]
+                        },
+                        "gate": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "intent"
+                            },
+                            {
+                              "type": "string",
+                              "const": "plan"
+                            },
+                            {
+                              "type": "string",
+                              "const": "production_release"
+                            },
+                            {
+                              "type": "string",
+                              "const": "change_closure"
+                            }
+                          ]
+                        },
+                        "summary": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1000
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "technical": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "conclusion",
+                        "rationale"
+                      ],
+                      "properties": {
+                        "conclusion": {
+                          "type": "string",
+                          "const": "NoImpact"
+                        },
+                        "rationale": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1000
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "conclusion",
+                        "owner_role",
+                        "gate",
+                        "summary"
+                      ],
+                      "properties": {
+                        "conclusion": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "Create"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Update"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Deprecate"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Verify"
+                            }
+                          ]
+                        },
+                        "owner_role": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "change_owner"
+                            },
+                            {
+                              "type": "string",
+                              "const": "intent_owner"
+                            },
+                            {
+                              "type": "string",
+                              "const": "technical_owner"
+                            }
+                          ]
+                        },
+                        "gate": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "intent"
+                            },
+                            {
+                              "type": "string",
+                              "const": "plan"
+                            },
+                            {
+                              "type": "string",
+                              "const": "production_release"
+                            },
+                            {
+                              "type": "string",
+                              "const": "change_closure"
+                            }
+                          ]
+                        },
+                        "summary": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1000
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "operations": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "conclusion",
+                        "rationale"
+                      ],
+                      "properties": {
+                        "conclusion": {
+                          "type": "string",
+                          "const": "NoImpact"
+                        },
+                        "rationale": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1000
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "conclusion",
+                        "owner_role",
+                        "gate",
+                        "summary"
+                      ],
+                      "properties": {
+                        "conclusion": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "Create"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Update"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Deprecate"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Verify"
+                            }
+                          ]
+                        },
+                        "owner_role": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "change_owner"
+                            },
+                            {
+                              "type": "string",
+                              "const": "intent_owner"
+                            },
+                            {
+                              "type": "string",
+                              "const": "technical_owner"
+                            }
+                          ]
+                        },
+                        "gate": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "intent"
+                            },
+                            {
+                              "type": "string",
+                              "const": "plan"
+                            },
+                            {
+                              "type": "string",
+                              "const": "production_release"
+                            },
+                            {
+                              "type": "string",
+                              "const": "change_closure"
+                            }
+                          ]
+                        },
+                        "summary": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1000
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "communication": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "conclusion",
+                        "rationale"
+                      ],
+                      "properties": {
+                        "conclusion": {
+                          "type": "string",
+                          "const": "NoImpact"
+                        },
+                        "rationale": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1000
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "conclusion",
+                        "owner_role",
+                        "gate",
+                        "summary"
+                      ],
+                      "properties": {
+                        "conclusion": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "Create"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Update"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Deprecate"
+                            },
+                            {
+                              "type": "string",
+                              "const": "Verify"
+                            }
+                          ]
+                        },
+                        "owner_role": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "change_owner"
+                            },
+                            {
+                              "type": "string",
+                              "const": "intent_owner"
+                            },
+                            {
+                              "type": "string",
+                              "const": "technical_owner"
+                            }
+                          ]
+                        },
+                        "gate": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "const": "intent"
+                            },
+                            {
+                              "type": "string",
+                              "const": "plan"
+                            },
+                            {
+                              "type": "string",
+                              "const": "production_release"
+                            },
+                            {
+                              "type": "string",
+                              "const": "change_closure"
+                            }
+                          ]
+                        },
+                        "summary": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1000
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            "base_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "actor_id",
+        "project_id",
+        "expected_revision",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "SubmitPlanCandidate"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "summary",
+            "verification_strategy",
+            "recovery_considerations",
+            "tasks"
+          ],
+          "properties": {
+            "summary": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "verification_strategy": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "recovery_considerations": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "tasks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "key",
+                  "title",
+                  "kind",
+                  "dependencies"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  },
+                  "kind": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "governance"
+                      },
+                      {
+                        "type": "string",
+                        "const": "implementation"
+                      },
+                      {
+                        "type": "string",
+                        "const": "verification"
+                      },
+                      {
+                        "type": "string",
+                        "const": "knowledge"
+                      }
+                    ]
+                  },
+                  "dependencies": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    }
+                  },
+                  "knowledge_source": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "product_business"
+                      },
+                      {
+                        "type": "string",
+                        "const": "technical"
+                      },
+                      {
+                        "type": "string",
+                        "const": "operations"
+                      },
+                      {
+                        "type": "string",
+                        "const": "communication"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              },
+              "minItems": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "actor_id",
+        "project_id",
+        "expected_revision",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "RequestPlanDecision"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "change_id"
+          ],
+          "properties": {
+            "change_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "command_id",
+        "correlation_id",
+        "command_type",
+        "requested_at",
+        "actor_id",
+        "project_id",
+        "expected_revision",
+        "source",
+        "payload"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "command_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "command_type": {
+          "type": "string",
+          "const": "SubmitPlanAmendment"
+        },
+        "requested_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+        },
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "object_type",
+            "id"
+          ],
+          "properties": {
+            "object_type": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "project"
+                },
+                {
+                  "type": "string",
+                  "const": "actor"
+                },
+                {
+                  "type": "string",
+                  "const": "role"
+                },
+                {
+                  "type": "string",
+                  "const": "assignment"
+                },
+                {
+                  "type": "string",
+                  "const": "change"
+                },
+                {
+                  "type": "string",
+                  "const": "transition_record"
+                },
+                {
+                  "type": "string",
+                  "const": "event"
+                },
+                {
+                  "type": "string",
+                  "const": "outbox_message"
+                },
+                {
+                  "type": "string",
+                  "const": "change_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "project_policy"
+                },
+                {
+                  "type": "string",
+                  "const": "policy_snapshot"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_version"
+                },
+                {
+                  "type": "string",
+                  "const": "contract_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_profile"
+                },
+                {
+                  "type": "string",
+                  "const": "risk_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "knowledge_impact_assessment"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_candidate"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_version"
+                },
+                {
+                  "type": "string",
+                  "const": "plan_amendment"
+                },
+                {
+                  "type": "string",
+                  "const": "task"
+                },
+                {
+                  "type": "string",
+                  "const": "decision_request"
+                },
+                {
+                  "type": "string",
+                  "const": "decision"
+                },
+                {
+                  "type": "string",
+                  "const": "feedback"
+                },
+                {
+                  "type": "string",
+                  "const": "gate_evaluation"
+                }
+              ]
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "domain_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "origin",
+            "producer"
+          ],
+          "properties": {
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "human_cli"
+                },
+                {
+                  "type": "string",
+                  "const": "agent"
+                },
+                {
+                  "type": "string",
+                  "const": "system"
+                }
+              ]
+            },
+            "producer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repository_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "summary",
+            "verification_strategy",
+            "recovery_considerations",
+            "tasks",
+            "base_version"
+          ],
+          "properties": {
+            "summary": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "verification_strategy": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "recovery_considerations": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "tasks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "key",
+                  "title",
+                  "kind",
+                  "dependencies"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  },
+                  "kind": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "governance"
+                      },
+                      {
+                        "type": "string",
+                        "const": "implementation"
+                      },
+                      {
+                        "type": "string",
+                        "const": "verification"
+                      },
+                      {
+                        "type": "string",
+                        "const": "knowledge"
+                      }
+                    ]
+                  },
+                  "dependencies": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    }
+                  },
+                  "knowledge_source": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "product_business"
+                      },
+                      {
+                        "type": "string",
+                        "const": "technical"
+                      },
+                      {
+                        "type": "string",
+                        "const": "operations"
+                      },
+                      {
+                        "type": "string",
+                        "const": "communication"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              },
+              "minItems": 1
+            },
+            "base_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

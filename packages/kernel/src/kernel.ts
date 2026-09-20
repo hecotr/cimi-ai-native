@@ -153,6 +153,15 @@ export class CimiLoopKernel {
         return this.#pauseChange(transaction, command);
       case "ResumeChange":
         return this.#resumeChange(transaction, command);
+      default:
+        return domainError(
+          command.correlation_id,
+          "UNSUPPORTED_COMMAND",
+          "当前 Kernel 尚未实现该命令",
+          "validation",
+          false,
+          { command_type: command.command_type }
+        );
     }
   }
 

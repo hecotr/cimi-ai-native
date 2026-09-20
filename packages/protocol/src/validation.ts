@@ -40,17 +40,34 @@ import {
   type RiskProfile,
   type Task
 } from "./m1/domain.js";
+import { AnyCommandSchema, type AnyCommand } from "./m1/commands.js";
 import {
-  AnyCommandSchema,
+  ChangeRoomResultSchema,
+  CommandResultSchema,
+  DecisionInboxResultSchema,
+  GetContractCandidateResultSchema,
+  GetCurrentContractResultSchema,
+  GetCurrentPlanResultSchema,
+  GetDecisionRequestResultSchema,
+  GetPlanCandidateResultSchema,
+  TimelineResultSchema,
+  type ChangeRoomResult,
+  type CommandResult,
+  type DecisionInboxResult,
+  type GetContractCandidateResult,
+  type GetCurrentContractResult,
+  type GetCurrentPlanResult,
+  type GetDecisionRequestResult,
+  type GetPlanCandidateResult,
+  type TimelineResult
+} from "./m1/results.js";
+import {
   ChangeListResultSchema,
   ChangeShowResultSchema,
-  CommandResultSchema,
   DoctorResultSchema,
   ErrorResultSchema,
-  type AnyCommand,
   type ChangeListResult,
   type ChangeShowResult,
-  type CommandResult,
   type DoctorResult,
   type ErrorResult
 } from "./schemas.js";
@@ -107,6 +124,15 @@ export const parseFeedback = compileValidator<Feedback>(FeedbackSchema);
 export const parseGateEvaluation = compileValidator<GateEvaluation>(GateEvaluationSchema);
 export const parseChangeRoomView = compileValidator<ChangeRoomView>(ChangeRoomViewSchema);
 export const parseDecisionInboxItem = compileValidator<DecisionInboxItem>(DecisionInboxItemSchema);
+export const parseGetContractCandidateResult =
+  compileValidator<GetContractCandidateResult>(GetContractCandidateResultSchema);
+export const parseGetCurrentContractResult = compileValidator<GetCurrentContractResult>(GetCurrentContractResultSchema);
+export const parseGetPlanCandidateResult = compileValidator<GetPlanCandidateResult>(GetPlanCandidateResultSchema);
+export const parseGetCurrentPlanResult = compileValidator<GetCurrentPlanResult>(GetCurrentPlanResultSchema);
+export const parseGetDecisionRequestResult = compileValidator<GetDecisionRequestResult>(GetDecisionRequestResultSchema);
+export const parseDecisionInboxResult = compileValidator<DecisionInboxResult>(DecisionInboxResultSchema);
+export const parseChangeRoomResult = compileValidator<ChangeRoomResult>(ChangeRoomResultSchema);
+export const parseTimelineResult = compileValidator<TimelineResult>(TimelineResultSchema);
 
 export const formatValidationErrors = (errors: readonly ErrorObject[]): string[] =>
   errors.map((error) => `${error.instancePath || "/"} ${error.message ?? "校验失败"}`);

@@ -234,7 +234,10 @@ export const CommandEnvelopeBaseSchema = Type.Object(
   { additionalProperties: false }
 );
 
-const commandSchema = <const TCommandType extends string, T extends TSchema>(commandType: TCommandType, payload: T) =>
+export const commandSchema = <const TCommandType extends string, T extends TSchema>(
+  commandType: TCommandType,
+  payload: T
+) =>
   Type.Object(
     {
       schema_version: Type.Literal(SCHEMA_VERSION),
@@ -246,6 +249,27 @@ const commandSchema = <const TCommandType extends string, T extends TSchema>(com
       project_id: Type.Optional(InternalIdSchema),
       target: Type.Optional(TypedReferenceSchema),
       expected_revision: Type.Optional(Type.Integer({ minimum: 1 })),
+      source: SourceDescriptorSchema,
+      payload
+    },
+    { additionalProperties: false }
+  );
+
+export const mutatingCommandSchema = <const TCommandType extends string, T extends TSchema>(
+  commandType: TCommandType,
+  payload: T
+) =>
+  Type.Object(
+    {
+      schema_version: Type.Literal(SCHEMA_VERSION),
+      command_id: InternalIdSchema,
+      correlation_id: InternalIdSchema,
+      command_type: Type.Literal(commandType),
+      requested_at: UtcTimestampSchema,
+      actor_id: InternalIdSchema,
+      project_id: InternalIdSchema,
+      target: Type.Optional(TypedReferenceSchema),
+      expected_revision: Type.Integer({ minimum: 1 }),
       source: SourceDescriptorSchema,
       payload
     },
@@ -281,37 +305,24 @@ export const ResumeChangeCommandSchema = commandSchema(
   Type.Object({}, { additionalProperties: false })
 );
 
-export const AnyCommandSchema = Type.Union([
+export const M0AnyCommandSchema = Type.Union([
   InitializeProjectCommandSchema,
   CreateChangeCommandSchema,
   PauseChangeCommandSchema,
   ResumeChangeCommandSchema
 ]);
 
-export const CommandSuccessSchema = Type.Object(
-  {
-    ok: Type.Literal(true),
-    command_id: InternalIdSchema,
-    correlation_id: InternalIdSchema,
-    aggregate: TypedReferenceSchema,
-    revision: Type.Integer({ minimum: 1 }),
-    events: Type.Array(EventEnvelopeSchema),
-    data: Type.Union([
-      Type.Object(
-        {
-          project: ProjectSchema,
-          actor: ActorSchema,
-          assignment: AssignmentSchema
-        },
-        { additionalProperties: false }
-      ),
-      Type.Object({ change: ChangeSchema }, { additionalProperties: false })
-    ])
-  },
-  { additionalProperties: false }
-);
-
-export const CommandResultSchema = Type.Union([CommandSuccessSchema, DomainErrorSchema]);
+export const M0CommandSuccessDataSchema = Type.Union([
+  Type.Object(
+    {
+      project: ProjectSchema,
+      actor: ActorSchema,
+      assignment: AssignmentSchema
+    },
+    { additionalProperties: false }
+  ),
+  Type.Object({ change: ChangeSchema }, { additionalProperties: false })
+]);
 
 export const ChangeListResultSchema = Type.Object(
   {
@@ -365,9 +376,7 @@ export type InitializeProjectCommand = Static<typeof InitializeProjectCommandSch
 export type CreateChangeCommand = Static<typeof CreateChangeCommandSchema>;
 export type PauseChangeCommand = Static<typeof PauseChangeCommandSchema>;
 export type ResumeChangeCommand = Static<typeof ResumeChangeCommandSchema>;
-export type AnyCommand = Static<typeof AnyCommandSchema>;
-export type CommandSuccess = Static<typeof CommandSuccessSchema>;
-export type CommandResult = Static<typeof CommandResultSchema>;
+export type M0Command = Static<typeof M0AnyCommandSchema>;
 export type ChangeListResult = Static<typeof ChangeListResultSchema>;
 export type ChangeShowResult = Static<typeof ChangeShowResultSchema>;
 export type DoctorResult = Static<typeof DoctorResultSchema>;
@@ -386,8 +395,6 @@ export const m0ProtocolSchemas = {
   CreateChangeCommand: CreateChangeCommandSchema,
   PauseChangeCommand: PauseChangeCommandSchema,
   ResumeChangeCommand: ResumeChangeCommandSchema,
-  CommandSuccess: CommandSuccessSchema,
-  CommandResult: CommandResultSchema,
   ChangeListResult: ChangeListResultSchema,
   ChangeShowResult: ChangeShowResultSchema,
   DoctorResult: DoctorResultSchema,

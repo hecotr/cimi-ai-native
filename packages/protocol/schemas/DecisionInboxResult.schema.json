@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "DecisionInboxResult.v1",
+  "type": "object",
+  "required": [
+    "ok",
+    "items"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean",
+      "const": true
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "change_id",
+          "display_key",
+          "request_type",
+          "required_role_key",
+          "status",
+          "created_at",
+          "summary"
+        ],
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          },
+          "change_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          },
+          "display_key": {
+            "type": "string",
+            "pattern": "^CHG-\\d{4,}$"
+          },
+          "request_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "intent"
+              },
+              {
+                "type": "string",
+                "const": "plan"
+              }
+            ]
+          },
+          "required_role_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "intent_owner"
+              },
+              {
+                "type": "string",
+                "const": "technical_owner"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "const": "open"
+          },
+          "created_at": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
