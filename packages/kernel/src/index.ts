@@ -6,5 +6,7 @@ export * from "./gates/intent-gate.js";
 export * from "./governance.js";
 export * from "./kernel.js";
 export * from "./knowledge-impact.js";
+export * from "./plan.js";
 export * from "./policy.js";
 export * from "./risk.js";
+export * from "./task-dag.js";

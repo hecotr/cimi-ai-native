@@ -20,7 +20,8 @@ import {
   type RequestIntentDecisionCommand,
   type Role,
   type SubmitContractCandidateCommand,
-  type SubmitDecisionCommand
+  type SubmitDecisionCommand,
+  type SubmitPlanCandidateCommand
 } from "@cimiloop/protocol";
 import {
   StoreConflictError,
@@ -41,7 +42,9 @@ import {
 } from "./decision.js";
 import { evaluateIntentGate } from "./gates/intent-gate.js";
 import { createKnowledgeImpactAssessment, validateKnowledgeImpact } from "./knowledge-impact.js";
+import { createPlanCandidate, validateKnowledgeTasks } from "./plan.js";
 import { createRiskAssessment, createRiskProfile, validateRiskDimensions } from "./risk.js";
+import { validateTaskDag } from "./task-dag.js";
 import {
   createBuiltInChangeProfiles,
   createSoloAssignments,
@@ -186,6 +189,8 @@ export class CimiLoopKernel {
         return this.#requestIntentDecision(transaction, command);
       case "SubmitDecision":
         return this.#submitDecision(transaction, command);
+      case "SubmitPlanCandidate":
+        return this.#submitPlanCandidate(transaction, command);
       default:
         return domainError(
           command.correlation_id,
@@ -767,6 +772,93 @@ export class CimiLoopKernel {
       gate,
       ...(contract ? { contract } : {})
     });
+  }
+
+  #submitPlanCandidate(transaction: StoreTransaction, command: SubmitPlanCandidateCommand): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.target?.id);
+    if ("code" in loaded) return loaded;
+    if (loaded.change.lifecycle_state !== "IntentReady") {
+      return domainError(
+        command.correlation_id,
+        "CHANGE_NOT_INTENT_READY",
+        "只有 IntentReady 的 Change 可以提交 Plan Candidate",
+        "conflict"
+      );
+    }
+    const contract = transaction.getCurrentContract(loaded.change.id);
+    if (!contract) {
+      return domainError(
+        command.correlation_id,
+        "CURRENT_CONTRACT_NOT_FOUND",
+        "Plan 必须绑定当前正式 Contract Version",
+        "conflict"
+      );
+    }
+    const dag = validateTaskDag(command.payload.tasks);
+    if (!dag.ok) {
+      return domainError(
+        command.correlation_id,
+        dag.code,
+        "Plan Task DAG 不合法",
+        "validation",
+        false,
+        dag.cycle_task_ids ? { cycle_task_ids: dag.cycle_task_ids } : {}
+      );
+    }
+    const knowledge = transaction.getKnowledgeImpactAssessmentByChange(loaded.change.id);
+    if (!knowledge) {
+      return domainError(
+        command.correlation_id,
+        "CONTRACT_ASSESSMENT_INVALID",
+        "提交 Plan 前必须存在 Knowledge Impact Assessment",
+        "validation"
+      );
+    }
+    try {
+      validateKnowledgeTasks(command.payload.tasks, knowledge.sources);
+    } catch (error) {
+      return domainError(
+        command.correlation_id,
+        "PLAN_KNOWLEDGE_TASK_REQUIRED",
+        error instanceof Error ? error.message : "非 NoImpact 知识来源必须由 knowledge Task 覆盖",
+        "validation"
+      );
+    }
+
+    const now = this.#now();
+    const existing = transaction.getPlanCandidateByChange(loaded.change.id);
+    const candidate = createPlanCandidate(
+      existing?.id ?? this.#id(),
+      loaded.project.id,
+      loaded.change.id,
+      contract.contract_id,
+      contract.domain_version,
+      command.payload,
+      now,
+      existing ? existing.revision + 1 : 1
+    );
+    if (existing) {
+      transaction.updatePlanCandidate(candidate, existing.revision);
+    } else {
+      transaction.insertPlanCandidate(candidate);
+    }
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "PlanCandidateSubmitted",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "change", id: nextChange.id, domain_version: 1 },
+      aggregate_revision: nextChange.revision,
+      actor_id: loaded.actorId,
+      command,
+      payload: {
+        candidate_id: candidate.id,
+        candidate_revision: candidate.revision,
+        contract_id: contract.contract_id,
+        contract_version: contract.domain_version
+      },
+      occurred_at: now
+    });
+    return this.#success(command, event.aggregate, nextChange.revision, [event], { candidate });
   }
 
   #collectIntentFacts(transaction: StoreTransaction, change: Change, correlationId: InternalId) {
