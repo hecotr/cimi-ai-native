@@ -203,6 +203,12 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store-sqlite
 
+  packages/context:
+    dependencies:
+      '@cimiloop/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+
   packages/kernel:
     dependencies:
       '@cimiloop/protocol':
