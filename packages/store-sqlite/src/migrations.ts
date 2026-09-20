@@ -1,0 +1,299 @@
+import type { DatabaseSync } from "node:sqlite";
+
+export interface ProjectStoreMigration {
+  version: number;
+  sql: string;
+}
+
+export const PROJECT_STORE_MIGRATIONS: readonly ProjectStoreMigration[] = [
+  {
+    version: 1,
+    sql: `
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  version INTEGER PRIMARY KEY,
+  applied_at TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS projects (
+  id TEXT PRIMARY KEY,
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS project_counters (
+  project_id TEXT PRIMARY KEY REFERENCES projects(id),
+  change_number INTEGER NOT NULL DEFAULT 0,
+  event_sequence INTEGER NOT NULL DEFAULT 0
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS actors (
+  id TEXT PRIMARY KEY,
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS roles (
+  id TEXT PRIMARY KEY,
+  role_key TEXT NOT NULL UNIQUE,
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS assignments (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  actor_id TEXT NOT NULL REFERENCES actors(id),
+  role_id TEXT NOT NULL REFERENCES roles(id),
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS changes (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  display_key TEXT NOT NULL,
+  lifecycle_state TEXT NOT NULL,
+  operating_status TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL,
+  UNIQUE(project_id, display_key)
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS transition_records (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  command_id TEXT NOT NULL,
+  occurred_at TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS event_ledger (
+  event_id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  event_sequence INTEGER NOT NULL,
+  aggregate_type TEXT NOT NULL,
+  aggregate_id TEXT NOT NULL,
+  aggregate_revision INTEGER NOT NULL,
+  event_type TEXT NOT NULL,
+  occurred_at TEXT NOT NULL,
+  envelope_json TEXT NOT NULL,
+  UNIQUE(project_id, event_sequence)
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS outbox_messages (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  event_id TEXT NOT NULL UNIQUE REFERENCES event_ledger(event_id),
+  status TEXT NOT NULL CHECK(status IN ('pending', 'processing', 'delivered')),
+  attempt_count INTEGER NOT NULL,
+  available_at TEXT NOT NULL,
+  lease_until TEXT,
+  created_at TEXT NOT NULL,
+  delivered_at TEXT
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS command_receipts (
+  command_id TEXT PRIMARY KEY,
+  request_digest TEXT NOT NULL,
+  result_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+) STRICT;
+
+CREATE INDEX IF NOT EXISTS idx_changes_project ON changes(project_id, display_key);
+CREATE INDEX IF NOT EXISTS idx_events_project_sequence ON event_ledger(project_id, event_sequence);
+CREATE INDEX IF NOT EXISTS idx_outbox_status_available ON outbox_messages(status, available_at);
+`
+  },
+  {
+    version: 2,
+    sql: `
+CREATE TABLE IF NOT EXISTS change_profiles (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  profile_key TEXT NOT NULL,
+  domain_version INTEGER NOT NULL,
+  payload_json TEXT NOT NULL,
+  UNIQUE(project_id, profile_key, domain_version)
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS project_policies (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL UNIQUE REFERENCES projects(id),
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS policy_snapshots (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  policy_id TEXT NOT NULL,
+  policy_revision INTEGER NOT NULL,
+  digest TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS contract_candidates (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL UNIQUE REFERENCES changes(id),
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS contract_versions (
+  id TEXT PRIMARY KEY,
+  contract_id TEXT NOT NULL,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  domain_version INTEGER NOT NULL,
+  payload_json TEXT NOT NULL,
+  UNIQUE(contract_id, domain_version)
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS contract_amendments (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  contract_id TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS risk_profiles (
+  id TEXT PRIMARY KEY,
+  change_id TEXT NOT NULL UNIQUE REFERENCES changes(id),
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS risk_assessments (
+  id TEXT PRIMARY KEY,
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  risk_profile_id TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS knowledge_impact_assessments (
+  id TEXT PRIMARY KEY,
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS plan_candidates (
+  id TEXT PRIMARY KEY,
+  change_id TEXT NOT NULL UNIQUE REFERENCES changes(id),
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS plan_versions (
+  id TEXT PRIMARY KEY,
+  plan_id TEXT NOT NULL,
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  domain_version INTEGER NOT NULL,
+  payload_json TEXT NOT NULL,
+  UNIQUE(plan_id, domain_version)
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS plan_amendments (
+  id TEXT PRIMARY KEY,
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  plan_id TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS tasks (
+  id TEXT PRIMARY KEY,
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  plan_id TEXT NOT NULL,
+  plan_version INTEGER NOT NULL,
+  task_key TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL,
+  UNIQUE(plan_id, plan_version, task_key)
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS decision_requests (
+  id TEXT PRIMARY KEY,
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  request_type TEXT NOT NULL,
+  status TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS decisions (
+  id TEXT PRIMARY KEY,
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  request_id TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS feedback (
+  id TEXT PRIMARY KEY,
+  decision_id TEXT NOT NULL REFERENCES decisions(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS gate_evaluations (
+  id TEXT PRIMARY KEY,
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  gate_type TEXT NOT NULL,
+  result TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE INDEX IF NOT EXISTS idx_change_profiles_project ON change_profiles(project_id, profile_key);
+CREATE INDEX IF NOT EXISTS idx_contract_versions_change ON contract_versions(change_id, domain_version);
+CREATE INDEX IF NOT EXISTS idx_plan_versions_change ON plan_versions(change_id, domain_version);
+CREATE INDEX IF NOT EXISTS idx_decision_requests_open ON decision_requests(status, change_id);
+CREATE INDEX IF NOT EXISTS idx_decisions_change ON decisions(change_id);
+CREATE INDEX IF NOT EXISTS idx_feedback_decision ON feedback(decision_id);
+CREATE INDEX IF NOT EXISTS idx_gate_evaluations_change ON gate_evaluations(change_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_plan ON tasks(plan_id, plan_version);
+`
+  }
+];
+
+type SqlRow = Record<string, unknown>;
+
+export const getProjectStoreSchemaVersion = (database: DatabaseSync): number => {
+  const table = database
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'")
+    .get() as SqlRow | undefined;
+  if (!table) return 0;
+  const row = database.prepare("SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations").get() as SqlRow;
+  return Number(row.version);
+};
+
+export const applyProjectStoreMigrations = (database: DatabaseSync, targetVersion = Number.POSITIVE_INFINITY): void => {
+  database.exec("PRAGMA foreign_keys = ON");
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      version INTEGER PRIMARY KEY,
+      applied_at TEXT NOT NULL
+    ) STRICT;
+  `);
+
+  for (const migration of PROJECT_STORE_MIGRATIONS) {
+    if (migration.version > targetVersion) continue;
+    if (migration.version <= getProjectStoreSchemaVersion(database)) continue;
+    database.exec("BEGIN IMMEDIATE");
+    try {
+      database.exec(migration.sql);
+      database
+        .prepare("INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)")
+        .run(migration.version, new Date().toISOString());
+      database.exec("COMMIT");
+    } catch (error) {
+      if (database.isTransaction) database.exec("ROLLBACK");
+      throw error;
+    }
+  }
+};

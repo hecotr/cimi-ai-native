@@ -2,11 +2,28 @@ import type {
   Actor,
   Assignment,
   Change,
+  ChangeProfile,
   CommandSuccess,
+  ContractAmendment,
+  ContractCandidate,
+  ContractVersion,
+  Decision,
+  DecisionRequest,
   EventEnvelope,
+  Feedback,
+  GateEvaluation,
   InternalId,
+  KnowledgeImpactAssessment,
+  PlanAmendment,
+  PlanCandidate,
+  PlanVersion,
+  PolicySnapshot,
   Project,
+  ProjectPolicy,
+  RiskAssessment,
+  RiskProfile,
   Role,
+  Task,
   TransitionRecord,
   TypedReference
 } from "@cimiloop/protocol";
@@ -62,6 +79,78 @@ export interface StoreTransaction {
 
   appendEvent(event: ProposedEvent): EventEnvelope;
   enqueueOutbox(message: OutboxMessage): void;
+
+  getRoleByKey(roleKey: Role["role_key"]): Role | undefined;
+  listRoles(): Role[];
+  listAssignments(projectId: InternalId): Assignment[];
+
+  insertChangeProfile(profile: ChangeProfile): void;
+  getChangeProfile(id: InternalId): ChangeProfile | undefined;
+  listChangeProfiles(projectId: InternalId): ChangeProfile[];
+
+  insertProjectPolicy(policy: ProjectPolicy): void;
+  updateProjectPolicy(policy: ProjectPolicy, expectedRevision: number): void;
+  getProjectPolicy(projectId: InternalId): ProjectPolicy | undefined;
+
+  insertPolicySnapshot(snapshot: PolicySnapshot): void;
+  getPolicySnapshot(id: InternalId): PolicySnapshot | undefined;
+
+  insertContractCandidate(candidate: ContractCandidate): void;
+  updateContractCandidate(candidate: ContractCandidate, expectedRevision: number): void;
+  getContractCandidate(id: InternalId): ContractCandidate | undefined;
+  getContractCandidateByChange(changeId: InternalId): ContractCandidate | undefined;
+
+  insertContractVersion(version: ContractVersion): void;
+  getContractVersion(id: InternalId): ContractVersion | undefined;
+  getCurrentContract(changeId: InternalId): ContractVersion | undefined;
+
+  insertContractAmendment(amendment: ContractAmendment): void;
+  updateContractAmendment(amendment: ContractAmendment, expectedRevision: number): void;
+  getContractAmendment(id: InternalId): ContractAmendment | undefined;
+
+  insertRiskProfile(profile: RiskProfile): void;
+  updateRiskProfile(profile: RiskProfile, expectedRevision: number): void;
+  getRiskProfileByChange(changeId: InternalId): RiskProfile | undefined;
+
+  insertRiskAssessment(assessment: RiskAssessment): void;
+  getRiskAssessment(id: InternalId): RiskAssessment | undefined;
+
+  insertKnowledgeImpactAssessment(assessment: KnowledgeImpactAssessment): void;
+  updateKnowledgeImpactAssessment(assessment: KnowledgeImpactAssessment, expectedRevision: number): void;
+  getKnowledgeImpactAssessment(id: InternalId): KnowledgeImpactAssessment | undefined;
+  getKnowledgeImpactAssessmentByChange(changeId: InternalId): KnowledgeImpactAssessment | undefined;
+
+  insertPlanCandidate(candidate: PlanCandidate): void;
+  updatePlanCandidate(candidate: PlanCandidate, expectedRevision: number): void;
+  getPlanCandidate(id: InternalId): PlanCandidate | undefined;
+  getPlanCandidateByChange(changeId: InternalId): PlanCandidate | undefined;
+
+  insertPlanVersion(version: PlanVersion): void;
+  getPlanVersion(id: InternalId): PlanVersion | undefined;
+  getCurrentPlan(changeId: InternalId): PlanVersion | undefined;
+
+  insertPlanAmendment(amendment: PlanAmendment): void;
+  updatePlanAmendment(amendment: PlanAmendment, expectedRevision: number): void;
+  getPlanAmendment(id: InternalId): PlanAmendment | undefined;
+
+  insertTask(task: Task): void;
+  listTasks(planId: InternalId, planVersion: number): Task[];
+
+  insertDecisionRequest(request: DecisionRequest): void;
+  updateDecisionRequest(request: DecisionRequest, expectedRevision: number): void;
+  getDecisionRequest(id: InternalId): DecisionRequest | undefined;
+  listOpenDecisionRequests(): DecisionRequest[];
+
+  insertDecision(decision: Decision): void;
+  getDecision(id: InternalId): Decision | undefined;
+  listDecisions(changeId: InternalId): Decision[];
+
+  insertFeedback(feedback: Feedback): void;
+  listFeedback(decisionId: InternalId): Feedback[];
+
+  insertGateEvaluation(evaluation: GateEvaluation): void;
+  getGateEvaluation(id: InternalId): GateEvaluation | undefined;
+  listGateEvaluations(changeId: InternalId): GateEvaluation[];
 }
 
 export interface ProjectStore {
