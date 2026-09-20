@@ -71,6 +71,12 @@ import {
   type AuthorizeRecoveryCommand,
   type RecordRecoveryCommand,
   type RecordKnowledgeUpdateCommand,
+  type ProposeCloseCommand,
+  type CloseChangeCommand,
+  type CancelChangeCommand,
+  type SupersedeChangeCommand,
+  type ArchiveChangeCommand,
+  type CreateLearningCandidateCommand,
   type RequestReleaseDecisionCommand,
   type DecisionRequest,
   type Claim,
@@ -93,7 +99,11 @@ import {
   type ExternalOperation,
   type RecoveryExecution,
   type Release,
-  type KnowledgeUpdateEvidence
+  type KnowledgeUpdateEvidence,
+  type ClosureEvaluation,
+  type ArchiveRecord,
+  type CancellationRecord,
+  type SupersessionRecord
 } from "@cimiloop/protocol";
 import {
   StoreConflictError,
@@ -121,7 +131,14 @@ import { evaluateEvidenceGate, evaluationInputDigest, findReusableEvaluation } f
 import { classifyImpact, projectValidity } from "./evidence/impact.js";
 import { createEvidenceFromCommand } from "./evidence/ingest.js";
 import { parseWhitelistedTestResult, readPromotableReference } from "./evidence/promotion.js";
-import { evaluateKnowledgeObligation, isUnavailableReference } from "./closure/knowledge.js";
+import { evaluateKnowledgeClosureGate } from "./closure/gate.js";
+import { createProposedLearningCandidate } from "./closure/learning.js";
+import {
+  collectKnowledgeObligations,
+  evaluateKnowledgeObligation,
+  isUnavailableReference
+} from "./closure/knowledge.js";
+import { evaluateCloseProposal, hasUnresolvedExternalSideEffects } from "./closure/terminal-actions.js";
 import { createKnowledgeImpactAssessment, validateKnowledgeImpact } from "./knowledge-impact.js";
 import { createPlanCandidate, createPlanTasks, createPlanVersion, validateKnowledgeTasks } from "./plan.js";
 import { ReadModelBuilder } from "./read-models.js";
@@ -770,11 +787,17 @@ export class CimiLoopKernel {
       case "RecordKnowledgeUpdate":
         return this.#recordKnowledgeUpdate(transaction, command);
       case "ProposeClose":
+        return this.#proposeClose(transaction, command);
       case "CloseChange":
+        return this.#closeChange(transaction, command);
       case "CancelChange":
+        return this.#cancelChange(transaction, command);
       case "SupersedeChange":
+        return this.#supersedeChange(transaction, command);
       case "ArchiveChange":
+        return this.#archiveChange(transaction, command);
       case "CreateLearningCandidate":
+        return this.#createLearningCandidate(transaction, command);
       case "ExportProject":
       case "StageImport":
       case "CommitImport":
@@ -4404,6 +4427,366 @@ export class CimiLoopKernel {
       nextChange.revision,
       [event],
       { knowledge_update: knowledgeUpdate }
+    );
+  }
+
+  #assessKnowledgeClosure(transaction: StoreTransaction, change: Change) {
+    const knowledge = transaction.getKnowledgeImpactAssessmentByChange(change.id);
+    if (!knowledge) {
+      return evaluateKnowledgeClosureGate([
+        {
+          obligation_key: "knowledge_impact",
+          summary: "缺少 Knowledge Impact Assessment。",
+          blocking: true
+        }
+      ]);
+    }
+    const plan = transaction.getCurrentPlan(change.id);
+    const tasks = plan ? transaction.listTasks(plan.plan_id, plan.domain_version) : [];
+    const updates = transaction.listKnowledgeUpdateEvidenceByChange(change.id);
+    const gaps = collectKnowledgeObligations(knowledge.sources, tasks)
+      .map((obligation) => {
+        const related = updates.filter(
+          (item) =>
+            item.knowledge_source === obligation.source &&
+            (!obligation.task || item.task_id === obligation.task.id)
+        );
+        const latest = related.at(-1);
+        const reference = latest ? transaction.getExternalReference(latest.external_reference_id) : undefined;
+        const evidence = latest ? transaction.getEvidence(latest.evidence_id) : undefined;
+        const exception = latest?.exception_id ? transaction.getDecision(latest.exception_id) : undefined;
+        return evaluateKnowledgeObligation({
+          source: obligation.source,
+          requiredConclusion: obligation.requiredConclusion,
+          ...(obligation.task
+            ? {
+                task: {
+                  id: obligation.task.id,
+                  kind: obligation.task.kind,
+                  ...(obligation.task.knowledge_source ? { knowledge_source: obligation.task.knowledge_source } : {})
+                }
+              }
+            : {}),
+          updates: related,
+          references: reference ? { [reference.id]: { id: reference.id, reference: reference.reference } } : {},
+          evidenceById: evidence
+            ? {
+                [evidence.id]: {
+                  id: evidence.id,
+                  stance: evidence.stance,
+                  ...(evidence.external_reference_id ? { external_reference_id: evidence.external_reference_id } : {})
+                }
+              }
+            : {},
+          validityByEvidenceId: evidence
+            ? { [evidence.id]: projectValidity(transaction.listImpactAssessmentsBySubject(evidence.id)) }
+            : {},
+          ...(exception ? { exception: { id: exception.id, outcome: exception.outcome } } : {})
+        });
+      })
+      .flatMap((item) => (item.complete ? [] : [item.gap]));
+    return evaluateKnowledgeClosureGate(gaps);
+  }
+
+  #proposeClose(transaction: StoreTransaction, command: ProposeCloseCommand): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
+    if ("code" in loaded) return loaded;
+    const now = this.#now();
+    const proposal = evaluateCloseProposal({
+      knowledge: this.#assessKnowledgeClosure(transaction, loaded.change),
+      profileKey: transaction.getCurrentContract(loaded.change.id)?.profile_key ?? "feature",
+      releases: transaction.listReleasesByChange(loaded.change.id),
+      residualRisk: command.payload.residual_risk,
+      knownIssues: command.payload.known_issues
+    });
+    const evaluation: ClosureEvaluation = {
+      schema_version: SCHEMA_VERSION,
+      id: this.#id(),
+      project_id: loaded.project.id,
+      change_id: loaded.change.id,
+      disposition: "closed",
+      result: proposal.result,
+      knowledge_complete: proposal.knowledge_complete,
+      residual_risk: command.payload.residual_risk,
+      known_issues: command.payload.known_issues,
+      gaps: proposal.gaps,
+      digest: {
+        algorithm: "sha256",
+        value: requestDigest({
+          change_id: loaded.change.id,
+          residual_risk: command.payload.residual_risk,
+          known_issues: command.payload.known_issues,
+          result: proposal.result,
+          gaps: proposal.gaps
+        }),
+        subject: "closure_evaluation"
+      },
+      created_at: now
+    };
+    transaction.insertClosureEvaluation(evaluation);
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "CloseProposed",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "closure_evaluation", id: evaluation.id, domain_version: 1 },
+      aggregate_revision: 1,
+      actor_id: loaded.actorId,
+      command,
+      payload: { closure_evaluation_id: evaluation.id, result: evaluation.result },
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "closure_evaluation", id: evaluation.id, domain_version: 1 },
+      nextChange.revision,
+      [event],
+      { closure_evaluation: evaluation }
+    );
+  }
+
+  #closeChange(transaction: StoreTransaction, command: CloseChangeCommand): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
+    if ("code" in loaded) return loaded;
+    const evaluation = transaction.getClosureEvaluation(command.payload.closure_evaluation_id);
+    if (!evaluation || evaluation.change_id !== loaded.change.id) {
+      return domainError(
+        command.correlation_id,
+        "CLOSURE_EVALUATION_NOT_FOUND",
+        "关闭 Change 需要已存在的 Closure Evaluation",
+        "not_found"
+      );
+    }
+    const current = evaluateCloseProposal({
+      knowledge: this.#assessKnowledgeClosure(transaction, loaded.change),
+      profileKey: transaction.getCurrentContract(loaded.change.id)?.profile_key ?? "feature",
+      releases: transaction.listReleasesByChange(loaded.change.id),
+      residualRisk: evaluation.residual_risk,
+      knownIssues: evaluation.known_issues
+    });
+    if (evaluation.result !== "ALLOW" || current.result !== "ALLOW") {
+      return domainError(
+        command.correlation_id,
+        current.result === evaluation.result ? "CLOSURE_NOT_ALLOWED" : "CLOSURE_EVALUATION_STALE",
+        "关闭 Change 需要当前 Closure Gate 仍为 ALLOW",
+        "conflict"
+      );
+    }
+    const latest = transaction.listClosureEvaluationsByChange(loaded.change.id).at(-1);
+    if (latest && latest.id !== evaluation.id) {
+      return domainError(
+        command.correlation_id,
+        "CLOSURE_EVALUATION_STALE",
+        "关闭 Change 必须使用最新的 Closure Evaluation",
+        "conflict"
+      );
+    }
+    const now = this.#now();
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "ChangeClosed",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "change", id: loaded.change.id, domain_version: 1 },
+      aggregate_revision: nextChange.revision,
+      actor_id: loaded.actorId,
+      command,
+      payload: { closure_evaluation_id: evaluation.id, disposition: evaluation.disposition },
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "change", id: loaded.change.id, domain_version: 1 },
+      nextChange.revision,
+      [event],
+      { closure_evaluation: evaluation }
+    );
+  }
+
+  #cancelChange(transaction: StoreTransaction, command: CancelChangeCommand): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
+    if ("code" in loaded) return loaded;
+    if (transaction.listCancellationRecordsByChange(loaded.change.id).length > 0) {
+      return domainError(command.correlation_id, "CHANGE_ALREADY_CANCELLED", "Change 已取消", "conflict");
+    }
+    if (hasUnresolvedExternalSideEffects(transaction.listExternalOperationsByChange(loaded.change.id))) {
+      return domainError(
+        command.correlation_id,
+        "EXTERNAL_OPERATION_UNKNOWN",
+        "取消前必须核对未知或未完成的外部副作用",
+        "conflict"
+      );
+    }
+    const now = this.#now();
+    const record: CancellationRecord = {
+      schema_version: SCHEMA_VERSION,
+      id: this.#id(),
+      project_id: loaded.project.id,
+      change_id: loaded.change.id,
+      disposition: "cancelled",
+      reason: command.payload.reason,
+      cleanup_summary: command.payload.cleanup_summary,
+      residual_responsibility: command.payload.cleanup_summary,
+      created_at: now
+    };
+    transaction.insertCancellationRecord(record);
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "ChangeCancelled",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "cancellation_record", id: record.id, domain_version: 1 },
+      aggregate_revision: 1,
+      actor_id: loaded.actorId,
+      command,
+      payload: { cancellation_record_id: record.id, reason: record.reason },
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "cancellation_record", id: record.id, domain_version: 1 },
+      nextChange.revision,
+      [event],
+      { cancellation_record: record }
+    );
+  }
+
+  #supersedeChange(transaction: StoreTransaction, command: SupersedeChangeCommand): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
+    if ("code" in loaded) return loaded;
+    if (command.payload.successor_change_id === loaded.change.id) {
+      return domainError(command.correlation_id, "SUPERSEDE_SELF", "取代必须引用另一个 Change", "validation");
+    }
+    const successor = transaction.getChange(command.payload.successor_change_id);
+    if (!successor || successor.project_id !== loaded.project.id) {
+      return domainError(command.correlation_id, "SUCCESSOR_CHANGE_NOT_FOUND", "取代必须精确引用同一项目中的后续 Change", "not_found");
+    }
+    if (hasUnresolvedExternalSideEffects(transaction.listExternalOperationsByChange(loaded.change.id))) {
+      return domainError(
+        command.correlation_id,
+        "EXTERNAL_OPERATION_UNKNOWN",
+        "取代前必须核对未知或未完成的外部副作用",
+        "conflict"
+      );
+    }
+    const now = this.#now();
+    const record: SupersessionRecord = {
+      schema_version: SCHEMA_VERSION,
+      id: this.#id(),
+      project_id: loaded.project.id,
+      change_id: loaded.change.id,
+      successor_change_id: successor.id,
+      disposition: "superseded",
+      reason: command.payload.reason,
+      created_at: now
+    };
+    transaction.insertSupersessionRecord(record);
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "ChangeSuperseded",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "supersession_record", id: record.id, domain_version: 1 },
+      aggregate_revision: 1,
+      actor_id: loaded.actorId,
+      command,
+      payload: { supersession_record_id: record.id, successor_change_id: successor.id },
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "supersession_record", id: record.id, domain_version: 1 },
+      nextChange.revision,
+      [event],
+      { supersession_record: record }
+    );
+  }
+
+  #archiveChange(transaction: StoreTransaction, command: ArchiveChangeCommand): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
+    if ("code" in loaded) return loaded;
+    if (transaction.listArchiveRecordsByChange(loaded.change.id).length > 0) {
+      return domainError(command.correlation_id, "CHANGE_ALREADY_ARCHIVED", "Change 已归档", "conflict");
+    }
+    const now = this.#now();
+    const record: ArchiveRecord = {
+      schema_version: SCHEMA_VERSION,
+      id: this.#id(),
+      project_id: loaded.project.id,
+      change_id: loaded.change.id,
+      disposition: "archived",
+      reason: command.payload.reason,
+      created_at: now
+    };
+    transaction.insertArchiveRecord(record);
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "ChangeArchived",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "archive_record", id: record.id, domain_version: 1 },
+      aggregate_revision: 1,
+      actor_id: loaded.actorId,
+      command,
+      payload: { archive_record_id: record.id },
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "archive_record", id: record.id, domain_version: 1 },
+      nextChange.revision,
+      [event],
+      { archive_record: record }
+    );
+  }
+
+  #createLearningCandidate(transaction: StoreTransaction, command: CreateLearningCandidateCommand): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
+    if ("code" in loaded) return loaded;
+    const sourceId = command.payload.source_id;
+    const resolved =
+      command.payload.source_kind === "failure"
+        ? transaction.getAgentRun(sourceId)?.status === "failed" &&
+          transaction.getAgentRun(sourceId)?.change_id === loaded.change.id
+        : command.payload.source_kind === "recovery"
+          ? transaction.getRecoveryExecution(sourceId)?.change_id === loaded.change.id
+          : command.payload.source_kind === "decision" || command.payload.source_kind === "exception"
+            ? transaction.getDecision(sourceId)?.change_id === loaded.change.id ||
+              transaction
+                .listKnowledgeUpdateEvidenceByChange(loaded.change.id)
+                .some((item) => item.exception_id === sourceId)
+            : false;
+    if (!resolved) {
+      return domainError(
+        command.correlation_id,
+        "LEARNING_SOURCE_NOT_FOUND",
+        "Learning Candidate 必须引用 failure/exception/decision/recovery 事实",
+        "not_found"
+      );
+    }
+    const now = this.#now();
+    const candidate = createProposedLearningCandidate({
+      id: this.#id(),
+      projectId: loaded.project.id,
+      changeId: loaded.change.id,
+      sourceKind: command.payload.source_kind,
+      sourceId,
+      summary: command.payload.summary,
+      now
+    });
+    transaction.insertLearningCandidate(candidate);
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "LearningCandidateCreated",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "learning_candidate", id: candidate.id, domain_version: 1 },
+      aggregate_revision: 1,
+      actor_id: loaded.actorId,
+      command,
+      payload: { learning_candidate_id: candidate.id, source_kind: candidate.source_kind, promoted: false },
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "learning_candidate", id: candidate.id, domain_version: 1 },
+      nextChange.revision,
+      [event],
+      { learning_candidate: candidate }
     );
   }
 
