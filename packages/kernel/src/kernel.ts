@@ -55,6 +55,7 @@ import {
   type PromoteTestResultCommand,
   type RequestEvaluationCommand,
   type CompleteEvaluationCommand,
+  type AssessImpactCommand,
   type ClaimAssessment,
   type Artifact,
   type Evidence,
@@ -88,6 +89,7 @@ import { evaluateIntentGate } from "./gates/intent-gate.js";
 import { evaluatePlanGate } from "./gates/plan-gate.js";
 import { assessClaim } from "./evidence/assessment.js";
 import { evaluateEvidenceGate, evaluationInputDigest, findReusableEvaluation } from "./evidence/evaluation-gate.js";
+import { classifyImpact, projectValidity } from "./evidence/impact.js";
 import { createEvidenceFromCommand } from "./evidence/ingest.js";
 import { parseWhitelistedTestResult, readPromotableReference } from "./evidence/promotion.js";
 import { createKnowledgeImpactAssessment, validateKnowledgeImpact } from "./knowledge-impact.js";
@@ -497,8 +499,9 @@ export class CimiLoopKernel {
         return this.#requestEvaluation(transaction, command);
       case "CompleteEvaluation":
         return this.#completeEvaluation(transaction, command);
-      case "SubmitClaim":
       case "AssessImpact":
+        return this.#assessImpact(transaction, command);
+      case "SubmitClaim":
       case "CreateRepairWorkItem":
         return domainError(
           command.correlation_id,
@@ -2559,6 +2562,90 @@ export class CimiLoopKernel {
       nextChange.revision,
       [event],
       { evaluation, assessments }
+    );
+  }
+
+  #assessImpact(transaction: StoreTransaction, command: AssessImpactCommand): KernelResult {
+    const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
+    if ("code" in loaded) return loaded;
+    const affected: Evidence[] = [];
+    for (const id of command.payload.affected_ids) {
+      const evidence = transaction.getEvidence(id);
+      if (!evidence || evidence.change_id !== loaded.change.id) {
+        return domainError(command.correlation_id, "EVIDENCE_NOT_FOUND", "影响评估只能针对已存在的 Evidence", "not_found");
+      }
+      const classified = classifyImpact({
+        trigger: command.payload.trigger,
+        binding: {
+          subject_type: evidence.subject_type,
+          subject_id: evidence.subject_id,
+          subject_digest: evidence.subject_digest,
+          ...(evidence.environment_ref ? { environment_ref: evidence.environment_ref } : {}),
+          ...(evidence.context_pack_id ? { context_pack_id: evidence.context_pack_id } : {})
+        },
+        change: {
+          subject_type: command.payload.subject_type,
+          subject_id: command.payload.subject_id,
+          old_digest: command.payload.old_input_digest,
+          new_digest: command.payload.new_input_digest,
+          replacement: command.payload.rule.includes("superseded"),
+          integrity_broken: command.payload.rule.includes("integrity"),
+          subject_mismatch: command.payload.rule.includes("mismatch"),
+          source_unverified: command.payload.rule.includes("unverified")
+        }
+      });
+      if (!classified.applies) {
+        return domainError(
+          command.correlation_id,
+          "IMPACT_BINDING_MISMATCH",
+          "影响评估只能作用于绑定了该变化主体的 Evidence",
+          "conflict"
+        );
+      }
+      affected.push(evidence);
+    }
+    const now = this.#now();
+    const first = affected[0];
+    const previous = first ? projectValidity(transaction.listImpactAssessmentsBySubject(first.id)) : "Valid";
+    const impact: ImpactAssessment = {
+      schema_version: SCHEMA_VERSION,
+      id: this.#id(),
+      project_id: loaded.project.id,
+      change_id: loaded.change.id,
+      trigger: command.payload.trigger,
+      subject_type: command.payload.subject_type,
+      subject_id: command.payload.subject_id,
+      rule: command.payload.rule,
+      old_input_digest: command.payload.old_input_digest,
+      new_input_digest: command.payload.new_input_digest,
+      old_validity: command.payload.old_validity ?? previous,
+      new_validity: command.payload.new_validity,
+      affected_ids: command.payload.affected_ids,
+      created_at: now
+    };
+    transaction.insertImpactAssessment(impact);
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "ImpactAssessed",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "impact_assessment", id: impact.id, domain_version: 1 },
+      aggregate_revision: 1,
+      actor_id: loaded.actorId,
+      command,
+      payload: {
+        impact_id: impact.id,
+        rule: impact.rule,
+        new_validity: impact.new_validity,
+        affected_ids: impact.affected_ids
+      },
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "impact_assessment", id: impact.id, domain_version: 1 },
+      nextChange.revision,
+      [event],
+      { impact }
     );
   }
 
