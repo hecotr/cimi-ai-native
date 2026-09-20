@@ -102,7 +102,7 @@ export const isCommandSuccess = (result: CommandSuccess | DomainError): result i
   "ok" in result && result.ok === true;
 
 export const featureContractCandidatePayload = (): Record<string, unknown> => ({
-  profile: "feature",
+  profile_key: "feature",
   intent: "为 Draft Change 建立可批准的 Contract 与 Plan，使 Change 可靠进入 Planned。",
   outcomes: ["Change 在人工批准后进入 Planned", "Decision、Gate 与 Event 形成完整审计链"],
   scope: {
@@ -136,8 +136,7 @@ export const featureContractCandidatePayload = (): Record<string, unknown> => ({
   }
 });
 
-export const featurePlanCandidatePayload = (contractVersion = 1): Record<string, unknown> => ({
-  contract_version: contractVersion,
+export const featurePlanCandidatePayload = (): Record<string, unknown> => ({
   summary: "先固化 Contract，再形成覆盖验收、风险与知识义务的 Task DAG。",
   verification_strategy: "通过 Kernel 场景测试证明 Draft → IntentReady → Planned，并覆盖越权与过期 Decision。",
   recovery_considerations: "任何写失败回滚 Change、Decision、Gate、Transition、Event、Outbox 与 Receipt。",
@@ -263,6 +262,7 @@ export const runM1FeatureToPlanned = (harness: M1Harness): Change | undefined =>
       "request" in intentRequest.data
         ? (intentRequest.data as { request: { id: InternalId } }).request.id
         : change.id;
+    const intentRole = harness.store.transaction((transaction) => transaction.getRoleByKey("intent_owner"));
     executeQuietly(harness, {
       command_type: "SubmitDecision",
       project_id: projectId,
@@ -271,7 +271,7 @@ export const runM1FeatureToPlanned = (harness: M1Harness): Change | undefined =>
       payload: {
         request_id: requestId,
         outcome: "approve",
-        acting_role_id: actorId,
+        acting_role_id: intentRole?.id ?? actorId,
         reason: "Contract 覆盖范围、验收与知识影响，批准进入规划。"
       }
     });
@@ -300,6 +300,7 @@ export const runM1FeatureToPlanned = (harness: M1Harness): Change | undefined =>
       "request" in planRequest.data
         ? (planRequest.data as { request: { id: InternalId } }).request.id
         : change.id;
+    const technicalRole = harness.store.transaction((transaction) => transaction.getRoleByKey("technical_owner"));
     executeQuietly(harness, {
       command_type: "SubmitDecision",
       project_id: projectId,
@@ -308,7 +309,7 @@ export const runM1FeatureToPlanned = (harness: M1Harness): Change | undefined =>
       payload: {
         request_id: requestId,
         outcome: "approve",
-        acting_role_id: actorId,
+        acting_role_id: technicalRole?.id ?? actorId,
         reason: "Plan 覆盖验收、验证策略与知识 Task，批准进入 Planned。"
       }
     });
