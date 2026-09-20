@@ -2,13 +2,22 @@
 import { Command, CommanderError } from "commander";
 import { createInternalId, type DomainError } from "@cimiloop/protocol";
 import {
+  bootstrapSoloGovernance,
   createChange,
   doctor,
   initProject,
   listChanges,
+  listDecisionInbox,
   pauseChange,
+  requestIntentDecision,
+  requestPlanDecision,
   resumeChange,
   showChange,
+  showRoom,
+  showTimeline,
+  submitContractCandidate,
+  submitDecision,
+  submitPlanCandidate,
   type GlobalOptions
 } from "./commands.js";
 import { outputError } from "./output.js";
@@ -70,6 +79,79 @@ change
   .description("恢复 Change")
   .option("--expected-revision <revision>", "期望 Revision")
   .action((idOrKey, options, command) => resumeChange(idOrKey, { ...globals(command), ...options }));
+
+const governance = program.command("governance").description("治理与角色初始化");
+governance
+  .command("bootstrap-solo <change>")
+  .description("初始化 Solo 治理角色、Assignment 与 Policy")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .option("--intent-owner <actor-id>", "Intent Owner Actor ID")
+  .option("--technical-owner <actor-id>", "Technical Owner Actor ID")
+  .action((change, options, command) =>
+    bootstrapSoloGovernance(change, { ...globals(command), ...options })
+  );
+
+const contract = program.command("contract").description("Contract Candidate 与 Intent Review");
+contract
+  .command("submit <change>")
+  .description("提交 Contract Candidate")
+  .requiredOption("--file <json>", "Contract JSON 文件")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((change, options, command) =>
+    submitContractCandidate(change, options.file, { ...globals(command), ...options })
+  );
+contract
+  .command("request-review <change>")
+  .description("请求 Intent Decision")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((change, options, command) => requestIntentDecision(change, { ...globals(command), ...options }));
+
+const plan = program.command("plan").description("Plan Candidate 与 Plan Review");
+plan
+  .command("submit <change>")
+  .description("提交 Plan Candidate")
+  .requiredOption("--file <json>", "Plan JSON 文件")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((change, options, command) =>
+    submitPlanCandidate(change, options.file, { ...globals(command), ...options })
+  );
+plan
+  .command("request-review <change>")
+  .description("请求 Plan Decision")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((change, options, command) => requestPlanDecision(change, { ...globals(command), ...options }));
+
+const decision = program.command("decision").description("Human Decision Inbox 与提交");
+decision.command("inbox").description("列出当前 Actor 可处理的 Decision").action((_options, command) =>
+  listDecisionInbox(globals(command))
+);
+decision
+  .command("submit <request>")
+  .description("提交 Human Decision")
+  .requiredOption("--outcome <outcome>", "approve | request_changes | reject")
+  .requiredOption("--acting-role <id>", "Acting Role ID")
+  .requiredOption("--reason <text>", "决策理由")
+  .option("--feedback-file <json>", "Feedback JSON 文件")
+  .option("--expected-revision <revision>", "期望 Revision")
+  .action((request, options, command) =>
+    submitDecision(request, {
+      ...globals(command),
+      ...options,
+      actingRole: options.actingRole,
+      outcome: options.outcome
+    })
+  );
+
+program
+  .command("room")
+  .command("show <change>")
+  .description("查看 Change Room")
+  .action((change, _options, command) => showRoom(change, globals(command)));
+
+program
+  .command("timeline <change>")
+  .description("查看 Change Timeline")
+  .action((change, _options, command) => showTimeline(change, globals(command)));
 
 program
   .command("doctor")

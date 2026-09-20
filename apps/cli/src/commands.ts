@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
@@ -7,16 +7,20 @@ import {
   SCHEMA_VERSION,
   createInternalId,
   parseChangeListResult,
+  parseChangeRoomResult,
   parseChangeShowResult,
   parseCommandResult,
+  parseDecisionInboxResult,
   parseDoctorResult,
+  parseTimelineResult,
   type AnyCommand,
+  type DecisionOutcome,
   type InternalId
 } from "@cimiloop/protocol";
 import { SqliteProjectRegistry, SqliteProjectStore } from "@cimiloop/store-sqlite";
 import { readInstance, writeInstance } from "./instance.js";
 import { locateProject, readGitIdentity, registryDatabasePath } from "./location.js";
-import { isDomainError, outputError, outputJson } from "./output.js";
+import { formatChangeRoom, formatDecisionInbox, inputError, isDomainError, outputError, outputJson } from "./output.js";
 
 export interface GlobalOptions {
   json?: boolean;
@@ -246,6 +250,225 @@ export const resumeChange = (
   idOrKey: string,
   options: GlobalOptions & { expectedRevision?: string }
 ): void => transitionChange("ResumeChange", idOrKey, undefined, options);
+
+export interface RevisionOptions extends GlobalOptions {
+  expectedRevision?: string;
+}
+
+const readJsonValue = (filePath: string): { ok: true; value: unknown } | ReturnType<typeof inputError> => {
+  let text: string;
+  try {
+    text = readFileSync(filePath, "utf8");
+  } catch {
+    return inputError("CLI_INPUT_INVALID", "无法读取输入文件", { source: "command-file" });
+  }
+  try {
+    return { ok: true, value: JSON.parse(text) as unknown };
+  } catch {
+    return inputError("CLI_INPUT_INVALID", "输入文件不是合法 JSON", { source: "command-file" });
+  }
+};
+
+const expectedRevisionOf = (value: string | undefined, current: number): number | ReturnType<typeof inputError> => {
+  if (value === undefined) return current;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    return inputError("CLI_INPUT_INVALID", "expected-revision 必须是正整数");
+  }
+  return parsed;
+};
+
+const executeChangeCommand = (
+  options: RevisionOptions,
+  idOrKey: string,
+  commandType: AnyCommand["command_type"],
+  payload: Record<string, unknown> | ((changeId: InternalId) => Record<string, unknown>)
+): void => {
+  const context = openProject(options);
+  try {
+    const current = context.kernel.getChange(idOrKey);
+    if (isDomainError(current)) return outputError(current, Boolean(options.json));
+    const expectedRevision = expectedRevisionOf(options.expectedRevision, current.revision);
+    if (typeof expectedRevision !== "number") return outputError(expectedRevision, Boolean(options.json));
+    const ids = commandIdentity(options);
+    const result = context.kernel.execute({
+      schema_version: SCHEMA_VERSION,
+      command_id: ids.commandId,
+      correlation_id: ids.correlationId,
+      command_type: commandType,
+      requested_at: now(),
+      project_id: context.instance.project_id,
+      actor_id: context.instance.actor_id,
+      target: { object_type: "change", id: current.id, domain_version: 1 },
+      expected_revision: expectedRevision,
+      source: source(context.location.repositoryPath),
+      payload: typeof payload === "function" ? payload(current.id) : payload
+    });
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    stdout.write(`${current.display_key} 已执行 ${commandType}（Revision ${result.revision}）\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const bootstrapSoloGovernance = (
+  idOrKey: string,
+  options: RevisionOptions & { intentOwner?: string; technicalOwner?: string }
+): void => {
+  const context = openProject(options);
+  try {
+    const current = context.kernel.getChange(idOrKey);
+    if (isDomainError(current)) return outputError(current, Boolean(options.json));
+    const expectedRevision = expectedRevisionOf(options.expectedRevision, current.revision);
+    if (typeof expectedRevision !== "number") return outputError(expectedRevision, Boolean(options.json));
+    const ids = commandIdentity(options);
+    const result = context.kernel.execute({
+      schema_version: SCHEMA_VERSION,
+      command_id: ids.commandId,
+      correlation_id: ids.correlationId,
+      command_type: "BootstrapSoloGovernance",
+      requested_at: now(),
+      project_id: context.instance.project_id,
+      actor_id: context.instance.actor_id,
+      target: { object_type: "change", id: current.id, domain_version: 1 },
+      expected_revision: expectedRevision,
+      source: source(context.location.repositoryPath),
+      payload: {
+        change_id: current.id,
+        intent_owner_actor_id: options.intentOwner ?? context.instance.actor_id,
+        technical_owner_actor_id: options.technicalOwner ?? context.instance.actor_id
+      }
+    });
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    stdout.write(`${current.display_key} 已完成 Solo 治理初始化（Revision ${result.revision}）\n`);
+  } finally {
+    context.store.close();
+  }
+};
+
+export const submitContractCandidate = (idOrKey: string, filePath: string, options: RevisionOptions): void => {
+  const payload = readJsonValue(filePath);
+  if (isDomainError(payload)) return outputError(payload, Boolean(options.json));
+  if (!payload.value || typeof payload.value !== "object" || Array.isArray(payload.value)) {
+    return outputError(inputError("CLI_INPUT_INVALID", "Contract 文件必须是 JSON 对象"), Boolean(options.json));
+  }
+  executeChangeCommand(options, idOrKey, "SubmitContractCandidate", payload.value as Record<string, unknown>);
+};
+
+export const requestIntentDecision = (idOrKey: string, options: RevisionOptions): void => {
+  executeChangeCommand(options, idOrKey, "RequestIntentDecision", (changeId) => ({ change_id: changeId }));
+};
+
+export const submitPlanCandidate = (idOrKey: string, filePath: string, options: RevisionOptions): void => {
+  const payload = readJsonValue(filePath);
+  if (isDomainError(payload)) return outputError(payload, Boolean(options.json));
+  if (!payload.value || typeof payload.value !== "object" || Array.isArray(payload.value)) {
+    return outputError(inputError("CLI_INPUT_INVALID", "Plan 文件必须是 JSON 对象"), Boolean(options.json));
+  }
+  executeChangeCommand(options, idOrKey, "SubmitPlanCandidate", payload.value as Record<string, unknown>);
+};
+
+export const requestPlanDecision = (idOrKey: string, options: RevisionOptions): void => {
+  executeChangeCommand(options, idOrKey, "RequestPlanDecision", (changeId) => ({ change_id: changeId }));
+};
+
+export const listDecisionInbox = (options: GlobalOptions): void => {
+  const context = openProject(options);
+  try {
+    const inbox = context.kernel.listDecisionInbox(context.instance.actor_id);
+    if (isDomainError(inbox)) return outputError(inbox, Boolean(options.json));
+    if (options.json) return outputJson(inbox, parseDecisionInboxResult);
+    stdout.write(formatDecisionInbox(inbox));
+  } finally {
+    context.store.close();
+  }
+};
+
+export const submitDecision = (
+  requestId: string,
+  options: RevisionOptions & {
+    outcome: DecisionOutcome;
+    actingRole: string;
+    reason: string;
+    feedbackFile?: string;
+  }
+): void => {
+  const context = openProject(options);
+  try {
+    const request = context.kernel.getDecisionRequest(requestId as InternalId);
+    if (isDomainError(request)) return outputError(request, Boolean(options.json));
+    const current = context.kernel.getChange(request.request.change_id);
+    if (isDomainError(current)) return outputError(current, Boolean(options.json));
+    const expectedRevision = expectedRevisionOf(options.expectedRevision, current.revision);
+    if (typeof expectedRevision !== "number") return outputError(expectedRevision, Boolean(options.json));
+    let feedback: unknown;
+    if (options.feedbackFile) {
+      const loaded = readJsonValue(options.feedbackFile);
+      if (isDomainError(loaded)) return outputError(loaded, Boolean(options.json));
+      feedback = loaded.value;
+    }
+    const ids = commandIdentity(options);
+    const result = context.kernel.execute({
+      schema_version: SCHEMA_VERSION,
+      command_id: ids.commandId,
+      correlation_id: ids.correlationId,
+      command_type: "SubmitDecision",
+      requested_at: now(),
+      project_id: context.instance.project_id,
+      actor_id: context.instance.actor_id,
+      expected_revision: expectedRevision,
+      source: source(context.location.repositoryPath),
+      payload: {
+        request_id: request.request.id,
+        outcome: options.outcome,
+        acting_role_id: options.actingRole,
+        reason: options.reason,
+        ...(feedback ? { feedback } : {})
+      }
+    });
+    if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if (options.json) return outputJson(result, parseCommandResult);
+    if ("change" in result.data) {
+      stdout.write(
+        `${result.data.change.display_key} Decision ${options.outcome}（Revision ${result.data.change.revision}）\n`
+      );
+    }
+  } finally {
+    context.store.close();
+  }
+};
+
+export const showRoom = (idOrKey: string, options: GlobalOptions): void => {
+  const context = openProject(options);
+  try {
+    const current = context.kernel.getChange(idOrKey);
+    if (isDomainError(current)) return outputError(current, Boolean(options.json));
+    const room = context.kernel.getChangeRoom(current.id);
+    if (isDomainError(room)) return outputError(room, Boolean(options.json));
+    if (options.json) return outputJson(room, parseChangeRoomResult);
+    stdout.write(formatChangeRoom(room, current.revision));
+  } finally {
+    context.store.close();
+  }
+};
+
+export const showTimeline = (idOrKey: string, options: GlobalOptions): void => {
+  const context = openProject(options);
+  try {
+    const current = context.kernel.getChange(idOrKey);
+    if (isDomainError(current)) return outputError(current, Boolean(options.json));
+    const timeline = context.kernel.getTimeline(current.id);
+    if (isDomainError(timeline)) return outputError(timeline, Boolean(options.json));
+    if (options.json) return outputJson(timeline, parseTimelineResult);
+    for (const event of timeline.events) {
+      stdout.write(`${event.event_sequence}\t${event.event_type}\t${event.summary}\n`);
+    }
+  } finally {
+    context.store.close();
+  }
+};
 
 export const doctor = (options: GlobalOptions): void => {
   const context = openProject(options);

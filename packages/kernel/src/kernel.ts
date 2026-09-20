@@ -6,6 +6,7 @@ import {
   parseChangeRoomResult,
   parseCommand,
   parseDecisionInboxResult,
+  parseGetDecisionRequestResult,
   parseTimelineResult,
   type Actor,
   type AnyCommand,
@@ -15,6 +16,7 @@ import {
   type CommandSuccess,
   type DecisionInboxResult,
   type DomainError,
+  type GetDecisionRequestResult,
   type EventEnvelope,
   type BootstrapSoloGovernanceCommand,
   type ContractVersion,
@@ -267,7 +269,7 @@ export class CimiLoopKernel {
     }
   }
 
-  getTimeline(changeId: InternalId): TimelineResult | DomainError {
+  getTimeline(changeId: string): TimelineResult | DomainError {
     const change = this.#store.getChange(changeId);
     if (!change) {
       return domainError(this.#id(), "CHANGE_NOT_FOUND", "未找到指定 Change", "not_found", false, {
@@ -284,6 +286,25 @@ export class CimiLoopKernel {
         "validation"
       );
     }
+  }
+
+  getDecisionRequest(requestId: InternalId): GetDecisionRequestResult | DomainError {
+    return this.#store.transaction((transaction) => {
+      const request = transaction.getDecisionRequest(requestId);
+      if (!request) {
+        return domainError(this.#id(), "DECISION_REQUEST_NOT_FOUND", "未找到指定 Decision Request", "not_found");
+      }
+      try {
+        return parseGetDecisionRequestResult({ ok: true, request });
+      } catch (error) {
+        return domainError(
+          this.#id(),
+          "PROTOCOL_VALIDATION_FAILED",
+          error instanceof Error ? error.message : "Decision Request 不符合协议",
+          "validation"
+        );
+      }
+    });
   }
 
   #dispatch(transaction: StoreTransaction, command: AnyCommand): KernelResult {
