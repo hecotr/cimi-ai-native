@@ -65,6 +65,8 @@ import {
   type RecordOperationResultCommand,
   type RequestReconciliationCommand,
   type RecordReconciliationCommand,
+  type AuthorizeRecoveryCommand,
+  type RecordRecoveryCommand,
   type RequestReleaseDecisionCommand,
   type DecisionRequest,
   type Claim,
@@ -141,6 +143,7 @@ import {
   redeployBlockedReason,
   reconciliationResolvesBlocker
 } from "./delivery/reconciliation.js";
+import { recoveryRequiresHuman, recoveryScopeExceeded } from "./delivery/recovery.js";
 import { latestEvaluationAllowsArtifact, releaseDigestMatches } from "./delivery/test-gate.js";
 import {
   authorizationDigest,
@@ -633,13 +636,9 @@ export class CimiLoopKernel {
       case "RecordReconciliation":
         return this.#recordReconciliation(transaction, command);
       case "AuthorizeRecovery":
+        return this.#authorizeRecovery(transaction, command);
       case "RecordRecovery":
-        return domainError(
-          command.correlation_id,
-          "COMMAND_UNSUPPORTED",
-          `暂不支持 ${command.command_type}`,
-          "conflict"
-        );
+        return this.#recordRecovery(transaction, command);
     }
   }
 
@@ -3632,6 +3631,197 @@ export class CimiLoopKernel {
       occurred_at: now
     });
     return this.#success(command, event.aggregate, nextChange.revision, [event], { reconciliation });
+  }
+
+  #authorizeRecovery(transaction: StoreTransaction, command: AuthorizeRecoveryCommand): KernelResult {
+    const release = transaction.getRelease(command.payload.release_id);
+    if (!release) {
+      return domainError(command.correlation_id, "RELEASE_NOT_FOUND", "未找到指定 Release", "not_found");
+    }
+    const loaded = this.#requireChangeForMutation(transaction, command, release.change_id);
+    if ("code" in loaded) return loaded;
+    const strategy = transaction.getRecoveryStrategy(command.payload.strategy_id);
+    if (!strategy || strategy.release_id !== release.id) {
+      return domainError(command.correlation_id, "RECOVERY_STRATEGY_NOT_FOUND", "未找到指定 Recovery Strategy", "not_found");
+    }
+    const source = transaction.getDeployment(command.payload.source_deployment_id);
+    if (!source || source.release_id !== release.id) {
+      return domainError(command.correlation_id, "DEPLOYMENT_NOT_FOUND", "Recovery 必须绑定失败的 Deployment", "not_found");
+    }
+    const pack = release.package_id ? transaction.getReleasePackage(release.package_id) : undefined;
+    const needsHuman = recoveryRequiresHuman({
+      authorization: strategy.authorization,
+      targetAvailable: transaction
+        .listArtifactsByChange(loaded.change.id)
+        .some((item) => item.digest.value === strategy.target_digest.value),
+      strategyCurrent:
+        strategy.digest.value ===
+        recoveryStrategyDigest({
+          trigger: strategy.trigger,
+          kind: strategy.kind,
+          target_digest: strategy.target_digest,
+          scope: strategy.scope,
+          steps: strategy.steps,
+          verify_checks: strategy.verify_checks,
+          authorization: strategy.authorization
+        }).value,
+      scopeExceeded: recoveryScopeExceeded(strategy.scope, pack?.scope ?? { in: [], out: [] })
+    });
+    const now = this.#now();
+    let recoveryDeployment = source;
+    if (!needsHuman) {
+      recoveryDeployment = {
+        schema_version: SCHEMA_VERSION,
+        id: this.#id(),
+        project_id: loaded.project.id,
+        change_id: loaded.change.id,
+        release_id: release.id,
+        environment_id: release.environment_id,
+        artifact_digest: strategy.target_digest,
+        status: "queued",
+        created_at: now,
+        updated_at: now,
+        revision: 1
+      };
+      const operationKey = `op:recover:${release.id}:${recoveryDeployment.id}`;
+      const attempt = {
+        schema_version: SCHEMA_VERSION,
+        id: this.#id(),
+        project_id: loaded.project.id,
+        change_id: loaded.change.id,
+        deployment_id: recoveryDeployment.id,
+        attempt_kind: "recover" as const,
+        operation_key: operationKey,
+        artifact_digest: strategy.target_digest,
+        requested_at: now,
+        created_at: now
+      };
+      const operation = {
+        schema_version: SCHEMA_VERSION,
+        id: this.#id(),
+        project_id: loaded.project.id,
+        change_id: loaded.change.id,
+        operation_key: operationKey,
+        operation_kind: "recover" as const,
+        environment_id: release.environment_id,
+        release_id: release.id,
+        deployment_id: recoveryDeployment.id,
+        artifact_digest: strategy.target_digest,
+        state: "pending" as const,
+        log_reference: "file://logs/recover-pending.log",
+        log_digest: authorizationDigest({ operation_key: operationKey }, "recover_log"),
+        summary: "recovery queued",
+        created_at: now,
+        updated_at: now,
+        revision: 1
+      };
+      transaction.insertDeployment({ ...recoveryDeployment, current_operation_id: operation.id });
+      transaction.insertDeploymentAttempt(attempt);
+      transaction.insertExternalOperation(operation);
+    }
+    const execution = {
+      schema_version: SCHEMA_VERSION,
+      id: this.#id(),
+      project_id: loaded.project.id,
+      change_id: loaded.change.id,
+      strategy_id: strategy.id,
+      source_deployment_id: source.id,
+      deployment_id: recoveryDeployment.id,
+      status: needsHuman ? ("require_human" as const) : ("authorized" as const),
+      created_at: now,
+      updated_at: now,
+      revision: 1
+    };
+    transaction.insertRecoveryExecution(execution);
+    if (needsHuman) {
+      transaction.insertBlocker({
+        schema_version: SCHEMA_VERSION,
+        id: this.#id(),
+        project_id: loaded.project.id,
+        change_id: loaded.change.id,
+        code: "RECOVERY_REQUIRES_HUMAN",
+        summary: "Recovery 超出预授权范围",
+        status: "open",
+        resolution_condition: "obtain a new human decision before recovery",
+        created_at: now,
+        updated_at: now,
+        revision: 1
+      });
+    }
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "RecoveryAuthorized",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "recovery_execution", id: execution.id, domain_version: 1 },
+      aggregate_revision: 1,
+      actor_id: loaded.actorId,
+      command,
+      payload: { execution_id: execution.id, status: execution.status, source_deployment_id: source.id },
+      occurred_at: now
+    });
+    return this.#success(command, event.aggregate, nextChange.revision, [event], { recovery_execution: execution });
+  }
+
+  #recordRecovery(transaction: StoreTransaction, command: RecordRecoveryCommand): KernelResult {
+    const execution = transaction.getRecoveryExecution(command.payload.execution_id);
+    if (!execution) {
+      return domainError(command.correlation_id, "RECOVERY_EXECUTION_NOT_FOUND", "未找到指定 Recovery Execution", "not_found");
+    }
+    const loaded = this.#requireChangeForMutation(transaction, command, execution.change_id);
+    if ("code" in loaded) return loaded;
+    const now = this.#now();
+    const nextExecution = {
+      ...execution,
+      status: command.payload.status,
+      updated_at: now,
+      revision: execution.revision + 1,
+      ...(command.payload.verification_id ? { verification_id: command.payload.verification_id } : {})
+    };
+    transaction.updateRecoveryExecution(nextExecution, execution.revision);
+    if (command.payload.status === "verified" && execution.deployment_id !== execution.source_deployment_id) {
+      const deployment = transaction.getDeployment(execution.deployment_id);
+      if (deployment) {
+        transaction.updateDeployment(
+          { ...deployment, status: "recovered", updated_at: now, revision: deployment.revision + 1 },
+          deployment.revision
+        );
+      }
+      for (const blocker of transaction.listOpenBlockers(loaded.change.id)) {
+        if (blocker.code === "PRODUCTION_VERIFICATION_FAILED") {
+          transaction.updateBlocker(
+            { ...blocker, status: "resolved", updated_at: now, revision: blocker.revision + 1 },
+            blocker.revision
+          );
+        }
+      }
+    }
+    if (command.payload.status === "failed") {
+      transaction.insertBlocker({
+        schema_version: SCHEMA_VERSION,
+        id: this.#id(),
+        project_id: loaded.project.id,
+        change_id: loaded.change.id,
+        code: "RECOVERY_FAILED",
+        summary: "Recovery verification failed",
+        status: "open",
+        resolution_condition: "keep the failed deployment and await a new decision",
+        created_at: now,
+        updated_at: now,
+        revision: 1
+      });
+    }
+    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const event = this.#appendEvent(transaction, {
+      event_type: "RecoveryRecorded",
+      project_id: loaded.project.id,
+      aggregate: { object_type: "recovery_execution", id: execution.id, domain_version: 1 },
+      aggregate_revision: nextExecution.revision,
+      actor_id: loaded.actorId,
+      command,
+      payload: { execution_id: execution.id, status: command.payload.status },
+      occurred_at: now
+    });
+    return this.#success(command, event.aggregate, nextChange.revision, [event], { recovery_execution: nextExecution });
   }
 
   #createRepairWorkItem(transaction: StoreTransaction, command: CreateRepairWorkItemCommand): KernelResult {
