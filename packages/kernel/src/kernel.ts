@@ -3,12 +3,17 @@ import {
   SCHEMA_VERSION,
   createInternalId,
   formatValidationErrors,
+  parseChangeRoomResult,
   parseCommand,
+  parseDecisionInboxResult,
+  parseTimelineResult,
   type Actor,
   type AnyCommand,
   type Assignment,
   type Change,
+  type ChangeRoomResult,
   type CommandSuccess,
+  type DecisionInboxResult,
   type DomainError,
   type EventEnvelope,
   type BootstrapSoloGovernanceCommand,
@@ -26,7 +31,8 @@ import {
   type SubmitDecisionCommand,
   type SubmitPlanAmendmentCommand,
   type SubmitPlanCandidateCommand,
-  type Task
+  type Task,
+  type TimelineResult
 } from "@cimiloop/protocol";
 import {
   StoreConflictError,
@@ -50,6 +56,7 @@ import { evaluateIntentGate } from "./gates/intent-gate.js";
 import { evaluatePlanGate } from "./gates/plan-gate.js";
 import { createKnowledgeImpactAssessment, validateKnowledgeImpact } from "./knowledge-impact.js";
 import { createPlanCandidate, createPlanTasks, createPlanVersion, validateKnowledgeTasks } from "./plan.js";
+import { ReadModelBuilder } from "./read-models.js";
 import { createRiskAssessment, createRiskProfile, validateRiskDimensions } from "./risk.js";
 import { validateTaskDag } from "./task-dag.js";
 import {
@@ -176,6 +183,107 @@ export class CimiLoopKernel {
 
   listEvents(): EventEnvelope[] {
     return this.#store.listEvents();
+  }
+
+  listDecisionInbox(actorId: InternalId): DecisionInboxResult | DomainError {
+    try {
+      return parseDecisionInboxResult(
+        this.#store.transaction((transaction) => {
+          const project = transaction.getCurrentProject();
+          const roles = transaction.listRoles();
+          const assignments = project
+            ? transaction.listAssignments(project.id).map((assignment) => ({
+                actor_id: assignment.actor_id,
+                role_key: roles.find((role) => role.id === assignment.role_id)?.role_key ?? "project_owner"
+              }))
+            : [];
+          const requests = transaction.listOpenDecisionRequests();
+          const changes = requests
+            .map((request) => transaction.getChange(request.change_id))
+            .filter((change): change is Change => Boolean(change))
+            .map((change) => ({ id: change.id, display_key: change.display_key, title: change.title }));
+          return new ReadModelBuilder().buildInbox({
+            actorId,
+            assignments,
+            requests: requests.map((request) => ({
+              id: request.id,
+              change_id: request.change_id,
+              request_type: request.request_type,
+              required_role_key: request.required_role_key,
+              status: request.status,
+              created_at: request.created_at
+            })),
+            changes
+          });
+        })
+      );
+    } catch (error) {
+      return domainError(
+        this.#id(),
+        "PROTOCOL_VALIDATION_FAILED",
+        error instanceof Error ? error.message : "Inbox 投影不符合协议",
+        "validation"
+      );
+    }
+  }
+
+  getChangeRoom(changeId: InternalId): ChangeRoomResult | DomainError {
+    try {
+      return this.#store.transaction((transaction) => {
+        const change = transaction.getChange(changeId);
+        if (!change) {
+          return domainError(this.#id(), "CHANGE_NOT_FOUND", "未找到指定 Change", "not_found", false, {
+            id_or_key: changeId
+          });
+        }
+        const contract = transaction.getCurrentContract(change.id);
+        const plan = transaction.getCurrentPlan(change.id);
+        const openRequests = transaction
+          .listOpenDecisionRequests()
+          .filter((request) => request.change_id === change.id);
+        const decisions = transaction.listDecisions(change.id);
+        const feedbackIds = decisions.flatMap((decision) =>
+          transaction.listFeedback(decision.id).map((feedback) => feedback.id)
+        );
+        const timeline = new ReadModelBuilder().buildTimeline(this.#store.listEvents(), change.id);
+        const room = new ReadModelBuilder().buildRoom({
+          change,
+          ...(contract ? { contract: { domain_version: contract.domain_version, intent: contract.intent } } : {}),
+          ...(plan ? { plan: { domain_version: plan.domain_version, summary: plan.summary } } : {}),
+          openRequests: openRequests.map((request) => ({ id: request.id, request_type: request.request_type })),
+          decisionIds: decisions.map((decision) => decision.id),
+          feedbackIds,
+          timelineEventIds: timeline.events.map((event) => event.event_id)
+        });
+        return parseChangeRoomResult({ ok: true, room });
+      });
+    } catch (error) {
+      return domainError(
+        this.#id(),
+        "PROTOCOL_VALIDATION_FAILED",
+        error instanceof Error ? error.message : "Change Room 投影不符合协议",
+        "validation"
+      );
+    }
+  }
+
+  getTimeline(changeId: InternalId): TimelineResult | DomainError {
+    const change = this.#store.getChange(changeId);
+    if (!change) {
+      return domainError(this.#id(), "CHANGE_NOT_FOUND", "未找到指定 Change", "not_found", false, {
+        id_or_key: changeId
+      });
+    }
+    try {
+      return parseTimelineResult(new ReadModelBuilder().buildTimeline(this.#store.listEvents(), change.id));
+    } catch (error) {
+      return domainError(
+        this.#id(),
+        "PROTOCOL_VALIDATION_FAILED",
+        error instanceof Error ? error.message : "Timeline 投影不符合协议",
+        "validation"
+      );
+    }
   }
 
   #dispatch(transaction: StoreTransaction, command: AnyCommand): KernelResult {
