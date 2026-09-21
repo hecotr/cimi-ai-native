@@ -5,17 +5,29 @@ import { createInternalId } from "@cimiloop/protocol";
 import type { SnapshotCaptureInput } from "./port.js";
 
 const git = (repositoryPath: string, args: string[]): string =>
-  execFileSync("git", ["-C", repositoryPath, ...args], { encoding: "utf8" }).trim();
+  execFileSync("git", ["-c", "core.fsmonitor=false", "-C", repositoryPath, ...args], {
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      GIT_TERMINAL_PROMPT: "0",
+      GIT_OPTIONAL_LOCKS: "0",
+      GIT_PAGER: "cat"
+    }
+  }).trim();
 
 export const captureSourceSnapshot = (
   input: SnapshotCaptureInput & { repositoryPath: string }
 ): SourceSnapshot => {
-  const commitSha = git(input.worktreePath, ["rev-parse", "HEAD"]);
-  const treeSha = git(input.worktreePath, ["rev-parse", "HEAD^{tree}"]);
-  const status = git(input.worktreePath, ["status", "--porcelain"]);
-  const dirty = status.length > 0;
+  const identities = git(input.worktreePath, ["rev-parse", "HEAD", "HEAD^{tree}"]);
+  const [commitSha, treeSha] = identities.split(/\r?\n/);
+  if (!commitSha || !treeSha) {
+    throw new Error("SourceSnapshot 无法读取 Git commit/tree");
+  }
+  const status = git(input.worktreePath, ["status", "--porcelain=v1", "--untracked-files=all"]);
+  const diff = git(input.worktreePath, ["diff", "--no-ext-diff", "--no-color", "HEAD"]);
+  const dirty = status.length > 0 || diff.length > 0;
   const digestValue = createHash("sha256")
-    .update(JSON.stringify({ commitSha, treeSha, status }))
+    .update(JSON.stringify({ commitSha, treeSha, status, diff }))
     .digest("hex");
   const shared = {
     schema_version: SCHEMA_VERSION,

@@ -2,13 +2,13 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import { createInternalId } from "../../protocol/src/index.js";
 import { GitWorktreeWorkspace, WorkspaceError } from "../src/index.js";
 
 const temporaryDirectories: string[] = [];
 
-afterEach(() => {
+afterAll(() => {
   while (temporaryDirectories.length > 0) {
     const directory = temporaryDirectories.pop();
     if (directory) rmSync(directory, { recursive: true, force: true });
@@ -24,12 +24,22 @@ const tempRoot = (): string => {
 const initRepo = (directory: string): string => {
   const repo = join(directory, "repo");
   mkdirSync(repo);
-  execFileSync("git", ["init", repo], { stdio: "ignore" });
-  execFileSync("git", ["-C", repo, "config", "user.email", "workspace@example.com"], { stdio: "ignore" });
-  execFileSync("git", ["-C", repo, "config", "user.name", "Workspace"], { stdio: "ignore" });
+  const gitEnv = { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0" };
+  execFileSync("git", ["-c", "init.defaultBranch=main", "init", "--template=", repo], {
+    stdio: "ignore",
+    env: gitEnv
+  });
   writeFileSync(join(repo, "README.md"), "workspace\n");
-  execFileSync("git", ["-C", repo, "add", "README.md"], { stdio: "ignore" });
-  execFileSync("git", ["-C", repo, "commit", "-m", "init"], { stdio: "ignore" });
+  execFileSync(
+    "git",
+    ["-C", repo, "-c", "user.email=workspace@example.com", "-c", "user.name=Workspace", "add", "README.md"],
+    { stdio: "ignore", env: gitEnv }
+  );
+  execFileSync(
+    "git",
+    ["-C", repo, "-c", "user.email=workspace@example.com", "-c", "user.name=Workspace", "commit", "-m", "init"],
+    { stdio: "ignore", env: gitEnv }
+  );
   return repo;
 };
 
@@ -44,6 +54,21 @@ describe("Git worktree isolation", () => {
     expect(first.worktreePath).toBe(second.worktreePath);
     expect(first.worktreePath.startsWith(resolve(join(root, "worktrees")))).toBe(true);
     expect(first.worktreePath).toContain(changeId);
+  });
+
+  it("rejects a mkdir impostor that is not a registered git worktree", () => {
+    const root = tempRoot();
+    const repo = initRepo(root);
+    const changeId = createInternalId();
+    const worktreeRoot = join(root, "worktrees");
+    mkdirSync(join(worktreeRoot, changeId), { recursive: true });
+    const workspace = new GitWorktreeWorkspace({ repositoryPath: repo, worktreeRoot });
+    expect(() => workspace.ensureWorktree(changeId)).toThrow(WorkspaceError);
+    try {
+      workspace.ensureWorktree(changeId);
+    } catch (error) {
+      expect((error as WorkspaceError).code).toBe("WORKTREE_UNVERIFIED");
+    }
   });
 
   it("rejects path escape and cleanup of unverified directories", () => {

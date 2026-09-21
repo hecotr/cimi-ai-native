@@ -14,7 +14,7 @@ export interface SnapshotCaptureInput {
 }
 
 export interface ChangeWorkspace {
-  ensureWorktree(changeId: string): WorkspaceLocation;
+  ensureWorktree(changeId: string, baseRevision?: string): WorkspaceLocation;
   captureSnapshot(input: SnapshotCaptureInput): SourceSnapshot;
   cleanup(worktreePath: string): void;
 }
