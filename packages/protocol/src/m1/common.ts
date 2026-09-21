@@ -95,7 +95,16 @@ export const LifecycleStateSchema = Type.Union([
   Type.Literal("Draft"),
   Type.Literal("IntentReady"),
   Type.Literal("Planned"),
-  Type.Literal("Executing")
+  Type.Literal("Executing"),
+  Type.Literal("Evaluating"),
+  Type.Literal("TestDeploying"),
+  Type.Literal("TestValidating"),
+  Type.Literal("ReleaseReady"),
+  Type.Literal("ProductionDeploying"),
+  Type.Literal("ReleaseVerified"),
+  Type.Literal("DeliveryClosed"),
+  Type.Literal("Cancelled"),
+  Type.Literal("Superseded")
 ]);
 
 export const DigestSchema = Type.Object(

@@ -60,6 +60,18 @@
       },
       "additionalProperties": false
     },
+    "status": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "active"
+        },
+        {
+          "type": "string",
+          "const": "revoked"
+        }
+      ]
+    },
     "extensions": {
       "type": "object",
       "patternProperties": {

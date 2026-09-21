@@ -63,6 +63,42 @@
         {
           "type": "string",
           "const": "Executing"
+        },
+        {
+          "type": "string",
+          "const": "Evaluating"
+        },
+        {
+          "type": "string",
+          "const": "TestDeploying"
+        },
+        {
+          "type": "string",
+          "const": "TestValidating"
+        },
+        {
+          "type": "string",
+          "const": "ReleaseReady"
+        },
+        {
+          "type": "string",
+          "const": "ProductionDeploying"
+        },
+        {
+          "type": "string",
+          "const": "ReleaseVerified"
+        },
+        {
+          "type": "string",
+          "const": "DeliveryClosed"
+        },
+        {
+          "type": "string",
+          "const": "Cancelled"
+        },
+        {
+          "type": "string",
+          "const": "Superseded"
         }
       ]
     },

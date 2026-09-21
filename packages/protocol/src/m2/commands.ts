@@ -16,7 +16,8 @@ import {
   SubmitContractCandidateCommandSchema,
   SubmitDecisionCommandSchema,
   SubmitPlanAmendmentCommandSchema,
-  SubmitPlanCandidateCommandSchema
+  SubmitPlanCandidateCommandSchema,
+  RevokeProjectPolicyCommandSchema
 } from "../m1/commands.js";
 import { ContentReferenceSchema, GitShaSchema, SnapshotKindSchema } from "./common.js";
 import {
@@ -172,6 +173,7 @@ export const AnyCommandSchema = Type.Union([
   SubmitPlanCandidateCommandSchema,
   RequestPlanDecisionCommandSchema,
   SubmitPlanAmendmentCommandSchema,
+  RevokeProjectPolicyCommandSchema,
   CreatePlanningWorkItemCommandSchema,
   CreateExecutionWorkItemsCommandSchema,
   ClaimWorkItemCommandSchema,

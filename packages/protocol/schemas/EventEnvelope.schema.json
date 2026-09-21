@@ -309,6 +309,10 @@
             {
               "type": "string",
               "const": "supersession_record"
+            },
+            {
+              "type": "string",
+              "const": "artifact_lineage"
             }
           ]
         },

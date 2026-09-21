@@ -52,6 +52,7 @@ export const CommandSuccessDataSchema = Type.Union([
     },
     { additionalProperties: false }
   ),
+  Type.Object({ policy: ProjectPolicySchema }, { additionalProperties: false }),
   Type.Object(
     {
       candidate: ContractCandidateSchema,

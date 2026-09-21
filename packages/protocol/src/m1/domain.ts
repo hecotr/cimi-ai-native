@@ -84,6 +84,7 @@ export const PolicySnapshotSchema = Type.Object(
     policy_id: InternalIdSchema,
     policy_revision: Type.Integer({ minimum: 1 }),
     digest: DigestSchema,
+    status: Type.Optional(Type.Union([Type.Literal("active"), Type.Literal("revoked")])),
     ...optionalExtensions
   },
   { additionalProperties: false }

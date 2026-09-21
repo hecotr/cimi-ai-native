@@ -77,7 +77,8 @@ export const ObjectTypeSchema = Type.Union([
   Type.Literal("attention_item"),
   Type.Literal("archive_record"),
   Type.Literal("cancellation_record"),
-  Type.Literal("supersession_record")
+  Type.Literal("supersession_record"),
+  Type.Literal("artifact_lineage")
 ]);
 
 export const TypedReferenceSchema = Type.Object(
@@ -174,7 +175,16 @@ export const ChangeSchema = Type.Object(
       Type.Literal("Draft"),
       Type.Literal("IntentReady"),
       Type.Literal("Planned"),
-      Type.Literal("Executing")
+      Type.Literal("Executing"),
+      Type.Literal("Evaluating"),
+      Type.Literal("TestDeploying"),
+      Type.Literal("TestValidating"),
+      Type.Literal("ReleaseReady"),
+      Type.Literal("ProductionDeploying"),
+      Type.Literal("ReleaseVerified"),
+      Type.Literal("DeliveryClosed"),
+      Type.Literal("Cancelled"),
+      Type.Literal("Superseded")
     ]),
     operating_status: Type.Union([Type.Literal("Active"), Type.Literal("Paused")]),
     owner_actor_id: InternalIdSchema,
@@ -214,13 +224,31 @@ export const TransitionRecordSchema = Type.Union([
         Type.Literal("Draft"),
         Type.Literal("IntentReady"),
         Type.Literal("Planned"),
-        Type.Literal("Executing")
+        Type.Literal("Executing"),
+        Type.Literal("Evaluating"),
+        Type.Literal("TestDeploying"),
+        Type.Literal("TestValidating"),
+        Type.Literal("ReleaseReady"),
+        Type.Literal("ProductionDeploying"),
+        Type.Literal("ReleaseVerified"),
+        Type.Literal("DeliveryClosed"),
+        Type.Literal("Cancelled"),
+        Type.Literal("Superseded")
       ]),
       to_lifecycle: Type.Union([
         Type.Literal("Draft"),
         Type.Literal("IntentReady"),
         Type.Literal("Planned"),
-        Type.Literal("Executing")
+        Type.Literal("Executing"),
+        Type.Literal("Evaluating"),
+        Type.Literal("TestDeploying"),
+        Type.Literal("TestValidating"),
+        Type.Literal("ReleaseReady"),
+        Type.Literal("ProductionDeploying"),
+        Type.Literal("ReleaseVerified"),
+        Type.Literal("DeliveryClosed"),
+        Type.Literal("Cancelled"),
+        Type.Literal("Superseded")
       ]),
       from_status: Type.Union([Type.Literal("Active"), Type.Literal("Paused")]),
       to_status: Type.Union([Type.Literal("Active"), Type.Literal("Paused")]),

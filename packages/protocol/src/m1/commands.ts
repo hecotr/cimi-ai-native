@@ -128,6 +128,16 @@ export const SubmitPlanAmendmentCommandSchema = mutatingCommandSchema(
   )
 );
 
+export const RevokeProjectPolicyCommandSchema = mutatingCommandSchema(
+  "RevokeProjectPolicy",
+  Type.Object(
+    {
+      reason: Type.String({ minLength: 1, maxLength: 2000 })
+    },
+    { additionalProperties: false }
+  )
+);
+
 export const m1CommandSchemas = {
   BootstrapSoloGovernanceCommand: BootstrapSoloGovernanceCommandSchema,
   SubmitContractCandidateCommand: SubmitContractCandidateCommandSchema,
@@ -136,7 +146,8 @@ export const m1CommandSchemas = {
   SubmitContractAmendmentCommand: SubmitContractAmendmentCommandSchema,
   SubmitPlanCandidateCommand: SubmitPlanCandidateCommandSchema,
   RequestPlanDecisionCommand: RequestPlanDecisionCommandSchema,
-  SubmitPlanAmendmentCommand: SubmitPlanAmendmentCommandSchema
+  SubmitPlanAmendmentCommand: SubmitPlanAmendmentCommandSchema,
+  RevokeProjectPolicyCommand: RevokeProjectPolicyCommandSchema
 } as const;
 
 export type DecisionOutcomePayload = Static<typeof DecisionOutcomeSchema>;
@@ -148,3 +159,4 @@ export type SubmitContractAmendmentCommand = Static<typeof SubmitContractAmendme
 export type SubmitPlanCandidateCommand = Static<typeof SubmitPlanCandidateCommandSchema>;
 export type RequestPlanDecisionCommand = Static<typeof RequestPlanDecisionCommandSchema>;
 export type SubmitPlanAmendmentCommand = Static<typeof SubmitPlanAmendmentCommandSchema>;
+export type RevokeProjectPolicyCommand = Static<typeof RevokeProjectPolicyCommandSchema>;

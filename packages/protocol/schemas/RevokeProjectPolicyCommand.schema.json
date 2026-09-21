@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "StageImportCommand.v1",
+  "$id": "RevokeProjectPolicyCommand.v1",
   "type": "object",
   "required": [
     "schema_version",
@@ -29,7 +29,7 @@
     },
     "command_type": {
       "type": "string",
-      "const": "StageImport"
+      "const": "RevokeProjectPolicy"
     },
     "requested_at": {
       "type": "string",
@@ -382,38 +382,13 @@
     "payload": {
       "type": "object",
       "required": [
-        "bundle_reference",
-        "bundle_digest"
+        "reason"
       ],
       "properties": {
-        "bundle_reference": {
+        "reason": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 500
-        },
-        "bundle_digest": {
-          "type": "object",
-          "required": [
-            "algorithm",
-            "value",
-            "subject"
-          ],
-          "properties": {
-            "algorithm": {
-              "type": "string",
-              "const": "sha256"
-            },
-            "value": {
-              "type": "string",
-              "pattern": "^[0-9a-f]{64}$"
-            },
-            "subject": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200
-            }
-          },
-          "additionalProperties": false
+          "maxLength": 2000
         }
       },
       "additionalProperties": false
