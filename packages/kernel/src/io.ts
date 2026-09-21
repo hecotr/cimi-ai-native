@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
-import type { ExportManifest, InternalId } from "@cimiloop/protocol";
+import type { InternalId } from "@cimiloop/protocol";
 import { stageImportBundle, validateImportBundle, type ValidatedImportBundle } from "@cimiloop/portability";
 
 export type StagedImport = {
@@ -60,4 +60,3 @@ export const createNodeKernelIo = (): KernelIo => ({
     });
   }
 });
-
