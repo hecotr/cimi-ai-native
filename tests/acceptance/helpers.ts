@@ -156,11 +156,15 @@ export const exec = (
   ctx: AcceptanceContext,
   type: string,
   payload: Record<string, unknown>,
-  revision = ctx.revision,
+  revision?: number,
   origin: "human_cli" | "system" = "human_cli"
 ) => {
+  const current = ctx.kernel.getChange(ctx.changeId);
+  if ("code" in current) throw new Error(current.code);
   const result = success(
-    ctx.kernel.execute(envelope(type, ctx.projectId, ctx.actorId, payload, revision, ctx.changeId, origin))
+    ctx.kernel.execute(
+      envelope(type, ctx.projectId, ctx.actorId, payload, revision ?? current.revision, ctx.changeId, origin)
+    )
   );
   ctx.revision = result.revision;
   return result;

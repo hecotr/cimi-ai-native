@@ -110,6 +110,15 @@ const wrapStore = (store: SqliteProjectStore, fault?: keyof StoreTransaction | "
   claimOutbox: (nowValue, leaseUntil) => store.claimOutbox(nowValue, leaseUntil),
   markOutboxDelivered: (messageId, deliveredAt) => store.markOutboxDelivered(messageId, deliveredAt),
   releaseOutbox: (messageId, availableAt) => store.releaseOutbox(messageId, availableAt),
+  claimExternalOperation: (input) => store.claimExternalOperation(input),
+  markExternalOperationInvokeStarted: (operationId, ownerId, at) =>
+    store.markExternalOperationInvokeStarted(operationId, ownerId, at),
+  markExternalOperationInvokeFinished: (operationId, ownerId, at, result) =>
+    store.markExternalOperationInvokeFinished(operationId, ownerId, at, result),
+  getExternalOperationLease: (operationId) => store.getExternalOperationLease(operationId),
+  listInvokedUnrecordedOperations: () => store.listInvokedUnrecordedOperations(),
+  listAbandonedExternalInvokes: (at) => store.listAbandonedExternalInvokes(at),
+  releaseExternalOperationLease: (operationId) => store.releaseExternalOperationLease(operationId),
   close: () => store.close()
 });
 

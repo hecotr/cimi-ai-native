@@ -93,6 +93,15 @@ describe("M0 reliability acceptance", () => {
       claimOutbox: (now, leaseUntil) => fixture.store.claimOutbox(now, leaseUntil),
       markOutboxDelivered: (messageId, deliveredAt) => fixture.store.markOutboxDelivered(messageId, deliveredAt),
       releaseOutbox: (messageId, availableAt) => fixture.store.releaseOutbox(messageId, availableAt),
+      claimExternalOperation: (input) => fixture.store.claimExternalOperation(input),
+      markExternalOperationInvokeStarted: (operationId, ownerId, at) =>
+        fixture.store.markExternalOperationInvokeStarted(operationId, ownerId, at),
+      markExternalOperationInvokeFinished: (operationId, ownerId, at, result) =>
+        fixture.store.markExternalOperationInvokeFinished(operationId, ownerId, at, result),
+      getExternalOperationLease: (operationId) => fixture.store.getExternalOperationLease(operationId),
+      listInvokedUnrecordedOperations: () => fixture.store.listInvokedUnrecordedOperations(),
+      listAbandonedExternalInvokes: (at) => fixture.store.listAbandonedExternalInvokes(at),
+      releaseExternalOperationLease: (operationId) => fixture.store.releaseExternalOperationLease(operationId),
       close: () => fixture.store.close()
     };
     const kernel = new CimiLoopKernel({

@@ -1,5 +1,5 @@
 import { rmSync } from "node:fs";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -17,12 +17,20 @@ import {
 } from "./helpers.js";
 
 const temporary: Array<{ store: { close(): void }; directory: string }> = [];
+const pendingCleanup: string[] = [];
 
 afterEach(() => {
   while (temporary.length > 0) {
     const item = temporary.pop();
     item?.store.close();
-    if (item) rmSync(item.directory, { recursive: true, force: true });
+    if (item) pendingCleanup.push(item.directory);
+  }
+});
+
+afterAll(() => {
+  while (pendingCleanup.length > 0) {
+    const directory = pendingCleanup.pop();
+    if (directory) rmSync(directory, { recursive: true, force: true });
   }
 });
 
@@ -190,6 +198,46 @@ describe("V1 exception acceptance", () => {
     );
     if (!("import_report" in staged.data)) throw new Error("missing report");
     expect(staged.data.import_report).toMatchObject({ status: "staged", runtime_ownership: "dormant" });
+  });
+
+  it("revokes policy mid-execution and blocks new claims without using restart or knowledge gaps", () => {
+    const ctx = openAcceptanceProject("cimiloop-v1-policy-revoke-");
+    temporary.push(ctx);
+    approveToPlanned(ctx);
+    const created = exec(ctx, "CreateExecutionWorkItems", { change_id: ctx.changeId });
+    if (!("work_items" in created.data) || !created.data.work_items[0]) throw new Error("missing work item");
+    const project = ctx.kernel.getProject();
+    if ("code" in project) throw new Error(project.code);
+    const revoked = success(
+      ctx.kernel.execute({
+        schema_version: SCHEMA_VERSION,
+        command_id: createInternalId(),
+        correlation_id: createInternalId(),
+        command_type: "RevokeProjectPolicy",
+        requested_at: "2026-09-20T12:00:00.000Z",
+        actor_id: ctx.actorId,
+        project_id: ctx.projectId,
+        expected_revision: project.revision,
+        source: { origin: "human_cli" as const, producer: "v1-acceptance" },
+        payload: { reason: "执行中撤销部署权限。" }
+      })
+    );
+    expect(revoked.events.some((event) => event.event_type === "PolicyRevoked")).toBe(true);
+    const blocked = ctx.kernel.execute({
+      schema_version: SCHEMA_VERSION,
+      command_id: createInternalId(),
+      correlation_id: createInternalId(),
+      command_type: "ClaimWorkItem",
+      requested_at: "2026-09-20T12:00:00.000Z",
+      actor_id: ctx.actorId,
+      project_id: ctx.projectId,
+      expected_revision: ctx.revision,
+      target: { object_type: "change", id: ctx.changeId, domain_version: 1 },
+      source: { origin: "human_cli" as const, producer: "v1-acceptance" },
+      payload: { work_item_id: created.data.work_items[0].id }
+    });
+    expect(blocked).toMatchObject({ code: "POLICY_REVOKED" });
+    expect(ctx.kernel.getChange(ctx.changeId)).toMatchObject({ lifecycle_state: "Executing" });
   });
 
   it("blocks close when knowledge obligations are incomplete", () => {

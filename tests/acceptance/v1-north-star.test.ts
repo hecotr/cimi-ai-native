@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { rmSync } from "node:fs";
 import { resolve } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
 import { DeterministicDevOpsAdapter } from "../../packages/devops/src/deterministic.js";
 import { createPlanningWorkItem } from "../../packages/kernel/src/work-item.js";
 import { ExternalDeliveryWorker } from "../../packages/orchestrator/src/external-worker.js";
@@ -23,7 +23,16 @@ afterEach(() => {
   while (temporary.length > 0) {
     const item = temporary.pop();
     item?.store.close();
-    if (item) rmSync(item.directory, { recursive: true, force: true });
+    if (item) pendingCleanup.push(item.directory);
+  }
+});
+
+const pendingCleanup: string[] = [];
+
+afterAll(() => {
+  while (pendingCleanup.length > 0) {
+    const directory = pendingCleanup.pop();
+    if (directory) rmSync(directory, { recursive: true, force: true });
   }
 });
 
@@ -94,6 +103,9 @@ describe("V1 north-star Feature loop", () => {
     });
     if (!("change" in planned.data)) throw new Error("missing planned change");
     expect(planned.data.change.lifecycle_state).toBe("Planned");
+    expect(ctx.kernel.getChange(ctx.changeId)).toMatchObject({ lifecycle_state: "Planned" });
+    exec(ctx, "CreateExecutionWorkItems", { change_id: ctx.changeId });
+    expect(ctx.kernel.getChange(ctx.changeId)).toMatchObject({ lifecycle_state: "Executing" });
 
     const workItem = createPlanningWorkItem({
       id: createInternalId(),
@@ -174,6 +186,13 @@ describe("V1 north-star Feature loop", () => {
     );
     if (!("evidence" in evidence.data)) throw new Error("missing evidence");
     expect(evidence.data.evidence.external_reference_id).toMatch(/^[0-9a-f-]{36}$/i);
+    exec(ctx, "RequestEvaluation", {
+      change_id: ctx.changeId,
+      artifact_id: artifactId,
+      artifact_digest: artifactDigest,
+      requirement_set_id: requirementSetId
+    });
+    expect(ctx.kernel.getChange(ctx.changeId)).toMatchObject({ lifecycle_state: "Evaluating" });
     const evaluation = exec(ctx, "CompleteEvaluation", {
       change_id: ctx.changeId,
       evaluation_id: createInternalId(),
@@ -186,6 +205,7 @@ describe("V1 north-star Feature loop", () => {
     });
     if (!("evaluation" in evaluation.data)) throw new Error("missing evaluation");
     expect(evaluation.data.evaluation.result).toBe("ALLOW");
+    expect(ctx.kernel.getChange(ctx.changeId)).toMatchObject({ lifecycle_state: "Evaluating" });
 
     const testEnv = exec(ctx, "RegisterEnvironment", {
       environment_key: "acceptance-test",
@@ -211,6 +231,7 @@ describe("V1 north-star Feature loop", () => {
       status: "verified",
       artifact_digest: artifactDigest
     });
+    expect(ctx.kernel.getChange(ctx.changeId)).toMatchObject({ lifecycle_state: "ReleaseReady" });
 
     const prodEnv = exec(ctx, "RegisterEnvironment", {
       environment_key: "prod",
@@ -244,6 +265,7 @@ describe("V1 north-star Feature loop", () => {
       status: "verified",
       artifact_digest: artifactDigest
     });
+    expect(ctx.kernel.getChange(ctx.changeId)).toMatchObject({ lifecycle_state: "ReleaseVerified" });
 
     const currentPlan = ctx.store.transaction((transaction) => transaction.getCurrentPlan(ctx.changeId));
     const knowledgeTask = currentPlan
@@ -273,6 +295,7 @@ describe("V1 north-star Feature loop", () => {
       change_id: ctx.changeId,
       closure_evaluation_id: proposed.data.closure_evaluation.id
     });
+    expect(ctx.kernel.getChange(ctx.changeId)).toMatchObject({ lifecycle_state: "DeliveryClosed" });
     const project = ctx.kernel.getProject();
     if ("code" in project) throw new Error(project.code);
     const exported = success(

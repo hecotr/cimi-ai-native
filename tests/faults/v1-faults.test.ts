@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   SCHEMA_VERSION,
@@ -13,6 +13,7 @@ import {
 import { SqliteProjectStore } from "../../packages/store-sqlite/src/project-store.js";
 import type { ProjectStore } from "../../packages/store/src/index.js";
 import { CimiLoopKernel } from "../../packages/kernel/src/kernel.js";
+import { createNodeKernelIo } from "../../packages/kernel/src/io.js";
 import { createPlanningWorkItem } from "../../packages/kernel/src/work-item.js";
 import { exportProjectBundle } from "../../packages/portability/src/exporter.js";
 
@@ -71,6 +72,15 @@ const wrapStore = (store: SqliteProjectStore, fault?: string): ProjectStore => (
   claimOutbox: (nowValue, leaseUntil) => store.claimOutbox(nowValue, leaseUntil),
   markOutboxDelivered: (messageId, deliveredAt) => store.markOutboxDelivered(messageId, deliveredAt),
   releaseOutbox: (messageId, availableAt) => store.releaseOutbox(messageId, availableAt),
+  claimExternalOperation: (input) => store.claimExternalOperation(input),
+  markExternalOperationInvokeStarted: (operationId, ownerId, at) =>
+    store.markExternalOperationInvokeStarted(operationId, ownerId, at),
+  markExternalOperationInvokeFinished: (operationId, ownerId, at, result) =>
+    store.markExternalOperationInvokeFinished(operationId, ownerId, at, result),
+  getExternalOperationLease: (operationId) => store.getExternalOperationLease(operationId),
+  listInvokedUnrecordedOperations: () => store.listInvokedUnrecordedOperations(),
+  listAbandonedExternalInvokes: (at) => store.listAbandonedExternalInvokes(at),
+  releaseExternalOperationLease: (operationId) => store.releaseExternalOperationLease(operationId),
   close: () => store.close()
 });
 
@@ -430,6 +440,8 @@ describe("V1 fault injection", () => {
       })
     ).toMatchObject({ code: "STORE_FAILURE" });
     expect(store.getProject()?.id).toBe(ctx.projectId);
+    const stagingRoot = join(directory, ".cimiloop", "staging");
+    expect(existsSync(stagingRoot) ? readdirSync(stagingRoot) : []).toEqual([]);
     expect(
       interrupted.execute({
         schema_version: SCHEMA_VERSION,
@@ -444,5 +456,77 @@ describe("V1 fault injection", () => {
         payload: { import_report_id: createInternalId() }
       })
     ).toMatchObject({ code: "IMPORT_REPORT_NOT_FOUND" });
+  });
+
+  it("abandons partial staging when file write is interrupted and recovers orphans on restart", () => {
+    const directory = mkdtempSync(join(tmpdir(), "cimiloop-v1-staging-interrupt-"));
+    temporaryDirectories.push(directory);
+    const store = new SqliteProjectStore(join(directory, "project.db"));
+    openStores.push(store);
+    const io = createNodeKernelIo();
+    const broken = {
+      ...io,
+      stageImport: () => {
+        const stagingPath = join(directory, ".cimiloop", "staging", "interrupted", "bundle.json");
+        mkdirSync(dirname(stagingPath), { recursive: true });
+        writeFileSync(stagingPath, "partial-write");
+        throw new Error("simulated staging write interrupt");
+      }
+    };
+    const kernel = new CimiLoopKernel({ store, now: () => now, io: broken });
+    const ctx = initialize(kernel, directory);
+    const project = kernel.getProject();
+    if ("code" in project) throw new Error(project.code);
+    const bundlePath = join(directory, "bundle.json");
+    writeFileSync(bundlePath, JSON.stringify({ manifest: { id: createInternalId() } }));
+    expect(
+      kernel.execute({
+        schema_version: SCHEMA_VERSION,
+        command_id: createInternalId(),
+        correlation_id: createInternalId(),
+        command_type: "StageImport",
+        requested_at: now,
+        actor_id: ctx.actorId,
+        project_id: ctx.projectId,
+        expected_revision: project.revision,
+        source: { origin: "human_cli" as const, producer: "v1-fault-test" },
+        payload: {
+          bundle_reference: `file://${bundlePath.replaceAll("\\", "/")}`,
+          bundle_digest: {
+            algorithm: "sha256",
+            value: createHash("sha256").update(readFileSync(bundlePath)).digest("hex"),
+            subject: "import_bundle"
+          }
+        }
+      })
+    ).toMatchObject({ code: "STORE_FAILURE" });
+    const stagingRoot = join(directory, ".cimiloop", "staging");
+    expect(existsSync(stagingRoot) ? readdirSync(stagingRoot) : []).toEqual([]);
+
+    mkdirSync(join(stagingRoot, "restart-orphan"), { recursive: true });
+    writeFileSync(join(stagingRoot, "restart-orphan", "bundle.json"), "stale");
+    const recovered = new CimiLoopKernel({ store, now: () => now });
+    expect(
+      recovered.execute({
+        schema_version: SCHEMA_VERSION,
+        command_id: createInternalId(),
+        correlation_id: createInternalId(),
+        command_type: "StageImport",
+        requested_at: now,
+        actor_id: ctx.actorId,
+        project_id: ctx.projectId,
+        expected_revision: project.revision,
+        source: { origin: "human_cli" as const, producer: "v1-fault-test" },
+        payload: {
+          bundle_reference: `file://${bundlePath.replaceAll("\\", "/")}`,
+          bundle_digest: {
+            algorithm: "sha256",
+            value: createHash("sha256").update("wrong-digest-will-fail-after-cleanup").digest("hex"),
+            subject: "import_bundle"
+          }
+        }
+      })
+    ).toMatchObject({ code: "DIGEST_MISMATCH" });
+    expect(existsSync(join(stagingRoot, "restart-orphan"))).toBe(false);
   });
 });
