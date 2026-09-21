@@ -66,11 +66,21 @@ import type {
 } from "@cimiloop/protocol";
 
 export interface ArtifactLineageRecord {
+  id: InternalId;
+  schema_version: string;
   successor_id: InternalId;
   predecessor_id: InternalId;
   project_id: InternalId;
   change_id: InternalId;
   created_at: string;
+}
+
+export type RuntimeOwnershipState = "active" | "dormant";
+
+export interface ProjectRuntimeOwnership {
+  project_id: InternalId;
+  ownership: RuntimeOwnershipState;
+  updated_at: string;
 }
 
 export interface ProposedEvent {
@@ -120,6 +130,9 @@ export interface StoreTransaction {
   getCurrentProject(): Project | undefined;
   getProject(projectId: InternalId): Project | undefined;
   insertProject(project: Project): void;
+  updateProject(project: Project, expectedRevision: number): void;
+  getProjectRuntimeOwnership(projectId: InternalId): ProjectRuntimeOwnership | undefined;
+  upsertProjectRuntimeOwnership(record: ProjectRuntimeOwnership): void;
   insertActor(actor: Actor): void;
   getActor(id: InternalId): Actor | undefined;
   insertRole(role: Role): void;
@@ -251,6 +264,7 @@ export interface StoreTransaction {
   insertArtifactLineage(record: ArtifactLineageRecord): void;
   listArtifactLineageByChange(changeId: InternalId): ArtifactLineageRecord[];
   listArtifactLineageByPredecessor(predecessorId: InternalId): ArtifactLineageRecord[];
+  listArtifactLineageBySuccessor(successorId: InternalId): ArtifactLineageRecord[];
 
   insertBlocker(blocker: Blocker): void;
   updateBlocker(blocker: Blocker, expectedRevision: number): void;
@@ -328,6 +342,7 @@ export interface StoreTransaction {
   insertExternalOperation(operation: ExternalOperation): void;
   updateExternalOperation(operation: ExternalOperation, expectedRevision: number): void;
   getExternalOperation(id: InternalId): ExternalOperation | undefined;
+  getExternalOperationLease(operationId: InternalId): ExternalOperationLease | undefined;
   getExternalOperationByKey(operationKey: string): ExternalOperation | undefined;
   listExternalOperationsByChange(changeId: InternalId): ExternalOperation[];
   listUnknownExternalOperations(): ExternalOperation[];
@@ -359,6 +374,7 @@ export interface StoreTransaction {
   deleteReadModels(): void;
 
   insertImportReport(report: ImportReport): void;
+  updateImportReport(report: ImportReport): void;
   getImportReport(id: InternalId): ImportReport | undefined;
   listImportReports(): ImportReport[];
 

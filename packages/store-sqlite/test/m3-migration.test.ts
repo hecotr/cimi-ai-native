@@ -302,7 +302,7 @@ describe("M3 store migrations", () => {
       request_digest: "m0-m3-receipt"
     });
     const inspect = new DatabaseSync(databasePath, { readOnly: true });
-    expect(getProjectStoreSchemaVersion(inspect)).toBe(7);
+    expect(getProjectStoreSchemaVersion(inspect)).toBe(8);
     expect(inspect.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'claims'").get()).toBeTruthy();
     expect(inspect.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'evidence'").get()).toBeTruthy();
     expect(
@@ -318,8 +318,8 @@ describe("M3 store migrations", () => {
     first.close();
     const second = new SqliteProjectStore(databasePath);
     const inspect = new DatabaseSync(databasePath, { readOnly: true });
-    expect(getProjectStoreSchemaVersion(inspect)).toBe(7);
-    expect(inspect.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get()).toMatchObject({ count: 7 });
+    expect(getProjectStoreSchemaVersion(inspect)).toBe(8);
+    expect(inspect.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get()).toMatchObject({ count: 8 });
     inspect.close();
     second.close();
   });

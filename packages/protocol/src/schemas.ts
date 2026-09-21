@@ -117,7 +117,8 @@ export const ProjectSchema = Type.Object(
     name: Type.String({ minLength: 1, maxLength: 200 }),
     repository_kind: Type.Union([Type.Literal("git"), Type.Literal("directory")]),
     repository_path: Type.String({ minLength: 1 }),
-    instance_id: InternalIdSchema
+    instance_id: InternalIdSchema,
+    runtime_ownership: Type.Optional(Type.Union([Type.Literal("active"), Type.Literal("dormant")]))
   },
   { additionalProperties: false }
 );

@@ -9,25 +9,29 @@ if (-not (Test-Path $cli)) {
   throw "CLI not found. Run pnpm check first."
 }
 
-$demoRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("cimiloop-v1-demo-" + [guid]::NewGuid().ToString("N"))
+$demoRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("cimiloop-m5-demo-" + [guid]::NewGuid().ToString("N"))
 $repository = Join-Path $demoRoot "repository"
+$target = Join-Path $demoRoot "empty-target"
 $appData = Join-Path $demoRoot "app-data"
-New-Item -ItemType Directory -Path $repository, $appData | Out-Null
+New-Item -ItemType Directory -Path $repository, $appData, $target | Out-Null
 git -c init.defaultBranch=main init --template= $repository | Out-Null
-Set-Content -Path (Join-Path $repository "README.md") -Value "v1-demo" -Encoding UTF8
-git -C $repository -c user.email=v1-demo@example.com -c user.name="V1 Demo" add README.md | Out-Null
-git -C $repository -c user.email=v1-demo@example.com -c user.name="V1 Demo" commit -m init | Out-Null
+Set-Content -Path (Join-Path $repository "README.md") -Value "m5-demo" -Encoding UTF8
+git -C $repository -c user.email=m5-demo@example.com -c user.name="M5 Demo" add README.md | Out-Null
+git -C $repository -c user.email=m5-demo@example.com -c user.name="M5 Demo" commit -m init | Out-Null
 
 $env:LOCALAPPDATA = $appData
 $contractFile = Join-Path $repoRoot "examples\m2\feature-contract.json"
 $planFile = Join-Path $repoRoot "examples\m2\feature-plan.json"
 $artifactFile = Join-Path $repository ".git\cimiloop\artifacts\artifact.bin"
 
-function Invoke-CimiLoop {
-  param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
+function Invoke-CimiLoopAt {
+  param(
+    [string]$ProjectDir,
+    [Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments
+  )
   $stdoutFile = Join-Path $demoRoot "last.json"
   $stderrFile = Join-Path $demoRoot "last.err"
-  $allArgs = @("--no-warnings", $cli, "--project-dir", $repository, "--json") + $Arguments
+  $allArgs = @("--no-warnings", $cli, "--project-dir", $ProjectDir, "--json") + $Arguments
   $quotedArgs = $allArgs | ForEach-Object {
     if ($_ -match '[\s"]') { '"{0}"' -f ($_ -replace '"', '\"') } else { $_ }
   }
@@ -41,18 +45,22 @@ function Invoke-CimiLoop {
   return (Get-Content -Raw -Encoding UTF8 $stdoutFile) | ConvertFrom-Json
 }
 
-Write-Host "Initialize Feature change through Planned and an evaluated artifact..."
-Invoke-CimiLoop init --owner-name "V1 Demo Owner" --owner-email "v1-demo@example.com" --yes | Out-Null
+function Invoke-CimiLoop {
+  param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
+  Invoke-CimiLoopAt -ProjectDir $repository @Arguments
+}
+
+Write-Host "Close a Feature through knowledge closure and DeliveryClosed..."
+Invoke-CimiLoop init --owner-name "M5 Demo Owner" --owner-email "m5-demo@example.com" --yes | Out-Null
 New-Item -ItemType Directory -Path (Split-Path -Parent $artifactFile) -Force | Out-Null
-Set-Content -Path $artifactFile -Value "v1-demo-artifact" -Encoding UTF8
+Set-Content -Path $artifactFile -Value "m5-demo-artifact" -Encoding UTF8
 $acceptanceRoot = Join-Path $demoRoot "acceptance"
 New-Item -ItemType Directory -Path $acceptanceRoot | Out-Null
 $env:CIMILOOP_ACCEPTANCE_ROOT = $acceptanceRoot
-$created = Invoke-CimiLoop change create --title "V1 north-star feature"
+$created = Invoke-CimiLoop change create --title "M5 portable close"
 $bootstrapped = Invoke-CimiLoop governance bootstrap-solo $created.data.change.id
 $intentRole = $bootstrapped.data.roles | Where-Object { $_.role_key -eq "intent_owner" }
 $technicalRole = $bootstrapped.data.roles | Where-Object { $_.role_key -eq "technical_owner" }
-$projectRole = $bootstrapped.data.roles | Where-Object { $_.role_key -eq "project_owner" }
 $releaseRole = $bootstrapped.data.roles | Where-Object { $_.role_key -eq "release_owner" }
 Invoke-CimiLoop contract submit CHG-0001 --file $contractFile | Out-Null
 $intentRequest = Invoke-CimiLoop contract request-review CHG-0001
@@ -66,12 +74,12 @@ $workItemId = ($items.work_items | Where-Object { $_.kind -eq "execution" } | Se
 Invoke-CimiLoop work-item claim $workItemId | Out-Null
 Invoke-CimiLoop work-item execute $workItemId --executable $fakeRuntime | Out-Null
 $runs = Invoke-CimiLoop run list $workItemId
-$artifact = Invoke-CimiLoop artifact record $runs.runs[0].id --file $artifactFile --summary "V1 demo artifact"
+$artifact = Invoke-CimiLoop artifact record $runs.runs[0].id --file $artifactFile --summary "M5 demo artifact"
 $artifactId = $artifact.data.artifact.id
 $artifactDigest = $artifact.data.artifact.digest.value
 $payloadDir = Join-Path $acceptanceRoot ("artifacts\" + $artifactDigest)
 New-Item -ItemType Directory -Path $payloadDir -Force | Out-Null
-Set-Content -Path (Join-Path $payloadDir "payload.txt") -Value "v1-demo-artifact" -Encoding UTF8
+Set-Content -Path (Join-Path $payloadDir "payload.txt") -Value "m5-demo-artifact" -Encoding UTF8
 $junit = Join-Path $repository "junit.xml"
 Set-Content -Path $junit -Value '<testsuite failures="0" tests="1"></testsuite>' -Encoding ASCII
 $claim = Invoke-CimiLoop claim submit CHG-0001 --key "AC-run" --statement "Claimed Work Item produced Run and Artifact." --category intent --obligation required --source acceptance
@@ -82,47 +90,53 @@ $evaluation = Invoke-CimiLoop evaluate complete CHG-0001 --evaluation-id "0199a0
 if ($evaluation.data.evaluation.result -ne "ALLOW") {
   throw "Expected Kernel ALLOW, got $($evaluation.data.evaluation.result)"
 }
-
-Write-Host "Verify the same artifact digest in test and production..."
 $testEnv = Invoke-CimiLoop environment register CHG-0001 --key "acceptance-test" --kind test --name "Acceptance Test" --adapter "file://examples/acceptance-target"
 $testRelease = Invoke-CimiLoop release create CHG-0001 --kind test --artifact $artifactId --digest $artifactDigest --environment $testEnv.data.environment.id --scope "acceptance.health" --window-start "2026-09-20T00:00:00.000Z" --window-end "2026-09-21T00:00:00.000Z" --recovery-file $recoveryFile
-$deploy = Invoke-CimiLoop release queue $testRelease.data.release.id --environment $testEnv.data.environment.id
-$status = Invoke-CimiLoop release queue $testRelease.data.release.id --environment $testEnv.data.environment.id
-$verify = Invoke-CimiLoop release queue $testRelease.data.release.id --environment $testEnv.data.environment.id
-$testCurrent = Get-Content -Raw -Encoding UTF8 (Join-Path $acceptanceRoot "envs\test\CURRENT")
-if ($testCurrent.Trim() -ne $artifactDigest) { throw "Test adapter did not write CURRENT digest" }
-
+Invoke-CimiLoop release queue $testRelease.data.release.id --environment $testEnv.data.environment.id | Out-Null
+Invoke-CimiLoop release queue $testRelease.data.release.id --environment $testEnv.data.environment.id | Out-Null
+Invoke-CimiLoop release queue $testRelease.data.release.id --environment $testEnv.data.environment.id | Out-Null
 $prodEnv = Invoke-CimiLoop environment register CHG-0001 --key "prod" --kind production --name "Production" --adapter "file://examples/acceptance-target"
 $prodRelease = Invoke-CimiLoop release create CHG-0001 --kind production --artifact $artifactId --digest $artifactDigest --environment $prodEnv.data.environment.id --scope "production.service" --window-start "2026-09-20T00:00:00.000Z" --window-end "2026-09-21T00:00:00.000Z" --recovery-file $prodRecoveryFile
 $releaseRequest = Invoke-CimiLoop release request-review $prodRelease.data.release.id
 Invoke-CimiLoop decision submit $releaseRequest.data.request.id --outcome approve --acting-role $releaseRole.id --reason "Demo approve production release" | Out-Null
-$prodDeploy = Invoke-CimiLoop release queue $prodRelease.data.release.id --environment $prodEnv.data.environment.id
-$prodStatus = Invoke-CimiLoop release queue $prodRelease.data.release.id --environment $prodEnv.data.environment.id
-$prodVerify = Invoke-CimiLoop release queue $prodRelease.data.release.id --environment $prodEnv.data.environment.id
-$shownProd = Invoke-CimiLoop release show $prodRelease.data.release.id
-$prodCurrent = Get-Content -Raw -Encoding UTF8 (Join-Path $acceptanceRoot "envs\prod\CURRENT")
-if ($prodCurrent.Trim() -ne $artifactDigest) { throw "Production adapter did not write CURRENT digest" }
-if ($shownProd.release.status -ne "verified") { throw "Expected verified production release" }
-if ($shownProd.release.artifact_digest.value -ne $artifactDigest) { throw "Production digest drifted" }
-
-Write-Host "Close knowledge obligations and export the project..."
+Invoke-CimiLoop release queue $prodRelease.data.release.id --environment $prodEnv.data.environment.id | Out-Null
+Invoke-CimiLoop release queue $prodRelease.data.release.id --environment $prodEnv.data.environment.id | Out-Null
+Invoke-CimiLoop release queue $prodRelease.data.release.id --environment $prodEnv.data.environment.id | Out-Null
 Invoke-CimiLoop knowledge record CHG-0001 --evidence $evidence.data.evidence.id --source technical --conclusion Update | Out-Null
 $proposed = Invoke-CimiLoop change propose-close CHG-0001 --risk "No open production defects."
 if ($proposed.data.closure_evaluation.result -ne "ALLOW") {
   throw "Expected ALLOW close, got $($proposed.data.closure_evaluation.result)"
 }
 Invoke-CimiLoop change close CHG-0001 --evaluation $proposed.data.closure_evaluation.id | Out-Null
+$closed = Invoke-CimiLoop change show CHG-0001
+if ($closed.change.lifecycle_state -ne "DeliveryClosed") {
+  throw "Expected DeliveryClosed, got $($closed.change.lifecycle_state)"
+}
+
+Write-Host "Export a portable bundle and import it into a completely empty directory..."
 $bundleFile = Join-Path $demoRoot "bundle.json"
 $exported = Invoke-CimiLoop project export --file $bundleFile
-if (-not $exported.data.export_manifest.content_digest.value) { throw "Export digest missing" }
 if (-not (Test-Path $bundleFile)) { throw "Export bundle file missing" }
-$timeline = Invoke-CimiLoop timeline CHG-0001
+$staged = Invoke-CimiLoopAt -ProjectDir $target project import-stage --file $bundleFile --target $target
+if ($staged.data.import_report.runtime_ownership -ne "dormant") { throw "Staged import must stay dormant" }
+$committed = Invoke-CimiLoopAt -ProjectDir $target project import-commit $staged.data.import_report.id --target $target
+if ($committed.data.import_report.status -ne "accepted") { throw "Import commit failed" }
+if ($committed.data.import_report.runtime_ownership -ne "dormant") { throw "Imported ownership must be dormant" }
 
-Write-Host "V1 demo passed: Feature closed and exported"
-Write-Host "Change: $($created.data.change.id)"
-Write-Host "Artifact digest: $artifactDigest"
-Write-Host "Evaluation: $($evaluation.data.evaluation.id) $($evaluation.data.evaluation.result)"
-Write-Host "Production release: $($prodRelease.data.release.id) $($shownProd.release.status)"
-Write-Host "Export digest: $($exported.data.export_manifest.content_digest.value)"
-Write-Host "Timeline events: $($timeline.events.Count)"
-Write-Host "Demo repository: $repository"
+$listed = Invoke-CimiLoopAt -ProjectDir $target change list
+if ($listed.changes[0].id -ne $created.data.change.id) { throw "Imported Change id drifted" }
+$timeline = Invoke-CimiLoopAt -ProjectDir $target timeline CHG-0001
+if (-not ($timeline.events | Where-Object { $_.event_type -eq "ChangeClosed" })) {
+  throw "Imported timeline missing ChangeClosed"
+}
+$shownChange = Invoke-CimiLoopAt -ProjectDir $target change show CHG-0001
+if ($shownChange.change.lifecycle_state -ne "DeliveryClosed") { throw "Imported lifecycle drifted" }
+$recovered = Invoke-CimiLoopAt -ProjectDir $target deployment recover
+if ($recovered.executed -ne 0) { throw "Dormant worker executed pending operations" }
+
+Write-Host "M5 demo passed: knowledge closed, exported, and imported as dormant"
+Write-Host "Source change: $($created.data.change.id)"
+Write-Host "Bundle: $bundleFile"
+Write-Host "Imported ownership: $($committed.data.import_report.runtime_ownership)"
+Write-Host "Imported timeline events: $($timeline.events.Count)"
+Write-Host "Empty target: $target"

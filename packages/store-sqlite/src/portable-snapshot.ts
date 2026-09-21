@@ -158,6 +158,11 @@ const insertByType = (transaction: StoreTransaction, fact: PortableFact): void =
   switch (fact.object_type) {
     case "project":
       transaction.insertProject(payload as never);
+      transaction.upsertProjectRuntimeOwnership({
+        project_id: String(payload.id) as InternalId,
+        ownership: "dormant",
+        updated_at: new Date().toISOString()
+      });
       return;
     case "actor":
       transaction.insertActor(payload as never);

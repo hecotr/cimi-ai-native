@@ -13,6 +13,7 @@ import {
 } from "../../protocol/src/index.js";
 import { SqliteProjectStore } from "../../store-sqlite/src/project-store.js";
 import { createPlanningWorkItem } from "../src/work-item.js";
+import { createNodeKernelIo } from "../src/io.js";
 import { CimiLoopKernel } from "../src/kernel.js";
 
 const temporaryDirectories: string[] = [];
@@ -385,7 +386,19 @@ describe("StageImport and CommitImport", () => {
     const committed = success(result.committed);
     if (!("import_report" in committed.data)) throw new Error("missing commit");
     expect(committed.data.import_report).toMatchObject({ status: "accepted", runtime_ownership: "dormant" });
-    expect(target.getProject()).toMatchObject({ id: ctx.project.id, name: "Portable Source" });
+    expect(target.getProject()).toMatchObject({
+      id: ctx.project.id,
+      name: "Portable Source",
+      runtime_ownership: "dormant"
+    });
+    expect(targetStore.transaction((transaction) => transaction.getProjectRuntimeOwnership(ctx.project.id))).toMatchObject({
+      ownership: "dormant"
+    });
+    const stagedReports = targetStore.transaction((transaction) =>
+      transaction.listImportReports().filter((item) => item.status === "staged")
+    );
+    expect(stagedReports).toEqual([]);
+    expect(existsSync(join(targetDir, ".cimiloop", "staging", result.staged.id))).toBe(false);
     expect(target.getChange(ctx.change.id)).toMatchObject({ id: ctx.change.id, title: "Portable Source change" });
     const timeline = target.getTimeline(ctx.change.id);
     if ("code" in timeline) throw new Error(timeline.code);
@@ -486,5 +499,105 @@ describe("StageImport and CommitImport", () => {
     expect(live.length).toBe(1);
     expect(staged.data.import_report.summary).toMatch(/bundle_digest=/);
     expect(staged.data.import_report.summary).toMatch(/content_digest=/);
+  });
+
+  it("retains staging when CommitImport rolls back and retries cleanup after delete failure", () => {
+    const directory = mkdtempSync(join(tmpdir(), "cimiloop-import-cleanup-"));
+    temporaryDirectories.push(directory);
+    const store = new SqliteProjectStore(join(directory, "project.db"));
+    openStores.push(store);
+    const io = createNodeKernelIo();
+    let deleteAttempts = 0;
+    const kernel = new CimiLoopKernel({
+      store,
+      now: () => now,
+      io: {
+        ...io,
+        abandon: (path) => {
+          deleteAttempts += 1;
+          if (deleteAttempts === 1) throw new Error("cleanup failed");
+          io.abandon(path);
+        }
+      }
+    });
+    const ctx = initialize(kernel, directory, "Cleanup");
+    const manifest = exportManifest(kernel, ctx.project.id, ctx.actor.id);
+    const afterExport = kernel.getProject();
+    if ("code" in afterExport) throw new Error(afterExport.code);
+    const staged = stageAndCommit(kernel, directory, manifest, ctx.actor.id, ctx.project.id, afterExport.revision);
+    expect("ok" in staged.committed && staged.committed.ok).toBe(true);
+    expect(staged.staged.status).toBe("staged");
+    expect(kernel.listOpenAttentionItems(ctx.project.id).some((item) => item.kind === "failure")).toBe(true);
+    const stagingRoot = join(directory, ".cimiloop", "staging");
+    expect(readdirSync(stagingRoot).length).toBeGreaterThan(0);
+    const replay = success(
+      kernel.execute({
+        schema_version: SCHEMA_VERSION,
+        command_id: createInternalId(),
+        correlation_id: createInternalId(),
+        command_type: "StageImport",
+        requested_at: now,
+        actor_id: ctx.actor.id,
+        project_id: ctx.project.id,
+        expected_revision: kernel.getProject() && !("code" in kernel.getProject())
+          ? (kernel.getProject() as { revision: number }).revision
+          : afterExport.revision,
+        source: { origin: "human_cli" as const, producer: "m5-import-test", repository_path: directory },
+        payload: {
+          bundle_reference: `file://${join(directory, `${manifest.id}.json`).replaceAll("\\", "/")}`,
+          bundle_digest: {
+            algorithm: "sha256",
+            value: createHash("sha256").update(readFileSync(join(directory, `${manifest.id}.json`))).digest("hex"),
+            subject: "import_bundle"
+          }
+        }
+      })
+    );
+    expect("import_report" in replay.data).toBe(true);
+  });
+
+  it("keeps staging when CommitImport is rejected so a retry can reuse it", () => {
+    const directory = mkdtempSync(join(tmpdir(), "cimiloop-import-retain-"));
+    temporaryDirectories.push(directory);
+    const store = new SqliteProjectStore(join(directory, "project.db"));
+    openStores.push(store);
+    const kernel = new CimiLoopKernel({ store, now: () => now });
+    const ctx = initialize(kernel, directory, "Retain");
+    const manifest = exportManifest(kernel, ctx.project.id, ctx.actor.id);
+    const packed = writeBundle(directory, `${manifest.id}.json`, manifest);
+    const afterExport = kernel.getProject();
+    if ("code" in afterExport) throw new Error(afterExport.code);
+    const staged = success(
+      kernel.execute({
+        schema_version: SCHEMA_VERSION,
+        command_id: createInternalId(),
+        correlation_id: createInternalId(),
+        command_type: "StageImport",
+        requested_at: now,
+        actor_id: ctx.actor.id,
+        project_id: ctx.project.id,
+        expected_revision: afterExport.revision,
+        source: { origin: "human_cli" as const, producer: "m5-import-test", repository_path: directory },
+        payload: {
+          bundle_reference: `file://${packed.bundlePath.replaceAll("\\", "/")}`,
+          bundle_digest: packed.digest
+        }
+      })
+    );
+    if (!("import_report" in staged.data)) throw new Error("missing report");
+    const rejected = kernel.execute({
+      schema_version: SCHEMA_VERSION,
+      command_id: createInternalId(),
+      correlation_id: createInternalId(),
+      command_type: "CommitImport",
+      requested_at: now,
+      actor_id: ctx.actor.id,
+      project_id: ctx.project.id,
+      expected_revision: 99,
+      source: { origin: "human_cli" as const, producer: "m5-import-test", repository_path: directory },
+      payload: { import_report_id: staged.data.import_report.id }
+    });
+    expect(failure(rejected).code).toBe("REVISION_CONFLICT");
+    expect(existsSync(join(directory, ".cimiloop", "staging", staged.data.import_report.id, "bundle.json"))).toBe(true);
   });
 });

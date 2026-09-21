@@ -12,13 +12,13 @@ const isUncAbsolute = (value: string): boolean => {
   return normalized.startsWith("\\\\") || /^[\\/]{2}[^\\/]/.test(value);
 };
 
-export const resolveAuthorizedFileReference = (
+export const authorizeLocalFilePath = (
   reference: string,
   roots: readonly string[],
-  io: PathIo
-): { ok: true; storedReference: string; digest: string } | { ok: false } => {
+  io: Pick<PathIo, "realpath">
+): { ok: true; absolute: string; storedReference: string } | { ok: false } => {
   if (!reference.startsWith("file:")) {
-    return { ok: true, storedReference: reference, digest: "" };
+    return { ok: true, absolute: "", storedReference: reference };
   }
   try {
     const url = new URL(reference);
@@ -47,14 +47,38 @@ export const resolveAuthorizedFileReference = (
       if (cmpReal !== cmpRoot && !cmpReal.startsWith(prefix)) continue;
       const relativePath = relative(realRoot, real).replaceAll("\\", "/");
       if (!relativePath || relativePath.startsWith("..") || relativePath.includes("/../")) return { ok: false };
-      const bytes = io.readFile(real);
       return {
         ok: true,
-        storedReference: `cimi-file://repository/${relativePath}`,
-        digest: createHash("sha256").update(bytes).digest("hex")
+        absolute: real,
+        storedReference: `cimi-file://repository/${relativePath}`
       };
     }
     return { ok: false };
+  } catch {
+    return { ok: false };
+  }
+};
+
+export const resolveAuthorizedFileReference = (
+  reference: string,
+  roots: readonly string[],
+  io: PathIo
+): { ok: true; storedReference: string; digest: string } | { ok: false } => {
+  if (!reference.startsWith("file:")) {
+    return { ok: true, storedReference: reference, digest: "" };
+  }
+  const authorized = authorizeLocalFilePath(reference, roots, io);
+  if (!authorized.ok) return { ok: false };
+  if (!reference.startsWith("file:")) {
+    return { ok: true, storedReference: authorized.storedReference, digest: "" };
+  }
+  try {
+    const bytes = io.readFile(authorized.absolute);
+    return {
+      ok: true,
+      storedReference: authorized.storedReference,
+      digest: createHash("sha256").update(bytes).digest("hex")
+    };
   } catch {
     return { ok: false };
   }

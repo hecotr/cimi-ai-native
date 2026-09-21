@@ -1,11 +1,10 @@
 #!/usr/bin/env node
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { DeterministicDevOpsAdapter } from "@cimiloop/devops";
+import { fileURLToPath } from "node:url";
 import { CimiLoopKernel } from "@cimiloop/kernel";
-import { ExternalDeliveryWorker } from "@cimiloop/orchestrator";
+import { createProductAdapterResolver, ExternalDeliveryWorker } from "@cimiloop/orchestrator";
 import { SqliteProjectStore } from "@cimiloop/store-sqlite";
-import { readFileSync } from "node:fs";
 import { startWorkbench } from "./server.js";
 import "./composition.js";
 
@@ -30,10 +29,16 @@ const instance = JSON.parse(readFileSync(instancePath, "utf8")) as {
 };
 const store = new SqliteProjectStore(databasePath);
 const kernel = new CimiLoopKernel({ store });
+const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const worker = new ExternalDeliveryWorker({
   kernel,
   store,
-  adapter: new DeterministicDevOpsAdapter(),
+  resolver: createProductAdapterResolver({
+    projectRepositoryPath: projectDir,
+    workingDirectory: projectDir,
+    allowedRoots: [repoRoot, join(repoRoot, "examples")],
+    logDirectory: join(dataDirectory, "adapter-logs")
+  }),
   projectId: instance.project_id as never,
   actorId: instance.actor_id as never,
   workingDirectory: projectDir

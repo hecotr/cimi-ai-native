@@ -18,6 +18,7 @@ import type { ChangeWorkspace } from "@cimiloop/workspace-git";
 
 export interface OrchestratorKernel {
   execute(input: unknown): KernelResult;
+  getProject(): import("@cimiloop/protocol").Project | DomainError;
   getChange(idOrKey: string): Change | DomainError;
   getWorkItem(id: InternalId): WorkItem | DomainError;
   listWorkItemsByChange(changeId: InternalId): WorkItem[];

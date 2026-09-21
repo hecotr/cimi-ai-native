@@ -21,7 +21,12 @@ export interface ChangeWorkspace {
 
 export class WorkspaceError extends Error {
   constructor(
-    readonly code: "WORKTREE_PATH_INVALID" | "WORKTREE_UNVERIFIED" | "CHANGE_ID_INVALID",
+    readonly code:
+      | "WORKTREE_PATH_INVALID"
+      | "WORKTREE_UNVERIFIED"
+      | "CHANGE_ID_INVALID"
+      | "DIRTY_MANIFEST_LIMIT"
+      | "DIRTY_SYMLINK_ESCAPE",
     message: string
   ) {
     super(message);

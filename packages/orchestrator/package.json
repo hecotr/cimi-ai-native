@@ -12,6 +12,7 @@
   "dependencies": {
     "@cimiloop/context": "workspace:*",
     "@cimiloop/devops": "workspace:*",
+    "@cimiloop/devops-command": "workspace:*",
     "@cimiloop/evaluator": "workspace:*",
     "@cimiloop/kernel": "workspace:*",
     "@cimiloop/protocol": "workspace:*",

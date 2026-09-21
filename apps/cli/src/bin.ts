@@ -431,6 +431,10 @@ release
   );
 
 const deployment = program.command("deployment").description("Deployment、核对与 Recovery 结果");
+deployment
+  .command("recover")
+  .description("Recover pending external operations through the product delivery worker")
+  .action((_options, command) => recoverDeliveryWorkerCli(globals(command)));
 deployment.command("show <id>").description("查看 Deployment").action((id, _options, command) =>
   showDeployment(id, globals(command))
 );
@@ -486,17 +490,20 @@ const project = program.command("project").description("Project export and porta
 project
   .command("export")
   .description("Export a deterministic portable project bundle")
+  .option("--file <path>", "Write importer-accepted { manifest } bundle JSON")
   .option("--expected-revision <revision>", "Expected project revision")
   .action((options, command) => exportProjectCli({ ...globals(command), ...options }));
 project
   .command("import-stage")
   .description("Stage a portable bundle without activating runtime ownership")
   .requiredOption("--file <path>", "Bundle JSON path")
+  .option("--target <path>", "Empty or existing project directory")
   .option("--expected-revision <revision>", "Expected project revision")
   .action((options, command) => stageImportCli({ ...globals(command), ...options }));
 project
   .command("import-commit <report>")
   .description("Commit a staged import report")
+  .option("--target <path>", "Empty or existing project directory")
   .option("--expected-revision <revision>", "Expected project revision")
   .action((report, options, command) => commitImportCli(report, { ...globals(command), ...options }));
 

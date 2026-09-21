@@ -134,6 +134,7 @@ import {
   type ArtifactLineageRecord,
   type CommandReceipt,
   type ExternalOperationLease,
+  type ProjectRuntimeOwnership,
   type OutboxMessage,
   type ProjectStore,
   type ProposedEvent,
@@ -256,6 +257,31 @@ class SqliteTransaction implements StoreTransaction {
     this.database
       .prepare("INSERT INTO project_counters(project_id, change_number, event_sequence) VALUES (?, 0, 0)")
       .run(project.id);
+    this.#upsertRuntimeOwnership({
+      project_id: project.id,
+      ownership: "active",
+      updated_at: new Date().toISOString()
+    });
+  }
+
+  getProjectRuntimeOwnership(projectId: InternalId): ProjectRuntimeOwnership | undefined {
+    return this.#readRuntimeOwnership(projectId);
+  }
+
+  upsertProjectRuntimeOwnership(record: ProjectRuntimeOwnership): void {
+    this.#upsertRuntimeOwnership(record);
+  }
+
+  updateProject(project: Project, expectedRevision: number): void {
+    const result = this.database
+      .prepare("UPDATE projects SET revision = ?, payload_json = ? WHERE id = ? AND revision = ?")
+      .run(project.revision, json(project), project.id, expectedRevision);
+    if (result.changes === 0) {
+      const row = this.database.prepare("SELECT revision FROM projects WHERE id = ?").get(project.id) as
+        | SqlRow
+        | undefined;
+      throw new StoreConflictError("Project revision conflict", row ? Number(row.revision) : undefined);
+    }
   }
 
   insertActor(actor: Actor): void {
@@ -1043,10 +1069,11 @@ class SqliteTransaction implements StoreTransaction {
   insertArtifactLineage(record: ArtifactLineageRecord): void {
     this.database
       .prepare(
-        `INSERT INTO artifact_lineage(successor_id, predecessor_id, project_id, change_id, created_at, payload_json)
-         VALUES (?, ?, ?, ?, ?, ?)`
+        `INSERT INTO artifact_lineage(id, successor_id, predecessor_id, project_id, change_id, created_at, payload_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
+        record.id,
         record.successor_id,
         record.predecessor_id,
         record.project_id,
@@ -1069,6 +1096,14 @@ class SqliteTransaction implements StoreTransaction {
       "SELECT payload_json FROM artifact_lineage WHERE predecessor_id = ? ORDER BY rowid",
       (value) => value as ArtifactLineageRecord,
       predecessorId
+    );
+  }
+
+  listArtifactLineageBySuccessor(successorId: InternalId): ArtifactLineageRecord[] {
+    return this.listPayload(
+      "SELECT payload_json FROM artifact_lineage WHERE successor_id = ? ORDER BY rowid",
+      (value) => value as ArtifactLineageRecord,
+      successorId
     );
   }
 
@@ -1793,6 +1828,17 @@ class SqliteTransaction implements StoreTransaction {
     );
   }
 
+  updateImportReport(report: ImportReport): void {
+    const result = this.database
+      .prepare(
+        "UPDATE import_reports SET project_id = ?, status = ?, runtime_ownership = ?, payload_json = ? WHERE id = ?"
+      )
+      .run(report.project_id, report.status, report.runtime_ownership, json(report), report.id);
+    if (result.changes === 0) {
+      throw new StoreConflictError("Import report not found");
+    }
+  }
+
   getImportReport(id: InternalId): ImportReport | undefined {
     return this.getPayload("SELECT payload_json FROM import_reports WHERE id = ?", parseImportReport, id);
   }
@@ -1900,6 +1946,56 @@ class SqliteTransaction implements StoreTransaction {
       const row = this.database.prepare(`SELECT revision FROM ${table} WHERE id = ?`).get(id) as SqlRow | undefined;
       throw new StoreConflictError(`${table} revision conflict`, row ? Number(row.revision) : undefined);
     }
+  }
+
+  getExternalOperationLease(operationId: InternalId): ExternalOperationLease | undefined {
+    if (!this.#tableExists("external_operation_leases")) return undefined;
+    const row = this.database
+      .prepare("SELECT * FROM external_operation_leases WHERE operation_id = ?")
+      .get(operationId) as SqlRow | undefined;
+    if (!row) return undefined;
+    return {
+      operation_id: String(row.operation_id) as InternalId,
+      owner_id: String(row.owner_id),
+      claimed_at: String(row.claimed_at),
+      expires_at: String(row.expires_at),
+      generation: Number(row.generation),
+      ...(row.invoke_started_at ? { invoke_started_at: String(row.invoke_started_at) } : {}),
+      ...(row.invoke_finished_at ? { invoke_finished_at: String(row.invoke_finished_at) } : {}),
+      ...(row.adapter_result_json ? { adapter_result_json: String(row.adapter_result_json) } : {})
+    };
+  }
+
+  #tableExists(name: string): boolean {
+    const row = this.database
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+      .get(name) as SqlRow | undefined;
+    return Boolean(row);
+  }
+
+  #readRuntimeOwnership(projectId: InternalId): ProjectRuntimeOwnership | undefined {
+    if (!this.#tableExists("project_runtime_ownership")) return undefined;
+    const row = this.database
+      .prepare("SELECT project_id, ownership, updated_at FROM project_runtime_ownership WHERE project_id = ?")
+      .get(projectId) as SqlRow | undefined;
+    if (!row) return undefined;
+    const ownership = row.ownership === "dormant" ? "dormant" : "active";
+    return {
+      project_id: String(row.project_id) as InternalId,
+      ownership,
+      updated_at: String(row.updated_at)
+    };
+  }
+
+  #upsertRuntimeOwnership(record: ProjectRuntimeOwnership): void {
+    if (!this.#tableExists("project_runtime_ownership")) return;
+    this.database
+      .prepare(
+        `INSERT INTO project_runtime_ownership(project_id, ownership, updated_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(project_id) DO UPDATE SET ownership = excluded.ownership, updated_at = excluded.updated_at`
+      )
+      .run(record.project_id, record.ownership, record.updated_at);
   }
 }
 

@@ -698,6 +698,56 @@ CREATE TABLE IF NOT EXISTS artifact_lineage (
 CREATE INDEX IF NOT EXISTS idx_external_operation_leases_expiry ON external_operation_leases(expires_at);
 CREATE INDEX IF NOT EXISTS idx_artifact_lineage_predecessor ON artifact_lineage(predecessor_id);
 `
+  },
+  {
+    version: 8,
+    sql: `
+CREATE TABLE artifact_lineage_v8 (
+  id TEXT PRIMARY KEY,
+  successor_id TEXT NOT NULL REFERENCES artifacts(id),
+  predecessor_id TEXT NOT NULL REFERENCES artifacts(id),
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  created_at TEXT NOT NULL,
+  payload_json TEXT NOT NULL,
+  UNIQUE(successor_id, predecessor_id)
+) STRICT;
+
+INSERT INTO artifact_lineage_v8(id, successor_id, predecessor_id, project_id, change_id, created_at, payload_json)
+SELECT
+  generated_id,
+  successor_id,
+  predecessor_id,
+  project_id,
+  change_id,
+  created_at,
+  json_set(payload_json, '$.id', generated_id, '$.schema_version', '1.0.0')
+FROM (
+  SELECT
+    lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-7' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6))) AS generated_id,
+    successor_id,
+    predecessor_id,
+    project_id,
+    change_id,
+    created_at,
+    payload_json
+  FROM artifact_lineage
+);
+
+DROP TABLE artifact_lineage;
+ALTER TABLE artifact_lineage_v8 RENAME TO artifact_lineage;
+CREATE INDEX IF NOT EXISTS idx_artifact_lineage_predecessor ON artifact_lineage(predecessor_id);
+CREATE INDEX IF NOT EXISTS idx_artifact_lineage_successor ON artifact_lineage(successor_id);
+
+CREATE TABLE project_runtime_ownership (
+  project_id TEXT PRIMARY KEY REFERENCES projects(id),
+  ownership TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+) STRICT;
+
+INSERT INTO project_runtime_ownership(project_id, ownership, updated_at)
+SELECT id, 'active', strftime('%Y-%m-%dT%H:%M:%fZ', 'now') FROM projects;
+`
   }
 ];
 

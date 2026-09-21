@@ -1,8 +1,10 @@
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { DeterministicDevOpsAdapter, type DevOpsAdapter } from "@cimiloop/devops";
+import { fileURLToPath } from "node:url";
+import type { DevOpsAdapter } from "@cimiloop/devops";
 import { CimiLoopKernel } from "@cimiloop/kernel";
 import {
+  createProductAdapterResolver,
   ExternalDeliveryWorker,
   MemoryProcessRegistry,
   RunOrchestrator,
@@ -48,14 +50,22 @@ export const createRunOrchestrator = (
     ...(input.now ? { now: input.now } : {})
   });
 
+const repoRootFromCli = (): string => fileURLToPath(new URL("../../..", import.meta.url));
+
 export const createDeliveryWorker = (
   context: ReturnType<typeof openProject>,
-  adapter: DevOpsAdapter = new DeterministicDevOpsAdapter()
+  adapter?: DevOpsAdapter
 ): ExternalDeliveryWorker =>
   new ExternalDeliveryWorker({
     kernel: context.kernel,
     store: context.store,
-    adapter,
+    ...(adapter ? { adapter } : {}),
+    resolver: createProductAdapterResolver({
+      projectRepositoryPath: context.location.repositoryPath,
+      workingDirectory: context.location.repositoryPath,
+      allowedRoots: [repoRootFromCli(), join(repoRootFromCli(), "examples")],
+      logDirectory: join(context.location.dataDirectory, "adapter-logs")
+    }),
     projectId: context.instance.project_id,
     actorId: context.instance.actor_id,
     workingDirectory: context.location.repositoryPath

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { DevOpsAdapter } from "@cimiloop/devops";
 import type { KernelResult } from "@cimiloop/kernel";
+import { isPolicyRevoked } from "@cimiloop/kernel";
 import {
   SCHEMA_VERSION,
   createInternalId,
@@ -8,11 +9,17 @@ import {
   type Change,
   type DevOpsAdapterResult,
   type DomainError,
+  type Environment,
   type ExternalOperation,
   type InternalId,
   type Reconciliation
 } from "@cimiloop/protocol";
-import type { ExternalOperationLease, ProjectStore } from "@cimiloop/store";
+import type { ExternalOperationLease, ProjectStore, RuntimeOwnershipState } from "@cimiloop/store";
+import {
+  AdapterResolutionError,
+  adapterSecretsFor,
+  type AdapterRegistry
+} from "./adapter-resolver.js";
 
 export interface ExternalWorkerKernel {
   execute(input: unknown): KernelResult;
@@ -33,7 +40,8 @@ export interface ExternalWorkerDependencies {
     | "listAbandonedExternalInvokes"
     | "releaseExternalOperationLease"
   >;
-  adapter: DevOpsAdapter;
+  adapter?: DevOpsAdapter;
+  resolver?: AdapterRegistry;
   projectId: InternalId;
   actorId: InternalId;
   workingDirectory: string;
@@ -77,6 +85,15 @@ const unknownAdapterResult = (operation: ExternalOperation, summary: string): De
   summary
 });
 
+const failedAdapterResult = (operation: ExternalOperation, summary: string): DevOpsAdapterResult => ({
+  schema_version: SCHEMA_VERSION,
+  operation_key: operation.operation_key,
+  state: "failed",
+  log_reference: "file://logs/adapter-blocked.log",
+  log_digest: digest("adapter_blocked", createHash("sha256").update(operation.id).digest("hex")),
+  summary
+});
+
 const parseStoredResult = (lease: ExternalOperationLease): DevOpsAdapterResult | undefined => {
   if (!lease.adapter_result_json) return undefined;
   try {
@@ -97,6 +114,9 @@ export class ExternalDeliveryWorker {
   #stopped = true;
 
   constructor(dependencies: ExternalWorkerDependencies) {
+    if (!dependencies.adapter && !dependencies.resolver) {
+      throw new Error("ADAPTER_RESOLVER_REQUIRED");
+    }
     this.#deps = dependencies;
     this.#ownerId = dependencies.ownerId ?? createInternalId();
     this.#leaseMs = dependencies.leaseMs ?? 30_000;
@@ -128,6 +148,9 @@ export class ExternalDeliveryWorker {
   }
 
   async recover(): Promise<ExternalWorkerResult> {
+    if (this.#ownership() !== "active") {
+      return { reconciled: 0, executed: 0, recordedUnknown: 0 };
+    }
     const recordedUnknown = await this.#recordFinishedInvokes();
     const abandoned = await this.#escalateAbandonedInvokes();
     const reconciled = await this.#reconcileUnknown();
@@ -177,20 +200,22 @@ export class ExternalDeliveryWorker {
   }
 
   async #reconcileUnknown(): Promise<number> {
+    if (this.#policyRevoked() || this.#ownership() !== "active") return 0;
     const unknowns = this.#deps.store.transaction((transaction) => transaction.listUnknownExternalOperations());
     let reconciled = 0;
     for (const operation of unknowns) {
       const requested = this.#command("RequestReconciliation", { operation_id: operation.id }, operation.change_id);
       if ("code" in requested) continue;
-      const result = await this.#invoke(operation, "reconcile");
+      const invoked = await this.#invokeGuarded(operation, "reconcile");
+      if (!invoked) continue;
       const recorded = this.#command(
         "RecordReconciliation",
         {
           operation_id: operation.id,
-          conclusion: conclusionFor(result.state),
-          summary: result.summary,
-          ...(result.actual_digest ? { observed_digest: result.actual_digest } : {}),
-          observed_state: result.state
+          conclusion: conclusionFor(invoked.state),
+          summary: invoked.summary,
+          ...(invoked.actual_digest ? { observed_digest: invoked.actual_digest } : {}),
+          observed_state: invoked.state
         },
         operation.change_id
       );
@@ -200,6 +225,7 @@ export class ExternalDeliveryWorker {
   }
 
   async #executePending(): Promise<{ executed: number; recordedUnknown: number }> {
+    if (this.#ownership() !== "active") return { executed: 0, recordedUnknown: 0 };
     const pending = this.#deps.store.transaction((transaction) => this.#pendingOperations(transaction));
     let executed = 0;
     let recordedUnknown = 0;
@@ -207,6 +233,11 @@ export class ExternalDeliveryWorker {
       if (operation.operation_kind === "reconcile") continue;
       const existing = this.#deps.store.getExternalOperationLease(operation.id);
       if (existing?.invoke_started_at) continue;
+      if (this.#ownership() !== "active") break;
+      if (this.#policyRevoked()) {
+        this.#blockPending(operation, "current Policy is revoked; pending operation was not invoked");
+        continue;
+      }
       const claimed = this.#deps.store.claimExternalOperation({
         operationId: operation.id,
         ownerId: this.#ownerId,
@@ -214,12 +245,56 @@ export class ExternalDeliveryWorker {
         leaseUntil: this.#leaseUntil()
       });
       if (!claimed) continue;
+      if (this.#ownership() !== "active") {
+        this.#deps.store.releaseExternalOperationLease(operation.id);
+        break;
+      }
+      if (this.#policyRevoked()) {
+        this.#blockPending(operation, "current Policy is revoked; pending operation was not invoked");
+        this.#deps.store.releaseExternalOperationLease(operation.id);
+        continue;
+      }
+      const resolved = this.#resolveAdapter(operation);
+      if ("error" in resolved) {
+        const result = failedAdapterResult(operation, resolved.error);
+        this.#deps.store.markExternalOperationInvokeFinished(operation.id, this.#ownerId, this.#now(), result);
+        this.#recordResult(operation, result);
+        this.#deps.store.releaseExternalOperationLease(operation.id);
+        continue;
+      }
       if (!this.#deps.store.markExternalOperationInvokeStarted(operation.id, this.#ownerId, this.#now())) {
+        continue;
+      }
+      if (this.#policyRevoked()) {
+        const result = failedAdapterResult(
+          operation,
+          "Policy was revoked after claim; adapter was not invoked"
+        );
+        this.#deps.store.markExternalOperationInvokeFinished(operation.id, this.#ownerId, this.#now(), result);
+        this.#recordResult(operation, result);
+        this.#deps.store.releaseExternalOperationLease(operation.id);
         continue;
       }
       let result: DevOpsAdapterResult;
       try {
-        result = await this.#invoke(operation, operation.operation_kind);
+        result = await resolved.adapter.execute(
+          {
+            schema_version: SCHEMA_VERSION,
+            operation_key: operation.id,
+            operation_id: operation.id,
+            operation: operation.operation_kind,
+            environment_id: operation.environment_id,
+            release_id: operation.release_id,
+            artifact_digest: operation.artifact_digest,
+            working_directory: this.#deps.workingDirectory,
+            config_digest: digest(
+              "devops_config",
+              createHash("sha256").update(this.#deps.workingDirectory).digest("hex")
+            ),
+            input_reference: `cimi-object://operation/${operation.id}`
+          },
+          { secrets: resolved.secrets }
+        );
       } catch {
         result = unknownAdapterResult(operation, "adapter threw before a determinate result");
       }
@@ -247,22 +322,60 @@ export class ExternalDeliveryWorker {
       .filter((item) => item.state === "pending");
   }
 
-  async #invoke(operation: ExternalOperation, kind: ExternalOperation["operation_kind"]) {
-    return this.#deps.adapter.execute({
-      schema_version: SCHEMA_VERSION,
-      operation_key: operation.id,
-      operation_id: operation.id,
-      operation: kind,
-      environment_id: operation.environment_id,
-      release_id: operation.release_id,
-      artifact_digest: operation.artifact_digest,
-      working_directory: this.#deps.workingDirectory,
-      config_digest: digest(
-        "devops_config",
-        createHash("sha256").update(this.#deps.workingDirectory).digest("hex")
-      ),
-      input_reference: `cimi-object://operation/${operation.id}`
-    });
+  async #invokeGuarded(operation: ExternalOperation, kind: ExternalOperation["operation_kind"]) {
+    if (this.#ownership() !== "active" || this.#policyRevoked()) return undefined;
+    const resolved = this.#resolveAdapter(operation);
+    if ("error" in resolved) {
+      return failedAdapterResult(operation, resolved.error);
+    }
+    return resolved.adapter.execute(
+      {
+        schema_version: SCHEMA_VERSION,
+        operation_key: operation.id,
+        operation_id: operation.id,
+        operation: kind,
+        environment_id: operation.environment_id,
+        release_id: operation.release_id,
+        artifact_digest: operation.artifact_digest,
+        working_directory: this.#deps.workingDirectory,
+        config_digest: digest(
+          "devops_config",
+          createHash("sha256").update(this.#deps.workingDirectory).digest("hex")
+        ),
+        input_reference: `cimi-object://operation/${operation.id}`
+      },
+      { secrets: resolved.secrets }
+    );
+  }
+
+  #resolveAdapter(operation: ExternalOperation):
+    | { adapter: DevOpsAdapter; secrets: Record<string, string> }
+    | { error: string } {
+    const environment = this.#deps.store.transaction((transaction) =>
+      transaction.getEnvironment(operation.environment_id)
+    );
+    if (!environment) {
+      return { error: "ADAPTER_REF_MISSING: Environment was not found for the operation" };
+    }
+    if (this.#deps.resolver) {
+      try {
+        const resolved = this.#deps.resolver.resolve(environment);
+        return { adapter: resolved.adapter, secrets: adapterSecretsFor(environment, this.#deps.workingDirectory) };
+      } catch (error) {
+        const code = error instanceof AdapterResolutionError ? error.code : "ADAPTER_REF_INVALID";
+        const message = error instanceof Error ? error.message : "adapter resolution failed";
+        return { error: `${code}: ${message}` };
+      }
+    }
+    if (this.#deps.adapter) {
+      return { adapter: this.#deps.adapter, secrets: adapterSecretsFor(environment, this.#deps.workingDirectory) };
+    }
+    return { error: "ADAPTER_RESOLVER_REQUIRED: no adapter or resolver configured" };
+  }
+
+  #blockPending(operation: ExternalOperation, summary: string): void {
+    const result = failedAdapterResult(operation, summary);
+    this.#recordResult(operation, result);
   }
 
   #recordResult(operation: ExternalOperation, result: DevOpsAdapterResult): KernelResult {
@@ -301,6 +414,21 @@ export class ExternalDeliveryWorker {
     });
   }
 
+  #ownership(): RuntimeOwnershipState {
+    return this.#deps.store.transaction((transaction) => {
+      const current = transaction.getCurrentProject();
+      const projectId = current?.id ?? this.#deps.projectId;
+      return transaction.getProjectRuntimeOwnership(projectId)?.ownership ?? "active";
+    });
+  }
+
+  #policyRevoked(): boolean {
+    const snapshot = this.#deps.store.transaction((transaction) =>
+      transaction.getLatestPolicySnapshot(this.#deps.projectId)
+    );
+    return isPolicyRevoked(snapshot);
+  }
+
   #now(): string {
     return this.#deps.now?.() ?? new Date().toISOString();
   }
@@ -309,3 +437,5 @@ export class ExternalDeliveryWorker {
     return new Date(Date.parse(this.#now()) + this.#leaseMs).toISOString();
   }
 }
+
+export type { Environment };

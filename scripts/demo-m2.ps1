@@ -19,8 +19,7 @@ git -C $repository -c user.email=m2-demo@example.com -c user.name="M2 Demo" comm
 $env:LOCALAPPDATA = $appData
 $contractFile = Join-Path $repoRoot "examples\m2\feature-contract.json"
 $planFile = Join-Path $repoRoot "examples\m2\feature-plan.json"
-$artifactFile = Join-Path $repository "artifact.bin"
-Set-Content -Path $artifactFile -Value "m2-demo-artifact" -Encoding UTF8
+$artifactFile = Join-Path $repository ".git\cimiloop\artifacts\artifact.bin"
 
 function Invoke-CimiLoop {
   param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
@@ -42,6 +41,8 @@ function Invoke-CimiLoop {
 
 Write-Host "初始化 Project..."
 Invoke-CimiLoop init --owner-name "M2 Demo Owner" --owner-email "m2-demo@example.com" --yes | Out-Null
+New-Item -ItemType Directory -Path (Split-Path -Parent $artifactFile) -Force | Out-Null
+Set-Content -Path $artifactFile -Value "m2-demo-artifact" -Encoding UTF8
 
 Write-Host "创建并批准到 Planned..."
 $created = Invoke-CimiLoop change create --title "M2 execution vertical slice"

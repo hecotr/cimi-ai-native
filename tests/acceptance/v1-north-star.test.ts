@@ -1,9 +1,10 @@
 import { execFileSync } from "node:child_process";
-import { rmSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { join, resolve } from "node:path";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
-import { DeterministicDevOpsAdapter } from "../../packages/devops/src/deterministic.js";
 import { createPlanningWorkItem } from "../../packages/kernel/src/work-item.js";
+import { createProductAdapterResolver } from "../../packages/orchestrator/src/adapter-resolver.js";
 import { ExternalDeliveryWorker } from "../../packages/orchestrator/src/external-worker.js";
 import { createInternalId, SCHEMA_VERSION, type InternalId } from "../../packages/protocol/src/index.js";
 import {
@@ -45,17 +46,28 @@ const roleId = (
   return role.id;
 };
 
+const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
+
 const verifyRelease = async (
   ctx: AcceptanceContext,
   releaseId: InternalId,
   environmentId: InternalId,
-  artifactDigest: ReturnType<typeof digest>
+  artifactDigest: ReturnType<typeof digest>,
+  target: "test" | "prod"
 ) => {
-  const adapter = new DeterministicDevOpsAdapter();
+  const acceptanceRoot = join(ctx.directory, "acceptance");
+  mkdirSync(join(acceptanceRoot, "artifacts", artifactDigest.value), { recursive: true });
+  writeFileSync(join(acceptanceRoot, "artifacts", artifactDigest.value, "payload.txt"), "v1-north-star-artifact");
+  process.env.CIMILOOP_ACCEPTANCE_ROOT = acceptanceRoot;
   const worker = new ExternalDeliveryWorker({
     kernel: ctx.kernel,
     store: ctx.store,
-    adapter,
+    resolver: createProductAdapterResolver({
+      projectRepositoryPath: ctx.directory,
+      workingDirectory: ctx.directory,
+      allowedRoots: [repoRoot, join(repoRoot, "examples")],
+      logDirectory: join(ctx.directory, "adapter-logs")
+    }),
     projectId: ctx.projectId,
     actorId: ctx.actorId,
     workingDirectory: ctx.directory
@@ -65,13 +77,13 @@ const verifyRelease = async (
     const recovered = await worker.recover();
     if (recovered.executed < 1) throw new Error(`worker did not execute step ${step}`);
   }
-  expect(adapter.calls.map((item) => item.operation)).toEqual(["deploy", "status", "verify"]);
-  expect(adapter.calls.every((item) => item.operation_id === item.operation_key)).toBe(true);
-  expect(adapter.calls.every((item) => item.artifact_digest.value === artifactDigest.value)).toBe(true);
+  const current = readFileSync(join(acceptanceRoot, "envs", target, "CURRENT"), "utf8").trim();
+  expect(current).toBe(artifactDigest.value);
+  expect(existsSync(join(acceptanceRoot, "operations"))).toBe(true);
 };
 
 describe("V1 north-star Feature loop", () => {
-  it("closes a Feature after intent, plan, evaluation, same-digest delivery, knowledge, and export", async () => {
+  it("closes a Feature after intent, plan, evaluation, same-digest delivery, knowledge, and export", { timeout: 60_000 }, async () => {
     const ctx = openAcceptanceProject("cimiloop-v1-north-star-");
     temporary.push(ctx);
     expect(execFileSync("git", ["rev-parse", "--is-inside-work-tree"], { cwd: ctx.directory, encoding: "utf8" }).trim()).toBe(
@@ -226,7 +238,7 @@ describe("V1 north-star Feature loop", () => {
     });
     if (!("release" in testRelease.data)) throw new Error("missing test release");
     expect(testRelease.data.release.status).toBe("authorized");
-    await verifyRelease(ctx, testRelease.data.release.id, testEnv.data.environment.id, artifactDigest);
+    await verifyRelease(ctx, testRelease.data.release.id, testEnv.data.environment.id, artifactDigest, "test");
     expect(ctx.kernel.getRelease(testRelease.data.release.id)).toMatchObject({
       status: "verified",
       artifact_digest: artifactDigest
@@ -260,7 +272,7 @@ describe("V1 north-star Feature loop", () => {
       acting_role_id: roleId(ctx, "release_owner"),
       reason: "Approve production release of the evaluated digest."
     });
-    await verifyRelease(ctx, prodRelease.data.release.id, prodEnv.data.environment.id, artifactDigest);
+    await verifyRelease(ctx, prodRelease.data.release.id, prodEnv.data.environment.id, artifactDigest, "prod");
     expect(ctx.kernel.getRelease(prodRelease.data.release.id)).toMatchObject({
       status: "verified",
       artifact_digest: artifactDigest

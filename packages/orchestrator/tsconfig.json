@@ -13,6 +13,7 @@
     { "path": "../evaluator" },
     { "path": "../runtime" },
     { "path": "../devops" },
+    { "path": "../devops-command" },
     { "path": "../store" },
     { "path": "../workspace-git" }
   ]

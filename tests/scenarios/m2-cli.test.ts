@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
@@ -110,8 +110,10 @@ describe("cimiloop M2 CLI", () => {
     execFileSync("git", ["-C", repository, "-c", "user.email=m2@example.com", "-c", "user.name=M2", "commit", "-m", "init"], {
       stdio: "ignore"
     });
-    writeFileSync(join(repository, "out.bin"), "cli-artifact");
     run(repository, appData, ["init", "--owner-name", "M2 Owner", "--owner-email", "m2@example.com", "--yes"]);
+    const artifactRoot = join(repository, ".git", "cimiloop", "artifacts");
+    mkdirSync(artifactRoot, { recursive: true });
+    writeFileSync(join(artifactRoot, "out.bin"), "cli-artifact");
     const created = run(repository, appData, ["change", "create", "--title", "CLI M2"]) as {
       data: { change: { id: string } };
     };
@@ -170,7 +172,7 @@ describe("cimiloop M2 CLI", () => {
         "record",
         runs.runs[0]?.id ?? "",
         "--file",
-        join(repository, "out.bin"),
+        join(artifactRoot, "out.bin"),
         "--summary",
         "cli artifact"
       ])
@@ -193,6 +195,42 @@ describe("cimiloop M2 CLI", () => {
       } finally {
         store.close();
       }
+      const runId = runs.runs[0]?.id ?? "";
+      const outside = join(root, "outside-secret.bin");
+      writeFileSync(outside, "do-not-read");
+      const missing = join(artifactRoot, "missing.bin");
+      const traversal = join(artifactRoot, "..", "..", "..", "outside-secret.bin");
+      const rejected = [
+        outside,
+        missing,
+        traversal,
+        "\\\\fileserver\\share\\secret.bin"
+      ];
+      for (const file of rejected) {
+        expect(() =>
+          run(repository, appData, ["artifact", "record", runId, "--file", file, "--summary", "jail"])
+        ).toThrow();
+      }
+      expect(existsSync(missing)).toBe(false);
+      expect(readFileSync(outside, "utf8")).toBe("do-not-read");
+      const link = join(artifactRoot, "escape-link");
+      try {
+        symlinkSync(join(root), link, process.platform === "win32" ? "junction" : "dir");
+        expect(() =>
+          run(repository, appData, [
+            "artifact",
+            "record",
+            runId,
+            "--file",
+            join(link, "outside-secret.bin"),
+            "--summary",
+            "jail"
+          ])
+        ).toThrow();
+      } catch (error) {
+        if (error instanceof Error && /artifact record/.test(error.message)) throw error;
+      }
+      expect(readFileSync(outside, "utf8")).toBe("do-not-read");
     }
   }, 240_000);
 });

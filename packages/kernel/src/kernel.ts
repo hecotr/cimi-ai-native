@@ -231,11 +231,14 @@ const domainError = (
 
 const isDomainError = (value: KernelResult): value is DomainError => "code" in value;
 
+const DORMANT_ALLOWED_COMMANDS = new Set(["ExportProject", "StageImport", "CommitImport"]);
+
 export class CimiLoopKernel {
   readonly #store: ProjectStore;
   readonly #now: () => string;
   readonly #id: () => InternalId;
   readonly #io: KernelIo;
+  #pendingStagingCleanup: string | undefined = undefined;
 
   constructor(dependencies: KernelDependencies) {
     this.#store = dependencies.store;
@@ -268,7 +271,7 @@ export class CimiLoopKernel {
       return this.#stageImportOutsideTransaction(command, digest);
     }
     try {
-      return this.#store.transaction((transaction) => {
+      const result = this.#store.transaction((transaction) => {
         const previous = transaction.getCommandReceipt(command.command_id);
         if (previous) {
           if (previous.request_digest !== digest) {
@@ -284,18 +287,21 @@ export class CimiLoopKernel {
           return previous.result;
         }
 
-        const result = this.#dispatch(transaction, command);
-        if (!isDomainError(result)) {
+        const dispatched = this.#dispatch(transaction, command);
+        if (!isDomainError(dispatched)) {
           transaction.saveCommandReceipt({
             command_id: command.command_id,
             request_digest: digest,
-            result,
+            result: dispatched,
             created_at: this.#now()
           });
         }
-        return result;
+        return dispatched;
       });
+      this.#cleanupCommittedStaging();
+      return result;
     } catch (error) {
+      this.#pendingStagingCleanup = undefined;
       if (error instanceof StoreConflictError) {
         if (error.message === "Lease already held for work item") {
           return domainError(command.correlation_id, "LEASE_CONFLICT", "Work Item 已被领取", "conflict");
@@ -320,10 +326,16 @@ export class CimiLoopKernel {
   }
 
   getProject(): Project | DomainError {
-    return (
-      this.#store.getProject() ??
-      domainError(this.#id(), "PROJECT_NOT_INITIALIZED", "当前目录尚未初始化 CimiLoop Project", "not_found")
-    );
+    const project = this.#store.getProject();
+    if (!project) {
+      return domainError(this.#id(), "PROJECT_NOT_INITIALIZED", "当前目录尚未初始化 CimiLoop Project", "not_found");
+    }
+    const ownership = this.#store.transaction((transaction) => transaction.getProjectRuntimeOwnership(project.id));
+    return { ...project, runtime_ownership: ownership?.ownership ?? "active" };
+  }
+
+  getProjectRuntimeOwnership(projectId: InternalId) {
+    return this.#store.transaction((transaction) => transaction.getProjectRuntimeOwnership(projectId));
   }
 
   getChange(idOrKey: string): Change | DomainError {
@@ -2741,11 +2753,15 @@ export class CimiLoopKernel {
     });
     const predecessors = transaction
       .listArtifactsByChange(run.change_id)
-      .filter((existing) => existing.work_item_id === run.work_item_id);
+      .filter((existing) => existing.work_item_id === run.work_item_id)
+      .sort((left, right) => left.created_at.localeCompare(right.created_at) || left.id.localeCompare(right.id));
+    const latest = predecessors.at(-1);
     transaction.insertArtifact(artifact);
-    for (const existing of predecessors) {
+    if (latest) {
       transaction.insertArtifactLineage({
-        predecessor_id: existing.id,
+        id: this.#id(),
+        schema_version: SCHEMA_VERSION,
+        predecessor_id: latest.id,
         successor_id: artifact.id,
         project_id: loaded.project.id,
         change_id: run.change_id,
@@ -3355,9 +3371,11 @@ export class CimiLoopKernel {
     const evaluations = transaction.listIndependentEvaluationsByChange(loaded.change.id);
     const claims = transaction.listClaimsByChange(loaded.change.id);
     const evidence = transaction.listEvidenceByChange(loaded.change.id);
+    const evidencePackageId = command.payload.evidence_package_id ?? this.#id();
+    const releasePackageId = this.#id();
     const pack = {
       schema_version: SCHEMA_VERSION,
-      id: command.payload.evidence_package_id ?? this.#id(),
+      id: evidencePackageId,
       project_id: loaded.project.id,
       change_id: loaded.change.id,
       package_kind: command.payload.kind === "production" ? ("release" as const) : ("test" as const),
@@ -3381,7 +3399,7 @@ export class CimiLoopKernel {
       environment_id: environment.id,
       contract_id: artifact.contract_id,
       contract_version: artifact.contract_version,
-      package_id: pack.id,
+      package_id: releasePackageId,
       recovery_strategy_id: strategy.id,
       evidence_package_id: pack.id,
       policy_snapshot_id: evaluations.at(-1)?.requirement_set_id
@@ -3407,7 +3425,7 @@ export class CimiLoopKernel {
     };
     const releasePackage = {
       schema_version: SCHEMA_VERSION,
-      id: pack.id,
+      id: releasePackageId,
       project_id: loaded.project.id,
       change_id: loaded.change.id,
       release_id: release.id,
@@ -3456,6 +3474,10 @@ export class CimiLoopKernel {
   }
 
   #queueDeployment(transaction: StoreTransaction, command: QueueDeploymentCommand): KernelResult {
+    if (command.project_id) {
+      const revokedEarly = this.#requireActivePolicy(transaction, command, command.project_id);
+      if (revokedEarly) return revokedEarly;
+    }
     const release = transaction.getRelease(command.payload.release_id);
     if (!release) {
       return domainError(command.correlation_id, "RELEASE_NOT_FOUND", "未找到指定 Release", "not_found");
@@ -4038,6 +4060,10 @@ export class CimiLoopKernel {
   #authorizeRecovery(transaction: StoreTransaction, command: AuthorizeRecoveryCommand): KernelResult {
     const human = this.#requireHumanActor(transaction, command);
     if (human) return human;
+    if (command.project_id) {
+      const revokedEarly = this.#requireActivePolicy(transaction, command, command.project_id);
+      if (revokedEarly) return revokedEarly;
+    }
     const release = transaction.getRelease(command.payload.release_id);
     if (!release) {
       return domainError(command.correlation_id, "RELEASE_NOT_FOUND", "未找到指定 Release", "not_found");
@@ -5223,7 +5249,10 @@ export class CimiLoopKernel {
     if (!existing && command.expected_revision !== 1) {
       return domainError(command.correlation_id, "REVISION_CONFLICT", "空目标导入必须使用 expected_revision=1", "conflict");
     }
-    const allowedRoot = existing?.repository_path ?? dirname(command.payload.bundle_reference.replace(/^file:\/\//, ""));
+    const bundlePath = command.payload.bundle_reference.startsWith("file://")
+      ? command.payload.bundle_reference.slice("file://".length)
+      : command.payload.bundle_reference;
+    const allowedRoot = existing?.repository_path ?? command.source.repository_path ?? dirname(bundlePath);
     this.#cleanupOrphanStaging(allowedRoot);
     let staged: ReturnType<KernelIo["stageImport"]>;
     try {
@@ -5362,6 +5391,7 @@ export class CimiLoopKernel {
         open.revision
       );
     }
+    this.#haltInFlightAfterPolicyRevoke(transaction, context.project.id, command.payload.reason, now);
     const event = this.#appendEvent(transaction, {
       event_type: "PolicyRevoked",
       project_id: context.project.id,
@@ -5402,6 +5432,125 @@ export class CimiLoopKernel {
       );
     }
     return undefined;
+  }
+
+  #haltInFlightAfterPolicyRevoke(
+    transaction: StoreTransaction,
+    projectId: InternalId,
+    reason: string,
+    now: string
+  ): void {
+    for (const change of transaction.listChanges()) {
+      for (const run of transaction.listAgentRunsByChange(change.id)) {
+        if (run.status !== "starting" && run.status !== "running") continue;
+        if (!allowedRunTransition(run.status, "cancelled")) continue;
+        transaction.updateAgentRun(
+          {
+            ...run,
+            status: "cancelled",
+            summary: `Policy revoked: ${reason}`,
+            ended_at: now,
+            updated_at: now,
+            revision: run.revision + 1
+          },
+          run.revision
+        );
+        transaction.insertBlocker({
+          schema_version: SCHEMA_VERSION,
+          id: this.#id(),
+          project_id: projectId,
+          change_id: change.id,
+          work_item_id: run.work_item_id,
+          code: "POLICY_REVOKED",
+          summary: `Running Run ${run.id} is no longer authorized after Policy revoke`,
+          status: "open",
+          resolution_condition: "human must reconcile the cancelled run before retrying",
+          created_at: now,
+          updated_at: now,
+          revision: 1
+        });
+        transaction.insertAttentionItem({
+          schema_version: SCHEMA_VERSION,
+          id: this.#id(),
+          project_id: projectId,
+          change_id: change.id,
+          kind: "blocker",
+          subject_id: run.id,
+          summary: `Run ${run.id} requires human handling after Policy revoke`,
+          status: "open",
+          created_at: now,
+          updated_at: now,
+          revision: 1
+        });
+      }
+      for (const operation of transaction.listExternalOperationsByChange(change.id)) {
+        if (operation.state !== "pending") continue;
+        const lease = transaction.getExternalOperationLease(operation.id);
+        if (lease?.invoke_started_at) continue;
+        transaction.updateExternalOperation(
+          {
+            ...operation,
+            state: "failed",
+            summary: `Policy revoked before adapter invoke: ${reason}`,
+            updated_at: now,
+            revision: operation.revision + 1
+          },
+          operation.revision
+        );
+        transaction.insertBlocker({
+          schema_version: SCHEMA_VERSION,
+          id: this.#id(),
+          project_id: projectId,
+          change_id: change.id,
+          code: "POLICY_REVOKED",
+          summary: `Pending ExternalOperation ${operation.id} was not invoked after Policy revoke`,
+          status: "open",
+          resolution_condition: "do not retry the blocked operation without a new authorization",
+          created_at: now,
+          updated_at: now,
+          revision: 1
+        });
+        transaction.insertAttentionItem({
+          schema_version: SCHEMA_VERSION,
+          id: this.#id(),
+          project_id: projectId,
+          change_id: change.id,
+          kind: "blocker",
+          subject_id: operation.id,
+          summary: `ExternalOperation ${operation.id} awaits new authorization after Policy revoke`,
+          status: "open",
+          created_at: now,
+          updated_at: now,
+          revision: 1
+        });
+      }
+    }
+  }
+
+  #cleanupCommittedStaging(): void {
+    const stagingPath = this.#pendingStagingCleanup;
+    this.#pendingStagingCleanup = undefined;
+    if (!stagingPath) return;
+    try {
+      this.#io.abandon(stagingPath);
+    } catch {
+      this.#store.transaction((transaction) => {
+        const project = transaction.getCurrentProject();
+        if (!project) return;
+        transaction.insertAttentionItem({
+          schema_version: SCHEMA_VERSION,
+          id: this.#id(),
+          project_id: project.id,
+          kind: "failure",
+          subject_id: project.id,
+          summary: `Failed to delete import staging ${stagingPath}; retry orphan cleanup`,
+          status: "open",
+          created_at: this.#now(),
+          updated_at: this.#now(),
+          revision: 1
+        });
+      });
+    }
   }
 
   #cleanupOrphanStaging(allowedRoot: string): void {
@@ -5456,7 +5605,15 @@ export class CimiLoopKernel {
         digestMismatches: [incomingDigest],
         summary: "Local project history diverges from the staged bundle."
       });
+      transaction.updateImportReport({
+        ...report,
+        status: "rejected",
+        conflicts: ["DIVERGENT_HISTORY"],
+        digest_mismatches: [incomingDigest],
+        summary: `${report.summary}; superseded_by=${rejected.id}`
+      });
       transaction.insertImportReport(rejected);
+      this.#pendingStagingCleanup = staged.stagingPath;
       return domainError(command.correlation_id, "DIVERGENT_HISTORY", "拒绝静默合并分叉历史", "conflict", false, {
         import_report_id: rejected.id
       });
@@ -5475,16 +5632,17 @@ export class CimiLoopKernel {
       }
     }
     const accepted = createImportReport({
-      id: this.#id(),
+      id: report.id,
       projectId: staged.manifest.project_id,
-      stagedAt: this.#now(),
+      stagedAt: report.staged_at,
       status: "accepted",
       summary:
         history === "identical"
           ? "Import is idempotent with the existing project history."
           : "Empty target accepted the staged bundle without activating runtime ownership."
     });
-    transaction.insertImportReport(accepted);
+    transaction.updateImportReport(accepted);
+    this.#pendingStagingCleanup = staged.stagingPath;
     const project = transaction.getCurrentProject();
     const events = project
       ? [
@@ -5625,7 +5783,7 @@ export class CimiLoopKernel {
     }));
   }
 
-  #readStagedImport(summary: string): { manifest: ExportManifest } | { code: string; message: string } {
+  #readStagedImport(summary: string): { manifest: ExportManifest; stagingPath: string } | { code: string; message: string } {
     const encoded = /staging=([^;]+)/.exec(summary)?.[1];
     const bundleClaimed = /(?:^|[;\s])bundle_digest=([0-9a-f]{64})/.exec(summary)?.[1];
     const contentClaimed = /(?:^|[;\s])content_digest=([0-9a-f]{64})/.exec(summary)?.[1];
@@ -5638,7 +5796,7 @@ export class CimiLoopKernel {
       if (validated.manifest.content_digest.value !== contentClaimed) {
         return { code: "DIGEST_MISMATCH", message: "content digest does not match staged receipt" };
       }
-      return { manifest: validated.manifest };
+      return { manifest: validated.manifest, stagingPath };
     } catch (error) {
       if (error instanceof PortableImportError) {
         return { code: error.code, message: error.message };
@@ -5914,6 +6072,15 @@ export class CimiLoopKernel {
     const actor = transaction.getActor(command.actor_id);
     if (!actor) {
       return domainError(command.correlation_id, "ACTOR_NOT_FOUND", "命令必须绑定已持久化的 Actor", "not_found");
+    }
+    const ownership = transaction.getProjectRuntimeOwnership(project.id)?.ownership ?? "active";
+    if (ownership === "dormant" && !DORMANT_ALLOWED_COMMANDS.has(command.command_type)) {
+      return domainError(
+        command.correlation_id,
+        "PROJECT_RUNTIME_DORMANT",
+        "dormant Project 保持只读运行状态，禁止启动 Run 或执行外部操作",
+        "forbidden"
+      );
     }
     return { project, actorId: command.actor_id };
   }

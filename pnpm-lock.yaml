@@ -271,6 +271,9 @@ importers:
       '@cimiloop/devops':
         specifier: workspace:*
         version: link:../devops
+      '@cimiloop/devops-command':
+        specifier: workspace:*
+        version: link:../devops-command
       '@cimiloop/evaluator':
         specifier: workspace:*
         version: link:../evaluator

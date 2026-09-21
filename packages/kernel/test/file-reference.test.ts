@@ -1,10 +1,10 @@
-import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { nodePathIo } from "../src/io.js";
-import { resolveAuthorizedFileReference } from "../src/artifact.js";
+import { authorizeLocalFilePath, resolveAuthorizedFileReference } from "../src/artifact.js";
 
 const temporaryDirectories: string[] = [];
 
@@ -60,5 +60,23 @@ describe("authorized file references", () => {
     }
     const href = pathToFileURL(join(link, "secret.bin")).href;
     expect(resolveAuthorizedFileReference(href, [root], nodePathIo)).toEqual({ ok: false });
+  });
+
+  it("authorizes before any exists/read/write and does not create missing files", () => {
+    const root = mkdtempSync(join(tmpdir(), "cimiloop-file-auth-"));
+    temporaryDirectories.push(root);
+    const missing = join(root, "missing.bin");
+    const outside = mkdtempSync(join(tmpdir(), "cimiloop-file-auth-out-"));
+    temporaryDirectories.push(outside);
+    const secret = join(outside, "secret.bin");
+    writeFileSync(secret, "do-not-touch");
+    expect(authorizeLocalFilePath(pathToFileURL(missing).href, [root], nodePathIo)).toEqual({ ok: false });
+    expect(existsSync(missing)).toBe(false);
+    expect(authorizeLocalFilePath(pathToFileURL(join(root, "..", "escape.bin")).href, [root], nodePathIo)).toEqual({
+      ok: false
+    });
+    expect(authorizeLocalFilePath("file://fileserver/share/secret.bin", [root], nodePathIo)).toEqual({ ok: false });
+    expect(authorizeLocalFilePath(pathToFileURL(secret).href, [root], nodePathIo)).toEqual({ ok: false });
+    expect(readFileSync(secret, "utf8")).toBe("do-not-touch");
   });
 });

@@ -1,10 +1,10 @@
-import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { createHash, randomBytes } from "node:crypto";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
-import { CimiLoopKernel } from "@cimiloop/kernel";
+import { authorizeLocalFilePath, CimiLoopKernel, nodePathIo } from "@cimiloop/kernel";
 import {
   SCHEMA_VERSION,
   createInternalId,
@@ -37,7 +37,7 @@ import { ClaudeCodeRuntimeAdapter } from "@cimiloop/runtime-claude-code";
 import { SqliteProjectRegistry, SqliteProjectStore } from "@cimiloop/store-sqlite";
 import { GitWorktreeWorkspace } from "@cimiloop/workspace-git";
 import { createDeliveryWorker, createRunOrchestrator, openProject } from "./composition.js";
-import { writeInstance } from "./instance.js";
+import { writeInstance, type SoloInstance } from "./instance.js";
 import { locateProject, readGitIdentity, registryDatabasePath } from "./location.js";
 import { formatChangeRoom, formatDecisionInbox, inputError, isDomainError, outputError, outputJson } from "./output.js";
 
@@ -694,8 +694,27 @@ export const recordArtifact = (
   try {
     const run = context.kernel.getAgentRun(runId as InternalId);
     if (isDomainError(run)) return outputError(run, Boolean(options.json));
-    if (!existsSync(options.file)) writeFileSync(options.file, "");
-    const bytes = readFileSync(options.file);
+    const artifactRoot = join(context.location.dataDirectory, "artifacts");
+    mkdirSync(artifactRoot, { recursive: true });
+    let worktreePath: string | undefined;
+    try {
+      const workspace = new GitWorktreeWorkspace({
+        repositoryPath: context.location.repositoryPath,
+        worktreeRoot: join(context.location.dataDirectory, "worktrees")
+      });
+      worktreePath = workspace.ensureWorktree(run.change_id).worktreePath;
+    } catch {
+      worktreePath = undefined;
+    }
+    const roots = [artifactRoot, ...(worktreePath ? [worktreePath] : [])];
+    const authorized = authorizeLocalFilePath(pathToFileURL(resolve(options.file)).href, roots, nodePathIo);
+    if (!authorized.ok) {
+      return outputError(
+        inputError("ARTIFACT_REFERENCE_INVALID", "Artifact 文件必须位于已验证 worktree 或受控 artifact root"),
+        Boolean(options.json)
+      );
+    }
+    const bytes = readFileSync(authorized.absolute);
     let captured;
     try {
       const workspace = new GitWorktreeWorkspace({
@@ -748,7 +767,7 @@ export const recordArtifact = (
         context_pack_id: run.context_pack_id,
         binding_id: run.binding_id,
         digest: sha256(bytes, "artifact"),
-        content_reference: pathToFileURL(resolve(options.file)).href,
+        content_reference: pathToFileURL(authorized.absolute).href,
         summary: options.summary
       },
       options
@@ -1438,7 +1457,54 @@ export const recordRecoveryCli = (
   }
 };
 
-export const exportProjectCli = (options: GlobalOptions & { expectedRevision?: string }): void => {
+const writeAtomicJson = (filePath: string, value: unknown): void => {
+  mkdirSync(dirname(filePath), { recursive: true });
+  const temporary = join(dirname(filePath), `.${randomBytes(8).toString("hex")}.tmp`);
+  writeFileSync(temporary, `${JSON.stringify(value)}\n`);
+  try {
+    renameSync(temporary, filePath);
+  } catch {
+    try {
+      unlinkSync(filePath);
+    } catch {
+      // destination may not exist
+    }
+    renameSync(temporary, filePath);
+  }
+};
+
+const openImportTarget = (targetDir: string) => {
+  const start = resolve(targetDir);
+  mkdirSync(start, { recursive: true });
+  if (existsSync(join(start, ".cimiloop", "instance.json")) || existsSync(join(start, ".git", "cimiloop", "instance.json"))) {
+    return { ...openProject({ projectDir: start }), emptyTarget: false as const };
+  }
+  const location = locateProject(start, true);
+  mkdirSync(location.dataDirectory, { recursive: true });
+  const store = new SqliteProjectStore(location.databasePath);
+  const kernel = new CimiLoopKernel({ store });
+  const instance: SoloInstance = {
+    schema_version: SCHEMA_VERSION,
+    instance_id: createInternalId(),
+    project_id: createInternalId(),
+    actor_id: createInternalId(),
+    created_at: now()
+  };
+  writeInstance(location.instancePath, instance);
+  return { location, instance, store, kernel, emptyTarget: true as const };
+};
+
+const materializeIncomingBundle = (targetRoot: string, sourceFile: string): { path: string; bytes: Buffer } => {
+  const incomingDir = join(targetRoot, ".cimiloop", "incoming");
+  mkdirSync(incomingDir, { recursive: true });
+  const destination = join(incomingDir, "bundle.json");
+  copyFileSync(resolve(sourceFile), destination);
+  return { path: destination, bytes: readFileSync(destination) };
+};
+
+export const exportProjectCli = (
+  options: GlobalOptions & { expectedRevision?: string; file?: string }
+): void => {
   const context = openProject(options);
   try {
     const project = context.kernel.getProject();
@@ -1457,6 +1523,25 @@ export const exportProjectCli = (options: GlobalOptions & { expectedRevision?: s
       payload: { scope: "project" }
     });
     if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    if ("export_manifest" in result.data && options.file) {
+      const dest = resolve(options.file);
+      writeAtomicJson(dest, { manifest: result.data.export_manifest });
+      const bundleDigest = createHash("sha256").update(readFileSync(dest)).digest("hex");
+      if (options.json) {
+        stdout.write(
+          `${JSON.stringify({
+            ...result,
+            bundle_file: dest,
+            bundle_digest: bundleDigest
+          })}\n`
+        );
+        return;
+      }
+      stdout.write(
+        `Export ${result.data.export_manifest.id} project ${result.data.export_manifest.project_id} content ${result.data.export_manifest.content_digest.value} bundle ${bundleDigest} file ${dest}\n`
+      );
+      return;
+    }
     if (options.json) return outputJson(result, parseCommandResult);
     if ("export_manifest" in result.data) {
       stdout.write(`Export ${result.data.export_manifest.id} digest ${result.data.export_manifest.content_digest.value}\n`);
@@ -1467,13 +1552,19 @@ export const exportProjectCli = (options: GlobalOptions & { expectedRevision?: s
 };
 
 export const stageImportCli = (
-  options: GlobalOptions & { file: string; expectedRevision?: string }
+  options: GlobalOptions & { file: string; expectedRevision?: string; target?: string }
 ): void => {
-  const context = openProject(options);
+  const context = options.target ? openImportTarget(options.target) : openProject(options);
   try {
-    const project = context.kernel.getProject();
-    if (isDomainError(project)) return outputError(project, Boolean(options.json));
-    const bytes = readFileSync(resolve(options.file));
+    const existing = context.kernel.getProject();
+    const empty = ("emptyTarget" in context && context.emptyTarget === true) || "code" in existing;
+    const projectId = empty
+      ? context.instance.project_id
+      : "code" in existing
+        ? context.instance.project_id
+        : existing.id;
+    const actorId = context.instance.actor_id;
+    const incoming = materializeIncomingBundle(context.location.repositoryPath, options.file);
     const ids = commandIdentity(options);
     const result = context.kernel.execute({
       schema_version: SCHEMA_VERSION,
@@ -1481,15 +1572,19 @@ export const stageImportCli = (
       correlation_id: ids.correlationId,
       command_type: "StageImport",
       requested_at: now(),
-      project_id: context.instance.project_id,
-      actor_id: context.instance.actor_id,
-      expected_revision: options.expectedRevision ? Number(options.expectedRevision) : project.revision,
+      project_id: projectId,
+      actor_id: actorId,
+      expected_revision: options.expectedRevision
+        ? Number(options.expectedRevision)
+        : empty || "code" in existing
+          ? 1
+          : existing.revision,
       source: source(context.location.repositoryPath),
       payload: {
-        bundle_reference: `file://${resolve(options.file).replaceAll("\\", "/")}`,
+        bundle_reference: `file://${incoming.path.replaceAll("\\", "/")}`,
         bundle_digest: {
           algorithm: "sha256",
-          value: createHash("sha256").update(bytes).digest("hex"),
+          value: createHash("sha256").update(incoming.bytes).digest("hex"),
           subject: "import_bundle"
         }
       }
@@ -1506,12 +1601,12 @@ export const stageImportCli = (
 
 export const commitImportCli = (
   reportId: string,
-  options: GlobalOptions & { expectedRevision?: string }
+  options: GlobalOptions & { expectedRevision?: string; target?: string }
 ): void => {
-  const context = openProject(options);
+  const context = options.target ? openImportTarget(options.target) : openProject(options);
   try {
-    const project = context.kernel.getProject();
-    if (isDomainError(project)) return outputError(project, Boolean(options.json));
+    const existing = context.kernel.getProject();
+    const empty = ("emptyTarget" in context && context.emptyTarget === true) || "code" in existing;
     const ids = commandIdentity(options);
     const result = context.kernel.execute({
       schema_version: SCHEMA_VERSION,
@@ -1519,13 +1614,31 @@ export const commitImportCli = (
       correlation_id: ids.correlationId,
       command_type: "CommitImport",
       requested_at: now(),
-      project_id: context.instance.project_id,
+      project_id: empty || "code" in existing ? context.instance.project_id : existing.id,
       actor_id: context.instance.actor_id,
-      expected_revision: options.expectedRevision ? Number(options.expectedRevision) : project.revision,
+      expected_revision: options.expectedRevision
+        ? Number(options.expectedRevision)
+        : empty || "code" in existing
+          ? 1
+          : existing.revision,
       source: source(context.location.repositoryPath),
       payload: { import_report_id: reportId }
     });
     if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    const imported = context.kernel.getProject();
+    if (!("code" in imported)) {
+      const actor = context.store.transaction((transaction) => {
+        const assignments = transaction.listAssignments(imported.id);
+        return assignments[0] ? transaction.getActor(assignments[0].actor_id) : undefined;
+      });
+      writeInstance(context.location.instancePath, {
+        schema_version: SCHEMA_VERSION,
+        instance_id: imported.instance_id,
+        project_id: imported.id,
+        actor_id: actor?.id ?? context.instance.actor_id,
+        created_at: imported.created_at
+      });
+    }
     if (options.json) return outputJson(result, parseCommandResult);
     if ("import_report" in result.data) {
       stdout.write(`Import ${result.data.import_report.status} ownership ${result.data.import_report.runtime_ownership}\n`);

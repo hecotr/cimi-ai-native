@@ -335,7 +335,7 @@ describe("M2 store migrations", () => {
     });
 
     const inspect = new DatabaseSync(databasePath, { readOnly: true });
-    expect(getProjectStoreSchemaVersion(inspect)).toBe(7);
+    expect(getProjectStoreSchemaVersion(inspect)).toBe(8);
     expect(inspect.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'work_items'").get()).toBeTruthy();
     expect(inspect.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_work_items_ready'").get()).toBeTruthy();
     expect(inspect.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_leases_active_work_item'").get()).toBeTruthy();
@@ -349,8 +349,8 @@ describe("M2 store migrations", () => {
     first.close();
     const second = new SqliteProjectStore(databasePath);
     const inspect = new DatabaseSync(databasePath, { readOnly: true });
-    expect(getProjectStoreSchemaVersion(inspect)).toBe(7);
-    expect(inspect.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get()).toMatchObject({ count: 7 });
+    expect(getProjectStoreSchemaVersion(inspect)).toBe(8);
+    expect(inspect.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get()).toMatchObject({ count: 8 });
     inspect.close();
     second.close();
   });

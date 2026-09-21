@@ -27,6 +27,8 @@ export class RunOrchestrator {
 
   async executeReadyWorkItem(changeId: InternalId, workItemId?: InternalId): Promise<OrchestratorResult> {
     try {
+      const dormant = this.#requireActiveOwnership();
+      if (dormant) return dormant;
       const scheduled = this.#command("CreateExecutionWorkItems", { change_id: changeId }, changeId);
       if (isError(scheduled)) return orchestratorFailure(scheduled.code);
       const workItem = this.#selectWorkItem(changeId, workItemId);
@@ -169,6 +171,9 @@ export class RunOrchestrator {
   }
 
   async recover(changeId: InternalId): Promise<RecoveryResult> {
+    if (this.#requireActiveOwnership()) {
+      return { restarted: false, heartbeated: 0, failed: 0 };
+    }
     let heartbeated = 0;
     let failed = 0;
     for (const item of this.#deps.kernel.listWorkItemsByChange(changeId)) {
@@ -192,6 +197,14 @@ export class RunOrchestrator {
       }
     }
     return { restarted: false, heartbeated, failed };
+  }
+
+  #requireActiveOwnership(): OrchestratorResult | undefined {
+    const project = this.#deps.kernel.getProject?.();
+    if (project && !("code" in project) && project.runtime_ownership === "dormant") {
+      return orchestratorFailure("PROJECT_RUNTIME_DORMANT");
+    }
+    return undefined;
   }
 
   #ensureWorktree(changeId: InternalId): string {

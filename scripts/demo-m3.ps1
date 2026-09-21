@@ -19,8 +19,7 @@ git -C $repository -c user.email=m3-demo@example.com -c user.name="M3 Demo" comm
 $env:LOCALAPPDATA = $appData
 $contractFile = Join-Path $repoRoot "examples\m2\feature-contract.json"
 $planFile = Join-Path $repoRoot "examples\m2\feature-plan.json"
-$artifactFile = Join-Path $repository "artifact.bin"
-Set-Content -Path $artifactFile -Value "m3-demo-artifact" -Encoding UTF8
+$artifactFile = Join-Path $repository ".git\cimiloop\artifacts\artifact.bin"
 
 function Invoke-CimiLoop {
   param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
@@ -42,6 +41,8 @@ function Invoke-CimiLoop {
 
 Write-Host "Initialize project and produce an artifact..."
 Invoke-CimiLoop init --owner-name "M3 Demo Owner" --owner-email "m3-demo@example.com" --yes | Out-Null
+New-Item -ItemType Directory -Path (Split-Path -Parent $artifactFile) -Force | Out-Null
+Set-Content -Path $artifactFile -Value "m3-demo-artifact" -Encoding UTF8
 $created = Invoke-CimiLoop change create --title "M3 evidence vertical slice"
 $changeId = $created.data.change.id
 $bootstrapped = Invoke-CimiLoop governance bootstrap-solo $changeId

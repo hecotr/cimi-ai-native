@@ -20,8 +20,7 @@ git -C $repository -c user.email=m4-demo@example.com -c user.name="M4 Demo" comm
 $env:LOCALAPPDATA = $appData
 $contractFile = Join-Path $repoRoot "examples\m2\feature-contract.json"
 $planFile = Join-Path $repoRoot "examples\m2\feature-plan.json"
-$artifactFile = Join-Path $repository "artifact.bin"
-Set-Content -Path $artifactFile -Value "m4-demo-artifact" -Encoding UTF8
+$artifactFile = Join-Path $repository ".git\cimiloop\artifacts\artifact.bin"
 
 function Invoke-CimiLoop {
   param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
@@ -43,6 +42,11 @@ function Invoke-CimiLoop {
 
 Write-Host "Initialize project and produce an evaluated artifact..."
 Invoke-CimiLoop init --owner-name "M4 Demo Owner" --owner-email "m4-demo@example.com" --yes | Out-Null
+New-Item -ItemType Directory -Path (Split-Path -Parent $artifactFile) -Force | Out-Null
+Set-Content -Path $artifactFile -Value "m4-demo-artifact" -Encoding UTF8
+$acceptanceRoot = Join-Path $demoRoot "acceptance"
+New-Item -ItemType Directory -Path $acceptanceRoot | Out-Null
+$env:CIMILOOP_ACCEPTANCE_ROOT = $acceptanceRoot
 $created = Invoke-CimiLoop change create --title "M4 delivery vertical slice"
 $changeId = $created.data.change.id
 $bootstrapped = Invoke-CimiLoop governance bootstrap-solo $changeId
@@ -63,6 +67,9 @@ $runs = Invoke-CimiLoop run list $workItemId
 $artifact = Invoke-CimiLoop artifact record $runs.runs[0].id --file $artifactFile --summary "M4 demo artifact"
 $artifactId = $artifact.data.artifact.id
 $artifactDigest = $artifact.data.artifact.digest.value
+$payloadDir = Join-Path $acceptanceRoot ("artifacts\" + $artifactDigest)
+New-Item -ItemType Directory -Path $payloadDir -Force | Out-Null
+Set-Content -Path (Join-Path $payloadDir "payload.txt") -Value "m4-demo-artifact" -Encoding UTF8
 $junit = Join-Path $repository "junit.xml"
 Set-Content -Path $junit -Value '<testsuite failures="0" tests="1"></testsuite>' -Encoding ASCII
 $claim = Invoke-CimiLoop claim submit CHG-0001 --key "AC-run" --statement "Claimed Work Item produced Run and Artifact." --category intent --obligation required --source acceptance
@@ -88,6 +95,8 @@ $deploy = Invoke-CimiLoop release queue $releaseId --environment $environmentId
 $status = Invoke-CimiLoop release queue $releaseId --environment $environmentId
 $verify = Invoke-CimiLoop release queue $releaseId --environment $environmentId
 
+$testCurrent = Get-Content -Raw -Encoding UTF8 (Join-Path $acceptanceRoot "envs\test\CURRENT")
+if ($testCurrent.Trim() -ne $artifactDigest) { throw "Test adapter did not write CURRENT digest" }
 $shownRelease = Invoke-CimiLoop release show $releaseId
 if ($shownRelease.release.status -ne "verified") {
   throw "Expected verified test release, got $($shownRelease.release.status)"

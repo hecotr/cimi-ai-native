@@ -29,7 +29,7 @@ afterEach(() => {
 
 const workerFor = (
   ctx: ReturnType<typeof openQueuedDelivery>,
-  adapter: ConstructorParameters<typeof ExternalDeliveryWorker>[0]["adapter"],
+  adapter: NonNullable<ConstructorParameters<typeof ExternalDeliveryWorker>[0]["adapter"]>,
   extras: Partial<ConstructorParameters<typeof ExternalDeliveryWorker>[0]> = {}
 ) =>
   new ExternalDeliveryWorker({

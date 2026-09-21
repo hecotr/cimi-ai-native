@@ -504,4 +504,152 @@ describe("M2 source snapshot and artifact", () => {
     );
     expect(invalidKind.code).toBe("SNAPSHOT_KIND_INVALID");
   });
+
+  it("records three artifacts with stable lineage ids and only the direct predecessor", () => {
+    const { kernel, store, directory } = openKernel();
+    const ctx = bootstrapRunning(kernel, directory);
+    const snapshot = success(
+      kernel.execute(
+        envelope(
+          "RecordSourceSnapshot",
+          ctx.projectId,
+          ctx.actorId,
+          {
+            run_id: ctx.run.id,
+            snapshot_kind: "explicit_dirty_manifest",
+            dirty: true,
+            digest: digest("source_snapshot"),
+            content_reference: `worktree://${ctx.changeId}#dirty`
+          },
+          revisionOf(kernel, ctx.changeId),
+          ctx.changeId
+        )
+      )
+    );
+    if (!("snapshot" in snapshot.data)) throw new Error("missing snapshot");
+    const ids: string[] = [];
+    for (const name of ["one.bin", "two.bin", "three.bin"]) {
+      const file = join(directory, name);
+      writeFileSync(file, name);
+      const recorded = success(
+        kernel.execute(
+          envelope(
+            "RecordArtifact",
+            ctx.projectId,
+            ctx.actorId,
+            {
+              run_id: ctx.run.id,
+              source_snapshot_id: snapshot.data.snapshot.id,
+              context_pack_id: ctx.run.context_pack_id,
+              binding_id: ctx.run.binding_id,
+              digest: bytesDigest(name),
+              content_reference: pathToFileURL(file).href,
+              summary: name
+            },
+            revisionOf(kernel, ctx.changeId),
+            ctx.changeId
+          )
+        )
+      );
+      if (!("artifact" in recorded.data)) throw new Error("missing artifact");
+      ids.push(recorded.data.artifact.id);
+    }
+    const first = kernel.getArtifact(ids[0] as never);
+    const second = kernel.getArtifact(ids[1] as never);
+    const third = kernel.getArtifact(ids[2] as never);
+    expect(first).toMatchObject({ id: ids[0], summary: "one.bin" });
+    expect(second).toMatchObject({ id: ids[1], summary: "two.bin" });
+    expect(third).toMatchObject({ id: ids[2], summary: "three.bin" });
+    const bySuccessor = store.transaction((transaction) => ({
+      second: transaction.listArtifactLineageBySuccessor(ids[1] as never),
+      third: transaction.listArtifactLineageBySuccessor(ids[2] as never)
+    }));
+    expect(bySuccessor.second).toEqual([
+      expect.objectContaining({
+        id: expect.stringMatching(/^[0-9a-f-]{36}$/i),
+        predecessor_id: ids[0],
+        successor_id: ids[1]
+      })
+    ]);
+    expect(bySuccessor.third).toEqual([
+      expect.objectContaining({
+        id: expect.stringMatching(/^[0-9a-f-]{36}$/i),
+        predecessor_id: ids[1],
+        successor_id: ids[2]
+      })
+    ]);
+    expect(bySuccessor.third[0]?.id).not.toBe(bySuccessor.second[0]?.id);
+    kernel.rebuildReadModels(ctx.projectId);
+    expect(store.transaction((transaction) => transaction.listArtifactLineageBySuccessor(ids[2] as never))).toEqual(
+      bySuccessor.third
+    );
+    const project = kernel.getProject();
+    if ("code" in project) throw new Error(project.code);
+    const exported = success(
+      kernel.execute({
+        schema_version: SCHEMA_VERSION,
+        command_id: createInternalId(),
+        correlation_id: createInternalId(),
+        command_type: "ExportProject",
+        requested_at: now,
+        actor_id: ctx.actorId,
+        project_id: ctx.projectId,
+        expected_revision: project.revision,
+        source: { origin: "human_cli" as const, producer: "m2-artifact-test", repository_path: directory },
+        payload: { scope: "project" }
+      })
+    );
+    if (!("export_manifest" in exported.data)) throw new Error("missing export");
+    expect(exported.data.export_manifest.entries.some((entry) => entry.object_type === "artifact_lineage")).toBe(true);
+    const targetDir = mkdtempSync(join(tmpdir(), "cimiloop-lineage-import-"));
+    temporaryDirectories.push(targetDir);
+    const targetStore = new SqliteProjectStore(join(targetDir, "project.db"));
+    openStores.push(targetStore);
+    const target = new CimiLoopKernel({ store: targetStore, now: () => now });
+    const bundlePath = join(targetDir, "bundle.json");
+    const bundleBytes = JSON.stringify({ manifest: exported.data.export_manifest });
+    writeFileSync(bundlePath, bundleBytes);
+    const staged = success(
+      target.execute({
+        schema_version: SCHEMA_VERSION,
+        command_id: createInternalId(),
+        correlation_id: createInternalId(),
+        command_type: "StageImport",
+        requested_at: now,
+        actor_id: createInternalId(),
+        project_id: createInternalId(),
+        expected_revision: 1,
+        source: { origin: "human_cli" as const, producer: "m2-artifact-test", repository_path: targetDir },
+        payload: {
+          bundle_reference: `file://${bundlePath.replaceAll("\\", "/")}`,
+          bundle_digest: {
+            algorithm: "sha256",
+            value: createHash("sha256").update(bundleBytes).digest("hex"),
+            subject: "import_bundle"
+          }
+        }
+      })
+    );
+    if (!("import_report" in staged.data)) throw new Error("missing staged import");
+    success(
+      target.execute({
+        schema_version: SCHEMA_VERSION,
+        command_id: createInternalId(),
+        correlation_id: createInternalId(),
+        command_type: "CommitImport",
+        requested_at: now,
+        actor_id: createInternalId(),
+        project_id: createInternalId(),
+        expected_revision: 1,
+        source: { origin: "human_cli" as const, producer: "m2-artifact-test", repository_path: targetDir },
+        payload: { import_report_id: staged.data.import_report.id }
+      })
+    );
+    expect(targetStore.transaction((transaction) => transaction.listArtifactLineageBySuccessor(ids[2] as never))).toEqual(
+      bySuccessor.third
+    );
+    expect(targetStore.transaction((transaction) => transaction.listArtifactLineageBySuccessor(ids[1] as never))).toEqual(
+      bySuccessor.second
+    );
+  });
 });
