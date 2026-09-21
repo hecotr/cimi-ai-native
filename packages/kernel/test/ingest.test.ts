@@ -70,7 +70,7 @@ const envelope = (
   payload
 });
 
-const bootstrap = (kernel: CimiLoopKernel) => {
+const bootstrap = (kernel: CimiLoopKernel, repositoryPath: string) => {
   const initialized = success(
     kernel.execute({
       schema_version: SCHEMA_VERSION,
@@ -84,7 +84,7 @@ const bootstrap = (kernel: CimiLoopKernel) => {
       payload: {
         name: "M3 Ingest",
         repository_kind: "directory",
-        repository_path: "/tmp/m3-ingest",
+        repository_path: repositoryPath,
         owner_name: "Owner"
       }
     })
@@ -214,7 +214,7 @@ describe("evidence ingestion commands", () => {
     const store = new SqliteProjectStore(join(directory, "project.db"));
     openStores.push(store);
     const kernel = new CimiLoopKernel({ store, now: () => now });
-    const ctx = bootstrap(kernel);
+    const ctx = bootstrap(kernel, directory);
     const claim = seedClaim(store, ctx.projectId, ctx.changeId);
     const subjectId = createInternalId();
     const recorded = success(
@@ -273,7 +273,7 @@ describe("evidence ingestion commands", () => {
     const store = new SqliteProjectStore(join(directory, "project.db"));
     openStores.push(store);
     const kernel = new CimiLoopKernel({ store, now: () => now });
-    const ctx = bootstrap(kernel);
+    const ctx = bootstrap(kernel, directory);
     const claim = seedClaim(store, ctx.projectId, ctx.changeId);
     const artifact = seedArtifact(store, ctx.projectId, ctx.changeId);
     const junit = join(directory, "junit.xml");
@@ -337,7 +337,7 @@ describe("evidence ingestion commands", () => {
     const store = new SqliteProjectStore(join(directory, "project.db"));
     openStores.push(store);
     const kernel = new CimiLoopKernel({ store, now: () => now });
-    const ctx = bootstrap(kernel);
+    const ctx = bootstrap(kernel, directory);
     const claim = seedClaim(store, ctx.projectId, ctx.changeId);
     const rejected = failure(
       kernel.execute({

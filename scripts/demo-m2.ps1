@@ -11,12 +11,15 @@ $demoRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("cimiloop-m2-demo-" + [
 $repository = Join-Path $demoRoot "repository"
 $appData = Join-Path $demoRoot "app-data"
 New-Item -ItemType Directory -Path $repository, $appData | Out-Null
-git init $repository | Out-Null
+git -c init.defaultBranch=main init --template= $repository | Out-Null
+Set-Content -Path (Join-Path $repository "README.md") -Value "m2-demo" -Encoding UTF8
+git -C $repository -c user.email=m2-demo@example.com -c user.name="M2 Demo" add README.md | Out-Null
+git -C $repository -c user.email=m2-demo@example.com -c user.name="M2 Demo" commit -m init | Out-Null
 
 $env:LOCALAPPDATA = $appData
 $contractFile = Join-Path $repoRoot "examples\m2\feature-contract.json"
 $planFile = Join-Path $repoRoot "examples\m2\feature-plan.json"
-$artifactFile = Join-Path $demoRoot "artifact.bin"
+$artifactFile = Join-Path $repository "artifact.bin"
 Set-Content -Path $artifactFile -Value "m2-demo-artifact" -Encoding UTF8
 
 function Invoke-CimiLoop {

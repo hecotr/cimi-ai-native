@@ -43,6 +43,8 @@ export const createRunOrchestrator = (
     providers: input.providers,
     actorPermissions: input.actorPermissions,
     providerPermissions: input.providerPermissions,
+    ...(input.workspace ? { workspace: input.workspace } : {}),
+    ...(input.repositoryPath ? { repositoryPath: input.repositoryPath } : {}),
     ...(input.now ? { now: input.now } : {})
   });
 

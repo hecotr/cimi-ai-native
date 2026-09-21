@@ -55,7 +55,7 @@ const envelope = (
   payload
 });
 
-const plannedChange = (kernel: CimiLoopKernel) => {
+const plannedChange = (kernel: CimiLoopKernel, repositoryPath: string) => {
   const initialized = success(
     kernel.execute({
       schema_version: SCHEMA_VERSION,
@@ -69,7 +69,7 @@ const plannedChange = (kernel: CimiLoopKernel) => {
       payload: {
         name: "M2 Scenario",
         repository_kind: "directory",
-        repository_path: "/tmp/m2-scenario",
+        repository_path: repositoryPath,
         owner_name: "Owner"
       }
     })
@@ -172,7 +172,7 @@ describe("M2 execution scenarios", () => {
     const store = new SqliteProjectStore(join(directory, "project.db"));
     openStores.push(store);
     const kernel = new CimiLoopKernel({ store, now: () => now });
-    const ctx = plannedChange(kernel);
+    const ctx = plannedChange(kernel, directory);
     const items = ctx.exec("CreateExecutionWorkItems", { change_id: ctx.changeId });
     if (!("work_items" in items.data) || !items.data.work_items[0]) throw new Error("missing work item");
     const claimed = ctx.exec("ClaimWorkItem", { work_item_id: items.data.work_items[0].id });
@@ -232,7 +232,7 @@ describe("M2 execution scenarios", () => {
     const store = new SqliteProjectStore(join(directory, "project.db"));
     openStores.push(store);
     const kernel = new CimiLoopKernel({ store, now: () => now });
-    const ctx = plannedChange(kernel);
+    const ctx = plannedChange(kernel, directory);
     const items = ctx.exec("CreateExecutionWorkItems", { change_id: ctx.changeId });
     if (!("work_items" in items.data) || !items.data.work_items[0]) throw new Error("missing work item");
     const orchestrator = new RunOrchestrator({

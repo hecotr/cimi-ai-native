@@ -39,9 +39,39 @@ const listedWorktrees = (repositoryPath: string): Set<string> => {
   return paths;
 };
 
-const resolveCommonDir = (cwd: string): string => {
-  const common = git(cwd, ["rev-parse", "--git-common-dir"]);
-  return resolve(cwd, common);
+const readGitdirPointer = (gitMarker: string, fromDirectory: string): string | undefined => {
+  const marker = lstatSync(gitMarker);
+  if (marker.isDirectory()) return resolve(gitMarker);
+  const text = readFileSync(gitMarker, "utf8");
+  const match = text.match(/gitdir:\s*(.+)/i);
+  if (!match?.[1]) return undefined;
+  return resolve(fromDirectory, match[1].trim());
+};
+
+const readHeadSha = (gitDir: string, commonDir: string): string | undefined => {
+  const head = readFileSync(join(gitDir, "HEAD"), "utf8").trim();
+  if (/^[0-9a-f]{40}$/.test(head)) return head;
+  if (!head.startsWith("ref:")) return undefined;
+  const ref = head.slice("ref:".length).trim();
+  const candidates = [join(gitDir, ref), join(commonDir, ref)];
+  for (const candidate of candidates) {
+    if (!existsSync(candidate)) continue;
+    const sha = readFileSync(candidate, "utf8").trim();
+    if (/^[0-9a-f]{40}$/.test(sha)) return sha;
+  }
+  return undefined;
+};
+
+const resolveCommonDir = (repositoryPath: string): string => {
+  const marker = join(repositoryPath, ".git");
+  if (!existsSync(marker)) {
+    throw new WorkspaceError("WORKTREE_UNVERIFIED", "Repository 不是已验证的 Git 工作区");
+  }
+  const pointed = readGitdirPointer(marker, repositoryPath);
+  if (!pointed) {
+    throw new WorkspaceError("WORKTREE_UNVERIFIED", "Repository 不是已验证的 Git 工作区");
+  }
+  return pointed;
 };
 
 export class GitWorktreeWorkspace implements ChangeWorkspace {
@@ -53,9 +83,11 @@ export class GitWorktreeWorkspace implements ChangeWorkspace {
   constructor(input: { repositoryPath: string; worktreeRoot: string }) {
     this.#repositoryPath = resolve(input.repositoryPath);
     this.#worktreeRoot = resolve(input.worktreeRoot);
-    if (git(this.#repositoryPath, ["rev-parse", "--is-inside-work-tree"]) !== "true") {
+    const commonDir = resolveCommonDir(this.#repositoryPath);
+    if (!existsSync(join(commonDir, "HEAD")) || !existsSync(join(commonDir, "objects"))) {
       throw new WorkspaceError("WORKTREE_UNVERIFIED", "Repository 不是已验证的 Git 工作区");
     }
+    this.#repositoryCommonDir = commonDir;
   }
 
   #commonDir(): string {
@@ -90,10 +122,6 @@ export class GitWorktreeWorkspace implements ChangeWorkspace {
       );
       this.#rememberWorktree(worktreePath);
       this.#assertVerified(worktreePath, changeId);
-    }
-    const worktreeHead = git(worktreePath, ["rev-parse", "--verify", "HEAD"]);
-    if (!/^[0-9a-f]{40}$/.test(worktreeHead)) {
-      throw new WorkspaceError("WORKTREE_UNVERIFIED", "Worktree 缺少有效 base revision");
     }
     return { worktreePath, changeId };
   }
@@ -134,9 +162,13 @@ export class GitWorktreeWorkspace implements ChangeWorkspace {
     if (marker.isDirectory()) {
       throw new WorkspaceError("WORKTREE_UNVERIFIED", "禁止把主仓库目录冒充为隔离 worktree");
     }
-    const gitFile = readFileSync(gitMarker, "utf8");
-    if (!/gitdir:/i.test(gitFile)) {
+    const gitDir = readGitdirPointer(gitMarker, resolved);
+    if (!gitDir) {
       throw new WorkspaceError("WORKTREE_UNVERIFIED", "目录不是 Git worktree");
+    }
+    const worktreeGitRoot = join(this.#commonDir(), "worktrees");
+    if (!isInside(worktreeGitRoot, gitDir)) {
+      throw new WorkspaceError("WORKTREE_UNVERIFIED", "Worktree 不属于当前 Repository");
     }
     if (!this.#worktrees().has(resolved)) {
       this.#listedWorktrees = listedWorktrees(this.#repositoryPath);
@@ -144,11 +176,8 @@ export class GitWorktreeWorkspace implements ChangeWorkspace {
         throw new WorkspaceError("WORKTREE_UNVERIFIED", "路径未登记为 Git worktree");
       }
     }
-    if (git(resolved, ["rev-parse", "--is-inside-work-tree"]) !== "true") {
-      throw new WorkspaceError("WORKTREE_UNVERIFIED", "目录不是 Git worktree");
-    }
-    if (resolveCommonDir(resolved) !== this.#commonDir()) {
-      throw new WorkspaceError("WORKTREE_UNVERIFIED", "Worktree 不属于当前 Repository");
+    if (!readHeadSha(gitDir, this.#commonDir())) {
+      throw new WorkspaceError("WORKTREE_UNVERIFIED", "Worktree 缺少有效 base revision");
     }
   }
 }

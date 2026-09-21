@@ -613,11 +613,21 @@ export const executeWorkItem = async (
   try {
     const workItem = context.kernel.getWorkItem(workItemId as InternalId);
     if (isDomainError(workItem)) return outputError(workItem, Boolean(options.json));
-    const workspace = new GitWorktreeWorkspace({
-      repositoryPath: context.location.repositoryPath,
-      worktreeRoot: join(context.location.dataDirectory, "worktrees")
-    });
-    const worktree = workspace.ensureWorktree(workItem.change_id);
+    let workspace: GitWorktreeWorkspace;
+    let worktree: { worktreePath: string };
+    try {
+      workspace = new GitWorktreeWorkspace({
+        repositoryPath: context.location.repositoryPath,
+        worktreeRoot: join(context.location.dataDirectory, "worktrees")
+      });
+      worktree = workspace.ensureWorktree(workItem.change_id);
+    } catch (error) {
+      const code =
+        error instanceof Error && "code" in error && typeof error.code === "string"
+          ? error.code
+          : "WORKTREE_UNVERIFIED";
+      return outputError(inputError(code, safeFailureMessage(code)), Boolean(options.json));
+    }
     const orchestrator = createRunOrchestrator(context.kernel, {
       runtime: new ClaudeCodeRuntimeAdapter({
         executable: options.executable,

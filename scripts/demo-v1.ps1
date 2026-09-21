@@ -13,12 +13,15 @@ $demoRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("cimiloop-v1-demo-" + [
 $repository = Join-Path $demoRoot "repository"
 $appData = Join-Path $demoRoot "app-data"
 New-Item -ItemType Directory -Path $repository, $appData | Out-Null
-git init $repository | Out-Null
+git -c init.defaultBranch=main init --template= $repository | Out-Null
+Set-Content -Path (Join-Path $repository "README.md") -Value "v1-demo" -Encoding UTF8
+git -C $repository -c user.email=v1-demo@example.com -c user.name="V1 Demo" add README.md | Out-Null
+git -C $repository -c user.email=v1-demo@example.com -c user.name="V1 Demo" commit -m init | Out-Null
 
 $env:LOCALAPPDATA = $appData
 $contractFile = Join-Path $repoRoot "examples\m2\feature-contract.json"
 $planFile = Join-Path $repoRoot "examples\m2\feature-plan.json"
-$artifactFile = Join-Path $demoRoot "artifact.bin"
+$artifactFile = Join-Path $repository "artifact.bin"
 Set-Content -Path $artifactFile -Value "v1-demo-artifact" -Encoding UTF8
 
 function Invoke-CimiLoop {
@@ -62,7 +65,7 @@ $runs = Invoke-CimiLoop run list $workItemId
 $artifact = Invoke-CimiLoop artifact record $runs.runs[0].id --file $artifactFile --summary "V1 demo artifact"
 $artifactId = $artifact.data.artifact.id
 $artifactDigest = $artifact.data.artifact.digest.value
-$junit = Join-Path $demoRoot "junit.xml"
+$junit = Join-Path $repository "junit.xml"
 Set-Content -Path $junit -Value '<testsuite failures="0" tests="1"></testsuite>' -Encoding ASCII
 $claim = Invoke-CimiLoop claim submit CHG-0001 --key "AC-run" --statement "Claimed Work Item produced Run and Artifact." --category intent --obligation required --source acceptance
 $integrity = Invoke-CimiLoop claim submit CHG-0001 --key "integrity.digest" --statement "Artifact digest is independently verified." --category integrity --obligation required --source contract

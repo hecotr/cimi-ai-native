@@ -24,8 +24,9 @@ export const captureSourceSnapshot = (
     throw new Error("SourceSnapshot 无法读取 Git commit/tree");
   }
   const status = git(input.worktreePath, ["status", "--porcelain=v1", "--untracked-files=all"]);
-  const diff = git(input.worktreePath, ["diff", "--no-ext-diff", "--no-color", "HEAD"]);
-  const dirty = status.length > 0 || diff.length > 0;
+  const diff =
+    status.length === 0 ? "" : git(input.worktreePath, ["diff", "--no-ext-diff", "--no-color", "HEAD"]);
+  const dirty = status.length > 0;
   const digestValue = createHash("sha256")
     .update(JSON.stringify({ commitSha, treeSha, status, diff }))
     .digest("hex");

@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import {
   parseArtifactShowResult,
   parseCommandResult,
@@ -29,7 +29,7 @@ const run = (projectDirectory: string, appData: string, args: string[]): unknown
   return JSON.parse(output);
 };
 
-afterEach(() => {
+afterAll(() => {
   while (temporaryDirectories.length > 0) {
     const directory = temporaryDirectories.pop();
     if (directory) rmSync(directory, { recursive: true, force: true });
@@ -100,7 +100,15 @@ describe("cimiloop M2 CLI", () => {
     temporaryDirectories.push(root);
     const repository = join(root, "repository");
     const appData = join(root, "app-data");
-    execFileSync("git", ["init", repository], { stdio: "ignore" });
+    execFileSync("git", ["-c", "init.defaultBranch=main", "init", "--template=", repository], { stdio: "ignore" });
+    writeFileSync(join(repository, "README.md"), "m2-cli\n");
+    execFileSync("git", ["-C", repository, "-c", "user.email=m2@example.com", "-c", "user.name=M2", "add", "README.md"], {
+      stdio: "ignore"
+    });
+    execFileSync("git", ["-C", repository, "-c", "user.email=m2@example.com", "-c", "user.name=M2", "commit", "-m", "init"], {
+      stdio: "ignore"
+    });
+    writeFileSync(join(repository, "out.bin"), "cli-artifact");
     run(repository, appData, ["init", "--owner-name", "M2 Owner", "--owner-email", "m2@example.com", "--yes"]);
     const created = run(repository, appData, ["change", "create", "--title", "CLI M2"]) as {
       data: { change: { id: string } };
@@ -160,7 +168,7 @@ describe("cimiloop M2 CLI", () => {
         "record",
         runs.runs[0]?.id ?? "",
         "--file",
-        join(root, "out.bin"),
+        join(repository, "out.bin"),
         "--summary",
         "cli artifact"
       ])
@@ -169,7 +177,7 @@ describe("cimiloop M2 CLI", () => {
     expect("artifact" in recorded.data).toBe(true);
     if ("artifact" in recorded.data) {
       const shown = parseArtifactShowResult(run(repository, appData, ["artifact", "show", recorded.data.artifact.id]));
-      expect(shown.artifact.content_reference.startsWith("file:")).toBe(true);
+      expect(shown.artifact.content_reference.startsWith("cimi-file://repository/")).toBe(true);
     }
   }, 240_000);
 });

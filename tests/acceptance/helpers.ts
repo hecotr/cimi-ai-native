@@ -102,8 +102,15 @@ export const recovery = (scope: string) => ({
 
 export const openAcceptanceProject = (prefix: string) => {
   const directory = mkdtempSync(join(tmpdir(), prefix));
-  execFileSync("git", ["init"], { cwd: directory, stdio: "ignore" });
+  execFileSync("git", ["-c", "init.defaultBranch=main", "init", "--template="], { cwd: directory, stdio: "ignore" });
+  writeFileSync(join(directory, "README.md"), "acceptance\n");
   writeFileSync(join(directory, "artifact.bin"), "v1-north-star-artifact");
+  execFileSync("git", ["-C", directory, "-c", "user.email=v1@example.com", "-c", "user.name=V1", "add", "README.md"], {
+    stdio: "ignore"
+  });
+  execFileSync("git", ["-C", directory, "-c", "user.email=v1@example.com", "-c", "user.name=V1", "commit", "-m", "init"], {
+    stdio: "ignore"
+  });
   const store = new SqliteProjectStore(join(directory, "project.db"));
   const kernel = new CimiLoopKernel({ store, now: () => now });
   const initialized = success(

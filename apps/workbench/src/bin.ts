@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { DeterministicDevOpsAdapter } from "@cimiloop/devops";
 import { CimiLoopKernel } from "@cimiloop/kernel";
+import { ExternalDeliveryWorker } from "@cimiloop/orchestrator";
 import { SqliteProjectStore } from "@cimiloop/store-sqlite";
 import { readFileSync } from "node:fs";
 import { startWorkbench } from "./server.js";
@@ -28,6 +30,15 @@ const instance = JSON.parse(readFileSync(instancePath, "utf8")) as {
 };
 const store = new SqliteProjectStore(databasePath);
 const kernel = new CimiLoopKernel({ store });
+const worker = new ExternalDeliveryWorker({
+  kernel,
+  store,
+  adapter: new DeterministicDevOpsAdapter(),
+  projectId: instance.project_id as never,
+  actorId: instance.actor_id as never,
+  workingDirectory: projectDir
+});
+void worker.start();
 const workbench = await startWorkbench({
   kernel,
   projectId: instance.project_id as never,
@@ -38,6 +49,7 @@ const workbench = await startWorkbench({
 });
 
 const shutdown = async (): Promise<void> => {
+  worker.stop();
   await workbench.close();
   store.close();
   process.exit(0);

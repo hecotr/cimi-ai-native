@@ -239,8 +239,9 @@ const provider = (projectId: InternalId): ProviderDescriptor => ({
   created_at: now
 });
 
+const gitEnv = { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0" };
+
 const initGitRepo = (directory: string): void => {
-  const gitEnv = { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0" };
   execFileSync("git", ["-c", "init.defaultBranch=main", "init", "--template=", directory], {
     stdio: "ignore",
     env: gitEnv
@@ -258,10 +259,22 @@ const initGitRepo = (directory: string): void => {
   );
 };
 
-const openPlanned = () => {
-  const directory = mkdtempSync(join(tmpdir(), "cimiloop-m2-orch-"));
+const gitTemplateDirectory = (() => {
+  const directory = mkdtempSync(join(tmpdir(), "cimiloop-orch-template-"));
   temporaryDirectories.push(directory);
   initGitRepo(directory);
+  return directory;
+})();
+
+const openPlanned = () => {
+  const parent = mkdtempSync(join(tmpdir(), "cimiloop-m2-orch-"));
+  temporaryDirectories.push(parent);
+  const directory = join(parent, "repo");
+  execFileSync(
+    "git",
+    ["-c", "protocol.file.allow=always", "clone", "--local", gitTemplateDirectory, directory],
+    { stdio: "ignore", env: gitEnv }
+  );
   mkdirSync(join(directory, "context"));
   const raw = new SqliteProjectStore(join(directory, "project.db"));
   openStores.push(raw);

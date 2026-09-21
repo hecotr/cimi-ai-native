@@ -4465,6 +4465,7 @@ export class CimiLoopKernel {
         "conflict"
       );
     }
+    let contentReference = command.payload.content_reference;
     if (command.payload.content_reference.startsWith("file:")) {
       const resolved = resolveAuthorizedFileReference(
         command.payload.content_reference,
@@ -4479,6 +4480,7 @@ export class CimiLoopKernel {
           "validation"
         );
       }
+      contentReference = resolved.storedReference;
     }
     const referenced = readPromotableReference(command.payload.content_reference);
     const parsed =
@@ -4496,7 +4498,7 @@ export class CimiLoopKernel {
       subject_type: "artifact",
       subject_id: command.payload.artifact_id,
       subject_digest: artifact.digest,
-      content_reference: command.payload.content_reference,
+      content_reference: contentReference,
       digest: command.payload.digest,
       producer_role: "deterministic_test",
       created_at: now,
