@@ -696,16 +696,39 @@ export const recordArtifact = (
     if (isDomainError(run)) return outputError(run, Boolean(options.json));
     if (!existsSync(options.file)) writeFileSync(options.file, "");
     const bytes = readFileSync(options.file);
+    let captured;
+    try {
+      const workspace = new GitWorktreeWorkspace({
+        repositoryPath: context.location.repositoryPath,
+        worktreeRoot: join(context.location.dataDirectory, "worktrees")
+      });
+      const worktree = workspace.ensureWorktree(run.change_id);
+      captured = workspace.captureSnapshot({
+        projectId: context.instance.project_id,
+        changeId: run.change_id,
+        workItemId: run.work_item_id,
+        runId: run.id,
+        worktreePath: worktree.worktreePath
+      });
+    } catch (error) {
+      const code =
+        error instanceof Error && "code" in error && typeof error.code === "string"
+          ? error.code
+          : "WORKTREE_UNVERIFIED";
+      return outputError(inputError(code, safeFailureMessage(code)), Boolean(options.json));
+    }
     const snapshot = mutate(
       context,
       run.change_id,
       "RecordSourceSnapshot",
       {
         run_id: run.id,
-        snapshot_kind: "explicit_dirty_manifest",
-        dirty: true,
-        digest: sha256(run.id, "source_snapshot"),
-        content_reference: `worktree://${run.change_id}#dirty`
+        snapshot_kind: captured.snapshot_kind,
+        dirty: captured.dirty,
+        digest: captured.digest,
+        content_reference: captured.content_reference,
+        ...(captured.commit_sha ? { commit_sha: captured.commit_sha } : {}),
+        ...(captured.tree_sha ? { tree_sha: captured.tree_sha } : {})
       },
       options
     );

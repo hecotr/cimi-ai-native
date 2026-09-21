@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -11,6 +12,7 @@ import {
   parseWorkItemListResult,
   parseWorkItemShowResult
 } from "../../packages/protocol/src/index.js";
+import { SqliteProjectStore } from "../../packages/store-sqlite/src/project-store.js";
 
 const temporaryDirectories: string[] = [];
 const cli = resolve("apps/cli/dist/bin.js");
@@ -178,6 +180,19 @@ describe("cimiloop M2 CLI", () => {
     if ("artifact" in recorded.data) {
       const shown = parseArtifactShowResult(run(repository, appData, ["artifact", "show", recorded.data.artifact.id]));
       expect(shown.artifact.content_reference.startsWith("cimi-file://repository/")).toBe(true);
+      const forgedDigest = createHash("sha256").update(runs.runs[0]?.id ?? "").digest("hex");
+      const store = new SqliteProjectStore(join(repository, ".git", "cimiloop", "project.db"));
+      try {
+        const snapshot = store.transaction((transaction) =>
+          transaction.getSourceSnapshot(shown.artifact.source_snapshot_id)
+        );
+        expect(snapshot?.commit_sha).toMatch(/^[0-9a-f]{40}$/);
+        expect(snapshot?.digest.value).toMatch(/^[0-9a-f]{64}$/);
+        expect(snapshot?.digest.value).not.toBe(forgedDigest);
+        expect(snapshot?.run_id).toBe(runs.runs[0]?.id);
+      } finally {
+        store.close();
+      }
     }
   }, 240_000);
 });
