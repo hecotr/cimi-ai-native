@@ -13,6 +13,7 @@
     "@cimiloop/protocol": "workspace:*",
     "@cimiloop/runtime-claude-code": "workspace:*",
     "@cimiloop/store-sqlite": "workspace:*",
+    "@cimiloop/workspace-git": "workspace:*",
     "commander": "15.0.0"
   }
 }

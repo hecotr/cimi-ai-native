@@ -14,6 +14,7 @@ import type {
   WorkItem
 } from "@cimiloop/protocol";
 import type { RuntimeAdapter } from "@cimiloop/runtime";
+import type { ChangeWorkspace } from "@cimiloop/workspace-git";
 
 export interface OrchestratorKernel {
   execute(input: unknown): KernelResult;
@@ -46,7 +47,10 @@ export interface OrchestratorDependencies {
   providers: ProviderDescriptor[];
   actorPermissions: string[];
   providerPermissions: string[];
+  workspace?: ChangeWorkspace;
+  repositoryPath?: string;
   now?: () => string;
+  logger?: { error(message: string, diagnostic: string): void };
 }
 
 export type OrchestratorResult =

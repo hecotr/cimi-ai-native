@@ -13,6 +13,7 @@ import {
   type WorkItem
 } from "@cimiloop/protocol";
 import { evaluationCapabilityRequirement, isolateEvaluatorWorkItem } from "./isolation.js";
+import { orchestratorFailure, sanitizeOrchestratorError } from "./errors.js";
 import type { OrchestratorDependencies, OrchestratorResult, RecoveryResult } from "./ports.js";
 
 const isError = (result: KernelResult): result is DomainError => "code" in result;
@@ -24,18 +25,20 @@ export class RunOrchestrator {
     this.#deps = dependencies;
   }
 
-  async executeReadyWorkItem(changeId: InternalId): Promise<OrchestratorResult> {
+  async executeReadyWorkItem(changeId: InternalId, workItemId?: InternalId): Promise<OrchestratorResult> {
     try {
       const scheduled = this.#command("CreateExecutionWorkItems", { change_id: changeId }, changeId);
-      if (isError(scheduled)) return { kind: "failed", error: scheduled.code };
-      const workItem = this.#selectWorkItem(changeId);
-      if (!workItem) return { kind: "failed", error: "NO_READY_WORK_ITEM" };
+      if (isError(scheduled)) return orchestratorFailure(scheduled.code);
+      const workItem = this.#selectWorkItem(changeId, workItemId);
+      if (!workItem) {
+        return orchestratorFailure(workItemId ? "WORK_ITEM_NOT_EXECUTABLE" : "NO_READY_WORK_ITEM");
+      }
 
       let current = workItem;
       if (current.status === "ready") {
         const claimed = this.#command("ClaimWorkItem", { work_item_id: current.id }, changeId);
         if (isError(claimed) || !("work_item" in claimed.data)) {
-          return { kind: "failed", error: isError(claimed) ? claimed.code : "CLAIM_FAILED" };
+          return orchestratorFailure(isError(claimed) ? claimed.code : "CLAIM_FAILED");
         }
         current = claimed.data.work_item;
       }
@@ -43,7 +46,7 @@ export class RunOrchestrator {
       if (current.kind === "evaluation") {
         const isolation = isolateEvaluatorWorkItem(current);
         if (isolation.kind === "allowed") {
-          return { kind: "failed", error: "EVALUATOR_WRITE_DENIED" };
+          return orchestratorFailure("EVALUATOR_WRITE_DENIED");
         }
       }
       const sources = this.#sources(current);
@@ -53,8 +56,8 @@ export class RunOrchestrator {
         available_sources: sources
       });
       if (pack.kind !== "pack") return { kind: "blocked", workItemId: current.id, code: pack.blocker.code };
+
       mkdirSync(this.#deps.contextDirectory, { recursive: true });
-      mkdirSync(this.#deps.worktreePath, { recursive: true });
       const manifestPath = join(this.#deps.contextDirectory, `${pack.manifest.id}.json`);
       writeFileSync(manifestPath, `${JSON.stringify(pack.manifest)}\n`);
 
@@ -72,6 +75,7 @@ export class RunOrchestrator {
       if (resolved.kind === "blocker") {
         return { kind: "blocked", workItemId: current.id, code: resolved.blocker.code };
       }
+      const worktreePath = this.#ensureWorktree(changeId);
 
       const started = this.#command(
         "StartRun",
@@ -83,19 +87,43 @@ export class RunOrchestrator {
         changeId
       );
       if (isError(started) || !("run" in started.data)) {
-        return { kind: "failed", error: isError(started) ? started.code : "START_RUN_FAILED" };
+        return orchestratorFailure(isError(started) ? started.code : "START_RUN_FAILED");
       }
       const run = started.data.run;
       this.#deps.processRegistry.remember(run.id, run.process_reference ?? `run://${run.id}`, false);
 
+      const snapshot = this.#deps.workspace?.captureSnapshot({
+        projectId: this.#deps.projectId,
+        changeId,
+        workItemId: current.id,
+        runId: run.id,
+        worktreePath
+      });
+      if (snapshot) {
+        const recorded = this.#command(
+          "RecordSourceSnapshot",
+          {
+            run_id: run.id,
+            snapshot_kind: snapshot.snapshot_kind,
+            dirty: snapshot.dirty,
+            ...(snapshot.commit_sha ? { commit_sha: snapshot.commit_sha } : {}),
+            ...(snapshot.tree_sha ? { tree_sha: snapshot.tree_sha } : {}),
+            digest: snapshot.digest,
+            content_reference: snapshot.content_reference
+          },
+          changeId
+        );
+        if (isError(recorded)) return orchestratorFailure(recorded.code);
+      }
+
       const binding = run.binding_id ? this.#deps.kernel.getCapabilityBinding(run.binding_id) : resolved.binding;
       if (!binding || "code" in binding) {
-        return { kind: "failed", error: "BINDING_NOT_FOUND" };
+        return orchestratorFailure("BINDING_NOT_FOUND");
       }
       const session = await this.#deps.runtime.start({
         workItem: current,
         contextManifestPath: manifestPath,
-        worktreePath: this.#deps.worktreePath,
+        worktreePath,
         binding
       });
       this.#deps.processRegistry.remember(run.id, session.processReference, true);
@@ -115,7 +143,7 @@ export class RunOrchestrator {
           changeId
         );
         if (isError(completed) || !("run" in completed.data)) {
-          return { kind: "failed", error: isError(completed) ? completed.code : "COMPLETE_RUN_FAILED" };
+          return orchestratorFailure(isError(completed) ? completed.code : "COMPLETE_RUN_FAILED");
         }
         return { kind: "completed", workItemId: current.id, run: completed.data.run };
       }
@@ -132,11 +160,11 @@ export class RunOrchestrator {
         changeId
       );
       if (isError(failed) || !("run" in failed.data)) {
-        return { kind: "failed", error: isError(failed) ? failed.code : "FAIL_RUN_FAILED" };
+        return orchestratorFailure(isError(failed) ? failed.code : "FAIL_RUN_FAILED");
       }
       return { kind: "unknown", workItemId: current.id, run: failed.data.run };
     } catch (error) {
-      return { kind: "failed", error: error instanceof Error ? error.message : "ORCHESTRATOR_FAILURE" };
+      return sanitizeOrchestratorError(error, this.#deps.logger);
     }
   }
 
@@ -166,11 +194,33 @@ export class RunOrchestrator {
     return { restarted: false, heartbeated, failed };
   }
 
-  #selectWorkItem(changeId: InternalId): WorkItem | undefined {
-    const items = this.#deps.kernel.listWorkItemsByChange(changeId).filter((item) => item.kind === "execution");
+  #ensureWorktree(changeId: InternalId): string {
+    if (!this.#deps.workspace) {
+      throw Object.assign(new Error("WORKTREE_REQUIRED"), { code: "WORKTREE_REQUIRED" });
+    }
+    const location = this.#deps.workspace.ensureWorktree(changeId);
+    return location.worktreePath;
+  }
+
+  #selectWorkItem(changeId: InternalId, workItemId?: InternalId): WorkItem | undefined {
+    const items = this.#deps.kernel.listWorkItemsByChange(changeId);
+    if (workItemId) {
+      const selected = this.#deps.kernel.getWorkItem(workItemId);
+      if (!selected || "code" in selected) {
+        throw Object.assign(new Error("WORK_ITEM_NOT_FOUND"), { code: "WORK_ITEM_NOT_FOUND" });
+      }
+      if (selected.change_id !== changeId) {
+        throw Object.assign(new Error("WORK_ITEM_CHANGE_MISMATCH"), { code: "WORK_ITEM_CHANGE_MISMATCH" });
+      }
+      if (selected.status !== "ready" && selected.status !== "claimed" && selected.status !== "running") {
+        return undefined;
+      }
+      return selected;
+    }
+    const execution = items.filter((item) => item.kind === "execution");
     return (
-      items.find((item) => item.status === "claimed" || item.status === "running") ??
-      items.find((item) => item.status === "ready")
+      execution.find((item) => item.status === "claimed" || item.status === "running") ??
+      execution.find((item) => item.status === "ready")
     );
   }
 

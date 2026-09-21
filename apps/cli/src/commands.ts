@@ -32,8 +32,10 @@ import {
   type InternalId,
   type ProviderDescriptor
 } from "@cimiloop/protocol";
+import { safeFailureMessage } from "@cimiloop/orchestrator";
 import { ClaudeCodeRuntimeAdapter } from "@cimiloop/runtime-claude-code";
 import { SqliteProjectRegistry, SqliteProjectStore } from "@cimiloop/store-sqlite";
+import { GitWorktreeWorkspace } from "@cimiloop/workspace-git";
 import { createDeliveryWorker, createRunOrchestrator, openProject } from "./composition.js";
 import { writeInstance } from "./instance.js";
 import { locateProject, readGitIdentity, registryDatabasePath } from "./location.js";
@@ -611,6 +613,11 @@ export const executeWorkItem = async (
   try {
     const workItem = context.kernel.getWorkItem(workItemId as InternalId);
     if (isDomainError(workItem)) return outputError(workItem, Boolean(options.json));
+    const workspace = new GitWorktreeWorkspace({
+      repositoryPath: context.location.repositoryPath,
+      worktreeRoot: join(context.location.dataDirectory, "worktrees")
+    });
+    const worktree = workspace.ensureWorktree(workItem.change_id);
     const orchestrator = createRunOrchestrator(context.kernel, {
       runtime: new ClaudeCodeRuntimeAdapter({
         executable: options.executable,
@@ -619,15 +626,17 @@ export const executeWorkItem = async (
       }),
       projectId: context.instance.project_id,
       actorId: context.instance.actor_id,
-      worktreePath: join(context.location.dataDirectory, "worktrees", workItem.change_id),
+      worktreePath: worktree.worktreePath,
+      workspace,
+      repositoryPath: context.location.repositoryPath,
       contextDirectory: join(context.location.dataDirectory, "context"),
       providers: [defaultProvider(context.instance.project_id)],
       actorPermissions: ["workspace.write", "git.commit"],
       providerPermissions: ["workspace.write", "git.commit"]
     });
-    const result = await orchestrator.executeReadyWorkItem(workItem.change_id);
+    const result = await orchestrator.executeReadyWorkItem(workItem.change_id, workItem.id);
     if (result.kind === "failed") {
-      return outputError(inputError("ORCHESTRATOR_FAILURE", result.error), Boolean(options.json));
+      return outputError(inputError(result.error, safeFailureMessage(result.error)), Boolean(options.json));
     }
     if (result.kind === "blocked") {
       return outputError(inputError(result.code, "缺少执行能力"), Boolean(options.json));

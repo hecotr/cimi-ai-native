@@ -16,6 +16,7 @@
     "@cimiloop/kernel": "workspace:*",
     "@cimiloop/protocol": "workspace:*",
     "@cimiloop/runtime": "workspace:*",
-    "@cimiloop/store": "workspace:*"
+    "@cimiloop/store": "workspace:*",
+    "@cimiloop/workspace-git": "workspace:*"
   }
 }

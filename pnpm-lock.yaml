@@ -196,6 +196,9 @@ importers:
       '@cimiloop/store-sqlite':
         specifier: workspace:*
         version: link:../../packages/store-sqlite
+      '@cimiloop/workspace-git':
+        specifier: workspace:*
+        version: link:../../packages/workspace-git
       commander:
         specifier: 15.0.0
         version: 15.0.0
@@ -280,6 +283,9 @@ importers:
       '@cimiloop/store':
         specifier: workspace:*
         version: link:../store
+      '@cimiloop/workspace-git':
+        specifier: workspace:*
+        version: link:../workspace-git
 
   packages/portability:
     dependencies:

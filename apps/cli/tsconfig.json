@@ -11,6 +11,8 @@
     { "path": "../../packages/kernel" },
     { "path": "../../packages/orchestrator" },
     { "path": "../../packages/runtime-claude-code" },
-    { "path": "../../packages/store-sqlite" }
+    { "path": "../../packages/store-sqlite" },
+    { "path": "../../packages/devops" },
+    { "path": "../../packages/workspace-git" }
   ]
 }

@@ -1,7 +1,10 @@
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
+import { GitWorktreeWorkspace } from "../../workspace-git/src/index.js";
 import { CimiLoopKernel } from "../../kernel/src/kernel.js";
 import {
   SCHEMA_VERSION,
@@ -26,6 +29,9 @@ afterEach(() => {
   while (openStores.length > 0) {
     openStores.pop()?.close();
   }
+});
+
+afterAll(() => {
   while (temporaryDirectories.length > 0) {
     const directory = temporaryDirectories.pop();
     if (directory) rmSync(directory, { recursive: true, force: true });
@@ -146,6 +152,15 @@ const wrapStore = (store: SqliteProjectStore, fault?: "insertAgentRun" | "afterS
   claimOutbox: (nowValue, leaseUntil) => store.claimOutbox(nowValue, leaseUntil),
   markOutboxDelivered: (messageId, deliveredAt) => store.markOutboxDelivered(messageId, deliveredAt),
   releaseOutbox: (messageId, availableAt) => store.releaseOutbox(messageId, availableAt),
+  claimExternalOperation: (input) => store.claimExternalOperation(input),
+  markExternalOperationInvokeStarted: (operationId, ownerId, at) =>
+    store.markExternalOperationInvokeStarted(operationId, ownerId, at),
+  markExternalOperationInvokeFinished: (operationId, ownerId, at, result) =>
+    store.markExternalOperationInvokeFinished(operationId, ownerId, at, result),
+  getExternalOperationLease: (operationId) => store.getExternalOperationLease(operationId),
+  listInvokedUnrecordedOperations: () => store.listInvokedUnrecordedOperations(),
+  listAbandonedExternalInvokes: (at) => store.listAbandonedExternalInvokes(at),
+  releaseExternalOperationLease: (operationId) => store.releaseExternalOperationLease(operationId),
   close: () => store.close()
 });
 
@@ -224,9 +239,29 @@ const provider = (projectId: InternalId): ProviderDescriptor => ({
   created_at: now
 });
 
+const initGitRepo = (directory: string): void => {
+  const gitEnv = { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0" };
+  execFileSync("git", ["-c", "init.defaultBranch=main", "init", "--template=", directory], {
+    stdio: "ignore",
+    env: gitEnv
+  });
+  writeFileSync(join(directory, "README.md"), "orch\n");
+  execFileSync(
+    "git",
+    ["-C", directory, "-c", "user.email=orch@example.com", "-c", "user.name=Orch", "add", "README.md"],
+    { stdio: "ignore", env: gitEnv }
+  );
+  execFileSync(
+    "git",
+    ["-C", directory, "-c", "user.email=orch@example.com", "-c", "user.name=Orch", "commit", "-m", "init"],
+    { stdio: "ignore", env: gitEnv }
+  );
+};
+
 const openPlanned = () => {
   const directory = mkdtempSync(join(tmpdir(), "cimiloop-m2-orch-"));
   temporaryDirectories.push(directory);
+  initGitRepo(directory);
   mkdirSync(join(directory, "context"));
   const raw = new SqliteProjectStore(join(directory, "project.db"));
   openStores.push(raw);
@@ -347,7 +382,12 @@ const createOrchestrator = (
     processRegistry: registry,
     projectId,
     actorId,
-    worktreePath: join(directory, "worktree"),
+    worktreePath: join(directory, "worktrees"),
+    workspace: new GitWorktreeWorkspace({
+      repositoryPath: directory,
+      worktreeRoot: join(directory, "worktrees")
+    }),
+    repositoryPath: directory,
     contextDirectory: join(directory, "context"),
     providers: [provider(projectId)],
     actorPermissions: ["workspace.write", "git.commit"],
@@ -412,18 +452,7 @@ describe("M2 run orchestrator", () => {
     const runs = execution ? planned.kernel.listAgentRuns(execution.id) : [];
     expect(runs.length).toBeGreaterThan(0);
     if (runs[0]) registry.remember(runs[0].id, "pid://recovered", true);
-    const recovered = new RunOrchestrator({
-      kernel: planned.kernel,
-      runtime,
-      processRegistry: registry,
-      projectId: planned.projectId,
-      actorId: planned.actorId,
-      worktreePath: join(planned.directory, "worktree"),
-      contextDirectory: join(planned.directory, "context"),
-      providers: [provider(planned.projectId)],
-      actorPermissions: ["workspace.write", "git.commit"],
-      providerPermissions: ["workspace.write", "git.commit"]
-    });
+    const recovered = createOrchestrator(planned.kernel, planned.projectId, planned.actorId, planned.directory, runtime, registry);
     const recovery = await recovered.recover(planned.changeId);
     expect(recovery.restarted).toBe(false);
     expect(runtime.starts).toBe(0);
@@ -469,5 +498,185 @@ describe("M2 run orchestrator", () => {
     expect(planned.kernel.listOpenBlockers(planned.changeId).some((blocker) => blocker.code === "RUNTIME_TIMEOUT")).toBe(
       true
     );
+  });
+
+  it("executes only the specified work item when multiple items are ready", async () => {
+    const planned = openPlanned();
+    const orchestrator = createOrchestrator(
+      planned.kernel,
+      planned.projectId,
+      planned.actorId,
+      planned.directory,
+      new FakeRuntime()
+    );
+    const change = planned.kernel.getChange(planned.changeId);
+    if ("code" in change) throw new Error(change.code);
+    success(
+      planned.kernel.execute(
+        envelope(
+          "CreateExecutionWorkItems",
+          planned.projectId,
+          planned.actorId,
+          { change_id: planned.changeId },
+          change.revision,
+          planned.changeId
+        )
+      )
+    );
+    const original = planned.kernel
+      .listWorkItemsByChange(planned.changeId)
+      .find((item) => item.kind === "execution" && item.status === "ready");
+    if (!original) throw new Error("missing original");
+    const extraId = createInternalId();
+    planned.raw.transaction((transaction) => {
+      transaction.insertWorkItem({
+        ...original,
+        id: extraId,
+        status: "ready",
+        revision: 1
+      });
+    });
+    const targeted = await orchestrator.executeReadyWorkItem(planned.changeId, extraId);
+    expect(targeted.kind).toBe("completed");
+    if (targeted.kind !== "completed") throw new Error("expected targeted");
+    expect(targeted.workItemId).toBe(extraId);
+    expect(targeted.workItemId).not.toBe(original.id);
+    expect(planned.kernel.getWorkItem(original.id)).toMatchObject({ id: original.id, status: "ready" });
+  });
+
+  it("executes two ready work items in parallel without swapping the requested ids", async () => {
+    const planned = openPlanned();
+    const change = planned.kernel.getChange(planned.changeId);
+    if ("code" in change) throw new Error(change.code);
+    success(
+      planned.kernel.execute(
+        envelope(
+          "CreateExecutionWorkItems",
+          planned.projectId,
+          planned.actorId,
+          { change_id: planned.changeId },
+          change.revision,
+          planned.changeId
+        )
+      )
+    );
+    const original = planned.kernel
+      .listWorkItemsByChange(planned.changeId)
+      .find((item) => item.kind === "execution" && item.status === "ready");
+    if (!original) throw new Error("missing original");
+    const firstId = createInternalId();
+    const secondId = createInternalId();
+    planned.raw.transaction((transaction) => {
+      transaction.insertWorkItem({ ...original, id: firstId, status: "ready", revision: 1 });
+      transaction.insertWorkItem({ ...original, id: secondId, status: "ready", revision: 1 });
+    });
+    const [first, second] = await Promise.all([
+      createOrchestrator(
+        planned.kernel,
+        planned.projectId,
+        planned.actorId,
+        planned.directory,
+        new FakeRuntime()
+      ).executeReadyWorkItem(planned.changeId, firstId),
+      createOrchestrator(
+        planned.kernel,
+        planned.projectId,
+        planned.actorId,
+        planned.directory,
+        new FakeRuntime()
+      ).executeReadyWorkItem(planned.changeId, secondId)
+    ]);
+    const executed = [first, second].filter((item) => item.kind === "completed");
+    expect(executed.length).toBeGreaterThanOrEqual(1);
+    expect(executed.every((item) => item.kind === "completed" && (item.workItemId === firstId || item.workItemId === secondId))).toBe(
+      true
+    );
+    if (first.kind === "completed") expect(first.workItemId).toBe(firstId);
+    if (second.kind === "completed") expect(second.workItemId).toBe(secondId);
+  });
+
+  it("refuses to execute a work item that is not claimed or ready", async () => {
+    const planned = openPlanned();
+    const orchestrator = createOrchestrator(
+      planned.kernel,
+      planned.projectId,
+      planned.actorId,
+      planned.directory,
+      new FakeRuntime()
+    );
+    const first = await orchestrator.executeReadyWorkItem(planned.changeId);
+    if (first.kind !== "completed") throw new Error("missing first run");
+    planned.raw.transaction((transaction) => {
+      const current = transaction.getWorkItem(first.workItemId);
+      if (!current) throw new Error("missing");
+      transaction.updateWorkItem({ ...current, status: "blocked", revision: current.revision + 1 }, current.revision);
+    });
+    const result = await orchestrator.executeReadyWorkItem(planned.changeId, first.workItemId);
+    expect(result).toEqual({ kind: "failed", error: "WORK_ITEM_NOT_EXECUTABLE" });
+  });
+
+  it("records a real dirty SourceSnapshot digest that is not derived from the run id", async () => {
+    const planned = openPlanned();
+    const workspace = new GitWorktreeWorkspace({
+      repositoryPath: planned.directory,
+      worktreeRoot: join(planned.directory, "worktrees")
+    });
+    const worktree = workspace.ensureWorktree(planned.changeId);
+    writeFileSync(join(worktree.worktreePath, "dirty.txt"), "dirty worktree\n");
+    const result = await createOrchestrator(
+      planned.kernel,
+      planned.projectId,
+      planned.actorId,
+      planned.directory,
+      new FakeRuntime()
+    ).executeReadyWorkItem(planned.changeId);
+    expect(result.kind).toBe("completed");
+    if (result.kind !== "completed") throw new Error("expected completed");
+    const recorded = planned.raw.listEvents().filter((event) => event.event_type === "SourceSnapshotRecorded").at(-1);
+    const snapshotId = recorded?.payload.snapshot_id;
+    expect(typeof snapshotId).toBe("string");
+    const stored = planned.raw.transaction((transaction) =>
+      transaction.getSourceSnapshot(String(snapshotId) as typeof result.run.id)
+    );
+    expect(stored?.dirty).toBe(true);
+    expect(stored?.snapshot_kind).toBe("explicit_dirty_manifest");
+    expect(stored?.digest.value).toMatch(/^[0-9a-f]{64}$/);
+    expect(stored?.digest.value).not.toBe(createHash("sha256").update(result.run.id).digest("hex"));
+    expect(stored?.run_id).toBe(result.run.id);
+  });
+
+  it("sanitizes leaked paths, tokens, and provider bodies from orchestrator failures", async () => {
+    const planned = openPlanned();
+    const logs: string[] = [];
+    const runtime = new FakeRuntime();
+    runtime.start = async () => {
+      throw new Error('failed at C:\\Users\\secret\\repo token=super-secret Provider body {"api_key":"abc"}');
+    };
+    const result = await new RunOrchestrator({
+      kernel: planned.kernel,
+      runtime,
+      processRegistry: new MemoryProcessRegistry(),
+      projectId: planned.projectId,
+      actorId: planned.actorId,
+      worktreePath: join(planned.directory, "worktrees"),
+      workspace: new GitWorktreeWorkspace({
+        repositoryPath: planned.directory,
+        worktreeRoot: join(planned.directory, "worktrees")
+      }),
+      repositoryPath: planned.directory,
+      contextDirectory: join(planned.directory, "context"),
+      providers: [provider(planned.projectId)],
+      actorPermissions: ["workspace.write", "git.commit"],
+      providerPermissions: ["workspace.write", "git.commit"],
+      logger: {
+        error(_message, diagnostic) {
+          logs.push(diagnostic);
+        }
+      }
+    }).executeReadyWorkItem(planned.changeId);
+    expect(result).toEqual({ kind: "failed", error: "ORCHESTRATOR_FAILURE" });
+    expect(JSON.stringify(result)).not.toMatch(/Users|super-secret|api_key/);
+    expect(logs.join("\n")).toContain("[REDACTED]");
+    expect(logs.join("\n")).not.toMatch(/super-secret/);
   });
 });
