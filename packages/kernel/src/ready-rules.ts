@@ -1,5 +1,18 @@
 export interface TaskReadyInput {
-  lifecycle_state: "Draft" | "IntentReady" | "Planned" | "Executing";
+  lifecycle_state:
+    | "Draft"
+    | "IntentReady"
+    | "Planned"
+    | "Executing"
+    | "Evaluating"
+    | "TestDeploying"
+    | "TestValidating"
+    | "ReleaseReady"
+    | "ProductionDeploying"
+    | "ReleaseVerified"
+    | "DeliveryClosed"
+    | "Cancelled"
+    | "Superseded";
   task: { key: string; dependencies: readonly string[] };
   completed_task_keys: readonly string[];
   has_open_blocker: boolean;

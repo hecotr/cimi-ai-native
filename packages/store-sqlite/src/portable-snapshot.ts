@@ -37,6 +37,7 @@ const PAYLOAD_TABLES: ReadonlyArray<{ table: string; objectType: string }> = [
   { table: "agent_runs", objectType: "agent_run" },
   { table: "source_snapshots", objectType: "source_snapshot" },
   { table: "artifacts", objectType: "artifact" },
+  { table: "artifact_lineage", objectType: "artifact_lineage" },
   { table: "blockers", objectType: "blocker" },
   { table: "claims", objectType: "claim" },
   { table: "external_references", objectType: "external_reference" },
@@ -250,6 +251,9 @@ const insertByType = (transaction: StoreTransaction, fact: PortableFact): void =
       return;
     case "artifact":
       transaction.insertArtifact(payload as never);
+      return;
+    case "artifact_lineage":
+      transaction.insertArtifactLineage(payload as never);
       return;
     case "blocker":
       transaction.insertBlocker(payload as never);

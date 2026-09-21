@@ -1,27 +1,74 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SCHEMA_VERSION, type AgentRunRecord, type Artifact, type Digest, type SourceSnapshot, type WorkItem } from "@cimiloop/protocol";
+import type { PathIo } from "./io.js";
 
 export const artifactDigestImmutable = (current: Digest, next: Digest): boolean =>
   current.algorithm === next.algorithm && current.value === next.value && current.subject === next.subject;
 
-export const localReferenceExists = (reference: string): boolean => {
-  if (!reference.startsWith("file:")) return true;
+const isUncAbsolute = (value: string): boolean => {
+  const normalized = value.replaceAll("/", "\\");
+  return normalized.startsWith("\\\\") || /^[\\/]{2}[^\\/]/.test(value);
+};
+
+export const resolveAuthorizedFileReference = (
+  reference: string,
+  roots: readonly string[],
+  io: PathIo
+): { ok: true; storedReference: string; digest: string } | { ok: false } => {
+  if (!reference.startsWith("file:")) {
+    return { ok: true, storedReference: reference, digest: "" };
+  }
   try {
-    return existsSync(fileURLToPath(reference));
+    const url = new URL(reference);
+    if (
+      url.hostname &&
+      url.hostname !== "localhost" &&
+      url.hostname !== "127.0.0.1" &&
+      !/^[a-zA-Z]$/.test(url.hostname)
+    ) {
+      return { ok: false };
+    }
+    const absolute = fileURLToPath(reference);
+    if (isUncAbsolute(absolute)) return { ok: false };
+    const real = io.realpath(absolute);
+    if (isUncAbsolute(real)) return { ok: false };
+    for (const root of roots) {
+      let realRoot: string;
+      try {
+        realRoot = io.realpath(root);
+      } catch {
+        continue;
+      }
+      const cmpReal = process.platform === "win32" ? real.toLowerCase() : real;
+      const cmpRoot = process.platform === "win32" ? realRoot.toLowerCase() : realRoot;
+      const prefix = cmpRoot.endsWith(sep) ? cmpRoot : cmpRoot + sep;
+      if (cmpReal !== cmpRoot && !cmpReal.startsWith(prefix)) continue;
+      const relativePath = relative(realRoot, real).replaceAll("\\", "/");
+      if (!relativePath || relativePath.startsWith("..") || relativePath.includes("/../")) return { ok: false };
+      const bytes = io.readFile(real);
+      return {
+        ok: true,
+        storedReference: `cimi-file://repository/${relativePath}`,
+        digest: createHash("sha256").update(bytes).digest("hex")
+      };
+    }
+    return { ok: false };
   } catch {
-    return false;
+    return { ok: false };
   }
 };
 
-export const localReferenceDigest = (reference: string): string | undefined => {
+export const localReferenceExists = (reference: string, roots: readonly string[], io: PathIo): boolean => {
+  if (!reference.startsWith("file:")) return true;
+  return resolveAuthorizedFileReference(reference, roots, io).ok;
+};
+
+export const localReferenceDigest = (reference: string, roots: readonly string[], io: PathIo): string | undefined => {
   if (!reference.startsWith("file:")) return undefined;
-  try {
-    return createHash("sha256").update(readFileSync(fileURLToPath(reference))).digest("hex");
-  } catch {
-    return undefined;
-  }
+  const resolved = resolveAuthorizedFileReference(reference, roots, io);
+  return resolved.ok ? resolved.digest : undefined;
 };
 
 export const createArtifact = (input: {

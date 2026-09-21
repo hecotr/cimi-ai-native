@@ -372,7 +372,7 @@ describe("Close Cancel Supersede Archive commands", () => {
     if (!("closure_evaluation" in closed.data)) throw new Error("missing evaluation");
     const change = kernel.getChange(ready.changeId);
     if ("code" in change) throw new Error(change.code);
-    expect(change.lifecycle_state).toBe("Draft");
+    expect(change.lifecycle_state).toBe("DeliveryClosed");
     expect(closed.events.some((event) => event.event_type === "ChangeClosed")).toBe(true);
     expect(store.transaction((transaction) => transaction.getChange(ready.changeId))).toBeDefined();
     expect(
@@ -490,7 +490,7 @@ describe("Close Cancel Supersede Archive commands", () => {
     const existing = kernel.getChange(clean.changeId);
     if ("code" in existing) throw new Error(existing.code);
     expect(existing.id).toBe(clean.changeId);
-    expect(existing.lifecycle_state).toBe("Draft");
+    expect(existing.lifecycle_state).toBe("Cancelled");
   });
 
   it("supersedes by referencing a successor and keeps the original change", () => {
@@ -553,7 +553,7 @@ describe("Close Cancel Supersede Archive commands", () => {
     const kept = kernel.getChange(original.changeId);
     if ("code" in kept) throw new Error(kept.code);
     expect(kept.id).toBe(original.changeId);
-    expect(kept.lifecycle_state).toBe("Draft");
+    expect(kept.lifecycle_state).toBe("Superseded");
     expect(kernel.getChange(successor.data.change.id)).toMatchObject({ id: successor.data.change.id });
   });
 

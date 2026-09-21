@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import {
   ProtocolValidationError,
@@ -84,6 +82,7 @@ import {
   type ExportProjectCommand,
   type StageImportCommand,
   type CommitImportCommand,
+  type RevokeProjectPolicyCommand,
   type RequestReleaseDecisionCommand,
   type DecisionRequest,
   type Claim,
@@ -146,9 +145,7 @@ import {
   createImportReport,
   exportProjectBundle,
   PortableExportError,
-  PortableImportError,
-  stageImportBundle,
-  validateImportBundle
+  PortableImportError
 } from "@cimiloop/portability";
 import { evaluateKnowledgeClosureGate } from "./closure/gate.js";
 import { createProposedLearningCandidate } from "./closure/learning.js";
@@ -177,7 +174,7 @@ import {
   isOpenExecutionStatus,
   nextRunAttempt
 } from "./run.js";
-import { createArtifact, localReferenceDigest, localReferenceExists } from "./artifact.js";
+import { createArtifact, localReferenceExists, resolveAuthorizedFileReference } from "./artifact.js";
 import { createSourceSnapshot, snapshotKindValid } from "./source-snapshot.js";
 import { createRepairWorkItem, createRepairWorkItemLink } from "./repair.js";
 import { recoveryStrategyDigest, releaseAuthorizationDigest } from "./delivery/release.js";
@@ -208,6 +205,9 @@ import {
   createSoloRoles,
   type GovernanceIds
 } from "./governance.js";
+import { canAdvanceLifecycle, isTerminalLifecycle, type ChangeLifecycleState } from "./lifecycle.js";
+import { createNodeKernelIo, type KernelIo } from "./io.js";
+import { isPolicyRevoked, policyDigestInput, computePolicySnapshotDigest } from "./policy.js";
 
 export type KernelResult = CommandSuccess | DomainError;
 
@@ -215,6 +215,7 @@ export interface KernelDependencies {
   store: ProjectStore;
   now?: () => string;
   id?: () => InternalId;
+  io?: KernelIo;
 }
 
 const defaultClock = (): string => new Date().toISOString();
@@ -234,11 +235,13 @@ export class CimiLoopKernel {
   readonly #store: ProjectStore;
   readonly #now: () => string;
   readonly #id: () => InternalId;
+  readonly #io: KernelIo;
 
   constructor(dependencies: KernelDependencies) {
     this.#store = dependencies.store;
     this.#now = dependencies.now ?? defaultClock;
     this.#id = dependencies.id ?? createInternalId;
+    this.#io = dependencies.io ?? createNodeKernelIo();
   }
 
   execute(input: unknown): KernelResult {
@@ -261,6 +264,9 @@ export class CimiLoopKernel {
     }
 
     const digest = commandDigest(command);
+    if (command.command_type === "StageImport") {
+      return this.#stageImportOutsideTransaction(command, digest);
+    }
     try {
       return this.#store.transaction((transaction) => {
         const previous = transaction.getCommandReceipt(command.command_id);
@@ -767,6 +773,8 @@ export class CimiLoopKernel {
         return this.#resumeChange(transaction, command);
       case "BootstrapSoloGovernance":
         return this.#bootstrapSoloGovernance(transaction, command);
+      case "RevokeProjectPolicy":
+        return this.#revokeProjectPolicy(transaction, command);
       case "SubmitContractCandidate":
         return this.#submitContractCandidate(transaction, command);
       case "RequestIntentDecision":
@@ -2171,6 +2179,8 @@ export class CimiLoopKernel {
   ): KernelResult {
     const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
     if ("code" in loaded) return loaded;
+    const revoked = this.#requireActivePolicy(transaction, command, loaded.project.id);
+    if (revoked) return revoked;
     if (loaded.change.lifecycle_state !== "Planned" && loaded.change.lifecycle_state !== "Executing") {
       return domainError(command.correlation_id, "CHANGE_NOT_PLANNED", "只有 Planned 或 Executing Change 可以创建 Execution Work Item", "conflict");
     }
@@ -2286,6 +2296,8 @@ export class CimiLoopKernel {
     }
     const loaded = this.#requireChangeForMutation(transaction, command, workItem.change_id);
     if ("code" in loaded) return loaded;
+    const revoked = this.#requireActivePolicy(transaction, command, loaded.project.id);
+    if (revoked) return revoked;
     if (transaction.getActiveLeaseByWorkItem(workItem.id)) {
       return domainError(command.correlation_id, "LEASE_CONFLICT", "Work Item 已被领取", "conflict");
     }
@@ -2362,6 +2374,8 @@ export class CimiLoopKernel {
     }
     const loaded = this.#requireChangeForMutation(transaction, command, workItem.change_id);
     if ("code" in loaded) return loaded;
+    const revoked = this.#requireActivePolicy(transaction, command, loaded.project.id);
+    if (revoked) return revoked;
     if (workItem.status !== "claimed" && workItem.status !== "running") {
       return domainError(command.correlation_id, "WORK_ITEM_NOT_CLAIMED", "只有已领取的 Work Item 可以启动 Run", "conflict");
     }
@@ -2683,17 +2697,19 @@ export class CimiLoopKernel {
     if (!workItem?.plan_id || !workItem.plan_version) {
       return domainError(command.correlation_id, "ARTIFACT_PLAN_REQUIRED", "Artifact 必须绑定 Plan", "validation");
     }
-    if (!localReferenceExists(command.payload.content_reference)) {
-      return domainError(
-        command.correlation_id,
-        "ARTIFACT_REFERENCE_INVALID",
-        "本地 Artifact 引用不存在",
-        "validation"
-      );
-    }
+    const authorizedRoots = [loaded.project.repository_path];
+    let contentReference = command.payload.content_reference;
     if (command.payload.content_reference.startsWith("file:")) {
-      const fileDigest = localReferenceDigest(command.payload.content_reference);
-      if (!fileDigest || fileDigest !== command.payload.digest.value) {
+      const resolved = resolveAuthorizedFileReference(command.payload.content_reference, authorizedRoots, this.#io);
+      if (!resolved.ok) {
+        return domainError(
+          command.correlation_id,
+          "ARTIFACT_REFERENCE_INVALID",
+          "本地 Artifact 引用不在授权范围内",
+          "validation"
+        );
+      }
+      if (resolved.digest !== command.payload.digest.value) {
         return domainError(
           command.correlation_id,
           "ARTIFACT_DIGEST_MISMATCH",
@@ -2701,6 +2717,14 @@ export class CimiLoopKernel {
           "validation"
         );
       }
+      contentReference = resolved.storedReference;
+    } else if (!localReferenceExists(command.payload.content_reference, authorizedRoots, this.#io)) {
+      return domainError(
+        command.correlation_id,
+        "ARTIFACT_REFERENCE_INVALID",
+        "本地 Artifact 引用不在授权范围内",
+        "validation"
+      );
     }
     const now = this.#now();
     const artifact = createArtifact({
@@ -2711,15 +2735,23 @@ export class CimiLoopKernel {
       contextPackId: command.payload.context_pack_id,
       bindingId: command.payload.binding_id,
       digest: command.payload.digest,
-      contentReference: command.payload.content_reference,
+      contentReference,
       summary: command.payload.summary,
       now
     });
-    for (const existing of transaction.listArtifactsByChange(run.change_id)) {
-      if (existing.work_item_id !== run.work_item_id || existing.status !== "candidate") continue;
-      transaction.updateArtifact({ ...existing, status: "superseded" });
-    }
+    const predecessors = transaction
+      .listArtifactsByChange(run.change_id)
+      .filter((existing) => existing.work_item_id === run.work_item_id);
     transaction.insertArtifact(artifact);
+    for (const existing of predecessors) {
+      transaction.insertArtifactLineage({
+        predecessor_id: existing.id,
+        successor_id: artifact.id,
+        project_id: loaded.project.id,
+        change_id: run.change_id,
+        created_at: now
+      });
+    }
     const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
     const event = this.#appendEvent(transaction, {
       event_type: "ArtifactRecorded",
@@ -2782,7 +2814,14 @@ export class CimiLoopKernel {
       now
     });
     transaction.insertWorkItem(workItem);
-    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const nextChange = this.#advanceLifecycle(
+      transaction,
+      loaded.change,
+      loaded.expectedRevision,
+      now,
+      command,
+      "Evaluating"
+    );
     const event = this.#appendEvent(transaction, {
       event_type: "EvaluationWorkItemCreated",
       project_id: loaded.project.id,
@@ -2865,7 +2904,10 @@ export class CimiLoopKernel {
     const now = this.#now();
     if (reusable) {
       const assessments = transaction.listClaimAssessmentsByEvaluation(reusable.id);
-      const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+      const nextChange =
+        reusable.result === "ALLOW"
+          ? this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now)
+          : this.#advanceLifecycle(transaction, loaded.change, loaded.expectedRevision, now, command, "Executing");
       const event = this.#appendEvent(transaction, {
         event_type: "EvaluationReused",
         project_id: loaded.project.id,
@@ -2923,7 +2965,10 @@ export class CimiLoopKernel {
     for (const assessment of assessments) {
       transaction.insertClaimAssessment(assessment);
     }
-    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const nextChange =
+      evaluation.result === "ALLOW"
+        ? this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now)
+        : this.#advanceLifecycle(transaction, loaded.change, loaded.expectedRevision, now, command, "Executing");
     const event = this.#appendEvent(transaction, {
       event_type: "EvaluationCompleted",
       project_id: loaded.project.id,
@@ -3055,6 +3100,8 @@ export class CimiLoopKernel {
     }
     const loaded = this.#requireChangeForMutation(transaction, command, release.change_id);
     if ("code" in loaded) return loaded;
+    const revokedDecision = this.#requireActivePolicy(transaction, command, loaded.project.id);
+    if (revokedDecision) return revokedDecision;
     if (release.kind !== "production") {
       return domainError(
         command.correlation_id,
@@ -3091,7 +3138,14 @@ export class CimiLoopKernel {
       now,
       request.id
     );
-    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const nextChange = this.#advanceLifecycle(
+      transaction,
+      loaded.change,
+      loaded.expectedRevision,
+      now,
+      command,
+      "ReleaseReady"
+    );
     const event = this.#appendEvent(transaction, {
       event_type: "ReleaseDecisionRequested",
       project_id: loaded.project.id,
@@ -3168,7 +3222,10 @@ export class CimiLoopKernel {
         release.revision
       );
     }
-    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const nextChange =
+      gateResult === "ALLOW"
+        ? this.#advanceLifecycle(transaction, loaded.change, loaded.expectedRevision, now, command, "ReleaseReady")
+        : this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
     const event = this.#appendEvent(transaction, {
       event_type: "ReleaseDecisionSubmitted",
       project_id: loaded.project.id,
@@ -3231,6 +3288,8 @@ export class CimiLoopKernel {
   #createRelease(transaction: StoreTransaction, command: CreateReleaseCommand): KernelResult {
     const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
     if ("code" in loaded) return loaded;
+    const revokedRelease = this.#requireActivePolicy(transaction, command, loaded.project.id);
+    if (revokedRelease) return revokedRelease;
     const artifact = transaction.getArtifact(command.payload.artifact_id);
     if (
       !artifact ||
@@ -3369,7 +3428,10 @@ export class CimiLoopKernel {
     transaction.insertRecoveryStrategy(strategy);
     transaction.insertEvidencePackageManifest(pack);
     transaction.insertReleasePackage(releasePackage);
-    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const nextChange =
+      command.payload.kind === "production"
+        ? this.#advanceLifecycle(transaction, loaded.change, loaded.expectedRevision, now, command, "ReleaseReady")
+        : this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
     const event = this.#appendEvent(transaction, {
       event_type: "ReleaseCreated",
       project_id: loaded.project.id,
@@ -3400,6 +3462,8 @@ export class CimiLoopKernel {
     }
     const loaded = this.#requireChangeForMutation(transaction, command, release.change_id);
     if ("code" in loaded) return loaded;
+    const revokedQueue = this.#requireActivePolicy(transaction, command, loaded.project.id);
+    if (revokedQueue) return revokedQueue;
     if (release.environment_id !== command.payload.environment_id) {
       return domainError(command.correlation_id, "ENVIRONMENT_NOT_FOUND", "Deployment 必须绑定 Release 的 Environment", "conflict");
     }
@@ -3546,7 +3610,14 @@ export class CimiLoopKernel {
       },
       release.revision
     );
-    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const nextChange = this.#advanceLifecycle(
+      transaction,
+      loaded.change,
+      loaded.expectedRevision,
+      now,
+      command,
+      release.kind === "production" ? "ProductionDeploying" : "TestDeploying"
+    );
     const persistedDeployment =
       operationKind === "deploy" || !currentDeployment
         ? { ...deployment, current_operation_id: operation.id }
@@ -3802,7 +3873,36 @@ export class CimiLoopKernel {
         );
       }
     }
-    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const recordedDigestMatches = releaseDigestMatches(release, command.payload.actual_digest);
+    const recordedNeedsRecovery = productionNeedsRecovery({
+      state: command.payload.state,
+      ...(command.payload.health ? { health: command.payload.health } : {}),
+      ...(command.payload.core_path ? { core_path: command.payload.core_path } : {}),
+      digest_matches: recordedDigestMatches
+    });
+    let nextLifecycle: ChangeLifecycleState | undefined;
+    if (release.kind === "test" && operation.operation_kind === "deploy" && command.payload.state === "succeeded") {
+      nextLifecycle = "TestValidating";
+    } else if (
+      release.kind === "test" &&
+      operation.operation_kind === "verify" &&
+      command.payload.state === "succeeded" &&
+      !recordedNeedsRecovery
+    ) {
+      nextLifecycle = "ReleaseReady";
+    } else if (release.kind === "test" && recordedNeedsRecovery) {
+      nextLifecycle = "Executing";
+    } else if (
+      release.kind === "production" &&
+      operation.operation_kind === "verify" &&
+      command.payload.state === "succeeded" &&
+      !recordedNeedsRecovery
+    ) {
+      nextLifecycle = "ReleaseVerified";
+    }
+    const nextChange = nextLifecycle
+      ? this.#advanceLifecycle(transaction, loaded.change, loaded.expectedRevision, now, command, nextLifecycle)
+      : this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
     const event = this.#appendEvent(transaction, {
       event_type: "OperationResultRecorded",
       project_id: loaded.project.id,
@@ -3944,6 +4044,8 @@ export class CimiLoopKernel {
     }
     const loaded = this.#requireChangeForMutation(transaction, command, release.change_id);
     if ("code" in loaded) return loaded;
+    const revokedRecovery = this.#requireActivePolicy(transaction, command, loaded.project.id);
+    if (revokedRecovery) return revokedRecovery;
     const strategy = transaction.getRecoveryStrategy(command.payload.strategy_id);
     if (!strategy || strategy.release_id !== release.id) {
       return domainError(command.correlation_id, "RECOVERY_STRATEGY_NOT_FOUND", "未找到指定 Recovery Strategy", "not_found");
@@ -4131,6 +4233,8 @@ export class CimiLoopKernel {
   #createRepairWorkItem(transaction: StoreTransaction, command: CreateRepairWorkItemCommand): KernelResult {
     const loaded = this.#requireChangeForMutation(transaction, command, command.payload.change_id);
     if ("code" in loaded) return loaded;
+    const revokedRepair = this.#requireActivePolicy(transaction, command, loaded.project.id);
+    if (revokedRepair) return revokedRepair;
     const evidence = transaction.getEvidence(command.payload.failed_evidence_id);
     if (!evidence || evidence.change_id !== loaded.change.id || evidence.stance !== "Refutes") {
       return domainError(command.correlation_id, "REPAIR_EVIDENCE_NOT_REFUTED", "Repair 只能关联未解决的 Refutes Evidence", "conflict");
@@ -4362,12 +4466,16 @@ export class CimiLoopKernel {
       );
     }
     if (command.payload.content_reference.startsWith("file:")) {
-      const fileDigest = localReferenceDigest(command.payload.content_reference);
-      if (!fileDigest || fileDigest !== command.payload.digest.value) {
+      const resolved = resolveAuthorizedFileReference(
+        command.payload.content_reference,
+        [loaded.project.repository_path],
+        this.#io
+      );
+      if (!resolved.ok || resolved.digest !== command.payload.digest.value) {
         return domainError(
           command.correlation_id,
-          "ARTIFACT_DIGEST_MISMATCH",
-          "测试结果 digest 必须等于本地文件字节的 sha256",
+          resolved.ok ? "ARTIFACT_DIGEST_MISMATCH" : "ARTIFACT_REFERENCE_INVALID",
+          resolved.ok ? "测试结果 digest 必须等于本地文件字节的 sha256" : "本地 Artifact 引用不在授权范围内",
           "validation"
         );
       }
@@ -4787,7 +4895,14 @@ export class CimiLoopKernel {
       );
     }
     const now = this.#now();
-    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const nextChange = this.#advanceLifecycle(
+      transaction,
+      loaded.change,
+      loaded.expectedRevision,
+      now,
+      command,
+      "DeliveryClosed"
+    );
     const event = this.#appendEvent(transaction, {
       event_type: "ChangeClosed",
       project_id: loaded.project.id,
@@ -4836,7 +4951,14 @@ export class CimiLoopKernel {
       created_at: now
     };
     transaction.insertCancellationRecord(record);
-    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const nextChange = this.#advanceLifecycle(
+      transaction,
+      loaded.change,
+      loaded.expectedRevision,
+      now,
+      command,
+      "Cancelled"
+    );
     const event = this.#appendEvent(transaction, {
       event_type: "ChangeCancelled",
       project_id: loaded.project.id,
@@ -4888,7 +5010,14 @@ export class CimiLoopKernel {
       created_at: now
     };
     transaction.insertSupersessionRecord(record);
-    const nextChange = this.#touchChange(transaction, loaded.change, loaded.expectedRevision, now);
+    const nextChange = this.#advanceLifecycle(
+      transaction,
+      loaded.change,
+      loaded.expectedRevision,
+      now,
+      command,
+      "Superseded"
+    );
     const event = this.#appendEvent(transaction, {
       event_type: "ChangeSuperseded",
       project_id: loaded.project.id,
@@ -5073,22 +5202,30 @@ export class CimiLoopKernel {
     );
   }
 
-  #stageImport(transaction: StoreTransaction, command: StageImportCommand): KernelResult {
-    const existing = transaction.getCurrentProject();
-    if (existing) {
-      const context = this.#requireProjectActor(transaction, command);
-      if ("code" in context) return context;
-      if (command.expected_revision !== existing.revision) {
-        return domainError(command.correlation_id, "REVISION_CONFLICT", "目标对象已被其他命令修改，请刷新后重试", "conflict", false, {
-          current_revision: existing.revision
+  #stageImportOutsideTransaction(command: StageImportCommand, digest: string): KernelResult {
+    const replayed = this.#store.transaction((transaction) => transaction.getCommandReceipt(command.command_id));
+    if (replayed) {
+      if (replayed.request_digest !== digest) {
+        return domainError(command.correlation_id, "COMMAND_ID_REUSED", "同一 command_id 已被用于不同命令", "conflict", false, {
+          command_id: command.command_id
         });
       }
-    } else if (command.expected_revision !== 1) {
+      return replayed.result;
+    }
+    const existing = this.#store.getProject();
+    if (existing && command.expected_revision !== existing.revision) {
+      return domainError(command.correlation_id, "REVISION_CONFLICT", "目标对象已被其他命令修改，请刷新后重试", "conflict", false, {
+        current_revision: existing.revision
+      });
+    }
+    if (!existing && command.expected_revision !== 1) {
       return domainError(command.correlation_id, "REVISION_CONFLICT", "空目标导入必须使用 expected_revision=1", "conflict");
     }
     const allowedRoot = existing?.repository_path ?? dirname(command.payload.bundle_reference.replace(/^file:\/\//, ""));
+    this.#cleanupOrphanStaging(allowedRoot);
+    let staged: ReturnType<KernelIo["stageImport"]>;
     try {
-      const staged = stageImportBundle({
+      staged = this.#io.stageImport({
         allowedRoot,
         bundleReference: command.payload.bundle_reference,
         bundleDigest: command.payload.bundle_digest,
@@ -5096,37 +5233,185 @@ export class CimiLoopKernel {
         reportId: this.#id(),
         stagedAt: this.#now()
       });
-      const report = {
-        ...staged.report,
-        summary: `content_digest=${staged.historyDigest}; staging=${encodeURIComponent(staged.stagingPath)}; ${staged.report.summary}`
-      };
-      transaction.insertImportReport(report);
-      const events = existing
-        ? [
-            this.#appendEvent(transaction, {
-              event_type: "ImportStaged",
-              project_id: existing.id,
-              aggregate: { object_type: "import_report", id: report.id, domain_version: 1 },
-              aggregate_revision: 1,
-              actor_id: command.actor_id,
-              command,
-              payload: { import_report_id: report.id, runtime_ownership: report.runtime_ownership },
-              occurred_at: this.#now()
-            })
-          ]
-        : [];
-      return this.#success(
-        command,
-        { object_type: "import_report", id: report.id, domain_version: 1 },
-        existing?.revision ?? 1,
-        events,
-        { import_report: report }
-      );
     } catch (error) {
+      this.#cleanupOrphanStaging(allowedRoot);
       if (error instanceof PortableImportError) {
         return domainError(command.correlation_id, error.code, error.message, "validation");
       }
-      throw error;
+      return domainError(command.correlation_id, "STORE_FAILURE", "导入暂存失败", "storage", true);
+    }
+    try {
+      return this.#store.transaction((transaction) => {
+        const previous = transaction.getCommandReceipt(command.command_id);
+        if (previous) {
+          this.#io.abandon(staged.stagingPath);
+          return previous.result;
+        }
+        const result = this.#recordStagedImport(transaction, command, staged);
+        if (!isDomainError(result)) {
+          transaction.saveCommandReceipt({
+            command_id: command.command_id,
+            request_digest: digest,
+            result,
+            created_at: this.#now()
+          });
+        } else {
+          this.#io.abandon(staged.stagingPath);
+        }
+        return result;
+      });
+    } catch (error) {
+      this.#io.abandon(staged.stagingPath);
+      if (error instanceof StoreConflictError) {
+        return domainError(command.correlation_id, "REVISION_CONFLICT", "目标对象已被其他命令修改，请刷新后重试", "conflict", false, {
+          current_revision: error.currentRevision
+        });
+      }
+      return domainError(command.correlation_id, "STORE_FAILURE", "本地存储操作失败", "storage", true);
+    }
+  }
+
+  #recordStagedImport(
+    transaction: StoreTransaction,
+    command: StageImportCommand,
+    staged: ReturnType<KernelIo["stageImport"]>
+  ): KernelResult {
+    const existing = transaction.getCurrentProject();
+    if (existing) {
+      const context = this.#requireProjectActor(transaction, command);
+      if ("code" in context) return context;
+    }
+    const report = {
+      ...staged.report,
+      summary: `bundle_digest=${staged.bundleDigest}; content_digest=${staged.historyDigest}; staging=${encodeURIComponent(staged.stagingPath)}; ${staged.report.summary}`
+    };
+    transaction.insertImportReport(report);
+    const events = existing
+      ? [
+          this.#appendEvent(transaction, {
+            event_type: "ImportStaged",
+            project_id: existing.id,
+            aggregate: { object_type: "import_report", id: report.id, domain_version: 1 },
+            aggregate_revision: 1,
+            actor_id: command.actor_id,
+            command,
+            payload: { import_report_id: report.id, runtime_ownership: report.runtime_ownership },
+            occurred_at: this.#now()
+          })
+        ]
+      : [];
+    return this.#success(
+      command,
+      { object_type: "import_report", id: report.id, domain_version: 1 },
+      existing?.revision ?? 1,
+      events,
+      { import_report: report }
+    );
+  }
+
+  #stageImport(transaction: StoreTransaction, command: StageImportCommand): KernelResult {
+    return domainError(
+      command.correlation_id,
+      "STORE_FAILURE",
+      "StageImport 必须在事务外完成文件暂存",
+      "storage"
+    );
+  }
+
+  #revokeProjectPolicy(transaction: StoreTransaction, command: RevokeProjectPolicyCommand): KernelResult {
+    const human = this.#requireHumanActor(transaction, command);
+    if (human) return human;
+    const context = this.#requireProjectActor(transaction, command);
+    if ("code" in context) return context;
+    if (command.expected_revision !== context.project.revision) {
+      return domainError(command.correlation_id, "REVISION_CONFLICT", "目标对象已被其他命令修改，请刷新后重试", "conflict", false, {
+        current_revision: context.project.revision
+      });
+    }
+    const policy = transaction.getProjectPolicy(context.project.id);
+    const current = transaction.getLatestPolicySnapshot(context.project.id);
+    if (!policy || !current) {
+      return domainError(command.correlation_id, "POLICY_NOT_FOUND", "撤销 Policy 需要已初始化的项目策略", "not_found");
+    }
+    if (isPolicyRevoked(current)) {
+      return domainError(command.correlation_id, "POLICY_ALREADY_REVOKED", "当前 Policy 已被撤销", "conflict");
+    }
+    const now = this.#now();
+    const nextPolicy = { ...policy, updated_at: now, revision: policy.revision + 1 };
+    const snapshot: PolicySnapshot = {
+      schema_version: SCHEMA_VERSION,
+      id: this.#id(),
+      project_id: context.project.id,
+      policy_id: policy.id,
+      policy_revision: nextPolicy.revision,
+      status: "revoked",
+      digest: {
+        algorithm: "sha256",
+        value: computePolicySnapshotDigest({ ...policyDigestInput(policy), status: "revoked" }),
+        subject: "project_policy"
+      },
+      created_at: now
+    };
+    transaction.updateProjectPolicy(nextPolicy, policy.revision);
+    transaction.insertPolicySnapshot(snapshot);
+    for (const open of transaction.listOpenDecisionRequests()) {
+      transaction.updateDecisionRequest(
+        { ...open, status: "expired", updated_at: now, revision: open.revision + 1 },
+        open.revision
+      );
+    }
+    const event = this.#appendEvent(transaction, {
+      event_type: "PolicyRevoked",
+      project_id: context.project.id,
+      aggregate: { object_type: "policy_snapshot", id: snapshot.id, domain_version: snapshot.policy_revision },
+      aggregate_revision: snapshot.policy_revision,
+      actor_id: context.actorId,
+      command,
+      payload: {
+        policy_id: policy.id,
+        policy_snapshot_id: snapshot.id,
+        policy_revision: snapshot.policy_revision,
+        digest: snapshot.digest.value,
+        reason: command.payload.reason
+      },
+      occurred_at: now
+    });
+    return this.#success(
+      command,
+      { object_type: "policy_snapshot", id: snapshot.id, domain_version: snapshot.policy_revision },
+      context.project.revision,
+      [event],
+      { policy: nextPolicy }
+    );
+  }
+
+  #requireActivePolicy(
+    transaction: StoreTransaction,
+    command: AnyCommand,
+    projectId: InternalId
+  ): DomainError | undefined {
+    const snapshot = transaction.getLatestPolicySnapshot(projectId);
+    if (isPolicyRevoked(snapshot)) {
+      return domainError(
+        command.correlation_id,
+        "POLICY_REVOKED",
+        "当前 Policy 已撤销，禁止新的领取、运行、发布、部署或恢复",
+        "forbidden"
+      );
+    }
+    return undefined;
+  }
+
+  #cleanupOrphanStaging(allowedRoot: string): void {
+    const live = this.#store.transaction((transaction) =>
+      transaction.listImportReports().flatMap((report) => {
+        if (report.status !== "staged") return [];
+        const encoded = /staging=([^;]+)/.exec(report.summary)?.[1];
+        return encoded ? [decodeURIComponent(encoded)] : [];
+      })
+    );
+    for (const orphan of this.#io.listOrphanStaging(allowedRoot, live)) {
+      this.#io.abandon(orphan);
     }
   }
 
@@ -5340,30 +5625,63 @@ export class CimiLoopKernel {
 
   #readStagedImport(summary: string): { manifest: ExportManifest } | { code: string; message: string } {
     const encoded = /staging=([^;]+)/.exec(summary)?.[1];
-    if (!encoded) {
-      return { code: "DIGEST_MISMATCH", message: "CommitImport 必须重新核对 staging bundle 的 content_digest" };
+    const bundleClaimed = /(?:^|[;\s])bundle_digest=([0-9a-f]{64})/.exec(summary)?.[1];
+    const contentClaimed = /(?:^|[;\s])content_digest=([0-9a-f]{64})/.exec(summary)?.[1];
+    if (!encoded || !bundleClaimed || !contentClaimed) {
+      return { code: "DIGEST_MISMATCH", message: "CommitImport 必须重新核对 staging bundle 的 digest" };
     }
     const stagingPath = decodeURIComponent(encoded);
     try {
-      const bytes = readFileSync(stagingPath);
-      const digest = {
-        algorithm: "sha256" as const,
-        value: createHash("sha256").update(bytes).digest("hex"),
-        subject: "import_bundle"
-      };
-      const validated = validateImportBundle({
-        allowedRoot: dirname(stagingPath),
-        bundleReference: `file://${stagingPath.replaceAll("\\", "/")}`,
-        bundleDigest: digest,
-        maxBytes: 5_000_000
-      });
+      const validated = this.#io.readStagedBundle(stagingPath, { value: bundleClaimed }, dirname(stagingPath));
+      if (validated.manifest.content_digest.value !== contentClaimed) {
+        return { code: "DIGEST_MISMATCH", message: "content digest does not match staged receipt" };
+      }
       return { manifest: validated.manifest };
     } catch (error) {
       if (error instanceof PortableImportError) {
         return { code: error.code, message: error.message };
       }
-      return { code: "DIGEST_MISMATCH", message: "CommitImport 必须重新核对 staging bundle 的 content_digest" };
+      return { code: "DIGEST_MISMATCH", message: "CommitImport 必须重新核对 staging bundle 的 digest" };
     }
+  }
+
+  #advanceLifecycle(
+    transaction: StoreTransaction,
+    change: Change,
+    expectedRevision: number,
+    now: string,
+    command: AnyCommand,
+    to: ChangeLifecycleState
+  ): Change {
+    const from = change.lifecycle_state as ChangeLifecycleState;
+    if (from === to || !canAdvanceLifecycle(from, to)) {
+      return this.#touchChange(transaction, change, expectedRevision, now);
+    }
+    const next: Change = {
+      ...change,
+      lifecycle_state: to,
+      updated_at: now,
+      revision: change.revision + 1
+    };
+    if (isTerminalLifecycle(to) && to !== "DeliveryClosed") {
+      next.operating_status = change.operating_status;
+    }
+    transaction.updateChange(next, expectedRevision);
+    transaction.insertTransition({
+      schema_version: SCHEMA_VERSION,
+      id: this.#id(),
+      project_id: change.project_id,
+      change_id: change.id,
+      command_id: command.command_id,
+      transition_type: "lifecycle_changed",
+      from_lifecycle: from,
+      to_lifecycle: to,
+      from_status: change.operating_status,
+      to_status: next.operating_status,
+      actor_id: command.actor_id ?? change.owner_actor_id,
+      occurred_at: now
+    });
+    return next;
   }
 
   #touchChange(transaction: StoreTransaction, change: Change, expectedRevision: number, now: string): Change {
@@ -5565,29 +5883,14 @@ export class CimiLoopKernel {
   }
 
   #changeIsTerminal(transaction: StoreTransaction, changeId: InternalId): boolean {
+    const change = transaction.getChange(changeId);
+    if (change && isTerminalLifecycle(change.lifecycle_state as ChangeLifecycleState)) return true;
     if (transaction.listCancellationRecordsByChange(changeId).length > 0) return true;
     if (transaction.listSupersessionRecordsByChange(changeId).length > 0) return true;
     if (transaction.listArchiveRecordsByChange(changeId).length > 0) return true;
     return this.#store
       .listEvents()
       .some((event) => event.event_type === "ChangeClosed" && event.aggregate.id === changeId);
-  }
-
-  #stagedImportDigest(summary: string): string {
-    const encoded = /staging=([^;]+)/.exec(summary)?.[1];
-    const claimed = /content_digest=([0-9a-f]{64})/.exec(summary)?.[1] ?? "";
-    if (!encoded) return claimed;
-    const stagingPath = decodeURIComponent(encoded);
-    if (!existsSync(stagingPath)) return "";
-    try {
-      const parsed = JSON.parse(readFileSync(stagingPath, "utf8")) as {
-        manifest?: { content_digest?: { value?: string } };
-      };
-      const live = parsed.manifest?.content_digest?.value ?? "";
-      return live === claimed ? live : "";
-    } catch {
-      return "";
-    }
   }
 
   #requireProjectActor(

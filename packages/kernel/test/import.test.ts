@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -325,6 +325,10 @@ const stageAndCommit = (
   expectedRevision: number
 ) => {
   const packed = writeBundle(directory, `${manifest.id}.json`, manifest);
+  const fileHash = createHash("sha256").update(readFileSync(packed.bundlePath)).digest("hex");
+  if (fileHash !== packed.digest.value) {
+    throw new Error(`precheck digest mismatch file=${fileHash} claimed=${packed.digest.value} path=${packed.bundlePath}`);
+  }
   const staged = success(
     kernel.execute({
       schema_version: SCHEMA_VERSION,
@@ -443,5 +447,44 @@ describe("StageImport and CommitImport", () => {
     expect(committed.data.import_report.status).toBe("accepted");
     expect(committed.data.import_report.summary).toMatch(/idempotent/i);
     expect(kernel.getChange(ctx.change.id)).toMatchObject({ id: ctx.change.id });
+  });
+
+  it("removes orphan staging on the next StageImport and keeps live staged bundles", () => {
+    const directory = mkdtempSync(join(tmpdir(), "cimiloop-import-orphan-"));
+    temporaryDirectories.push(directory);
+    const store = new SqliteProjectStore(join(directory, "project.db"));
+    openStores.push(store);
+    const kernel = new CimiLoopKernel({ store, now: () => now });
+    const ctx = initialize(kernel, directory, "Orphan");
+    const manifest = exportManifest(kernel, ctx.project.id, ctx.actor.id);
+    const packed = writeBundle(directory, `${manifest.id}.json`, manifest);
+    const orphanDir = join(directory, ".cimiloop", "staging", "orphan-left-behind");
+    mkdirSync(orphanDir, { recursive: true });
+    writeFileSync(join(orphanDir, "bundle.json"), "partial-orphan");
+    const afterExport = kernel.getProject();
+    if ("code" in afterExport) throw new Error(afterExport.code);
+    const staged = success(
+      kernel.execute({
+        schema_version: SCHEMA_VERSION,
+        command_id: createInternalId(),
+        correlation_id: createInternalId(),
+        command_type: "StageImport",
+        requested_at: now,
+        actor_id: ctx.actor.id,
+        project_id: ctx.project.id,
+        expected_revision: afterExport.revision,
+        source: { origin: "human_cli" as const, producer: "m5-import-test" },
+        payload: {
+          bundle_reference: `file://${packed.bundlePath.replaceAll("\\", "/")}`,
+          bundle_digest: packed.digest
+        }
+      })
+    );
+    if (!("import_report" in staged.data)) throw new Error("missing report");
+    expect(existsSync(orphanDir)).toBe(false);
+    const live = readdirSync(join(directory, ".cimiloop", "staging"));
+    expect(live.length).toBe(1);
+    expect(staged.data.import_report.summary).toMatch(/bundle_digest=/);
+    expect(staged.data.import_report.summary).toMatch(/content_digest=/);
   });
 });

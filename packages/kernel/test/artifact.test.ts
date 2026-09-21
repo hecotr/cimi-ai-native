@@ -80,7 +80,7 @@ const revisionOf = (kernel: CimiLoopKernel, changeId: InternalId) => {
   return loaded.revision;
 };
 
-const bootstrapRunning = (kernel: CimiLoopKernel) => {
+const bootstrapRunning = (kernel: CimiLoopKernel, repositoryPath: string) => {
   const initialized = success(
     kernel.execute({
       schema_version: SCHEMA_VERSION,
@@ -94,7 +94,7 @@ const bootstrapRunning = (kernel: CimiLoopKernel) => {
       payload: {
         name: "M2 Artifact",
         repository_kind: "directory",
-        repository_path: "/tmp/m2-artifact",
+        repository_path: repositoryPath,
         owner_name: "Owner"
       }
     })
@@ -213,8 +213,8 @@ const openKernel = () => {
 
 describe("M2 source snapshot and artifact", () => {
   it("does not create an artifact when a run completes", () => {
-    const { kernel } = openKernel();
-    const ctx = bootstrapRunning(kernel);
+    const { kernel, directory } = openKernel();
+    const ctx = bootstrapRunning(kernel, directory);
     success(
       kernel.execute(
         envelope(
@@ -237,7 +237,7 @@ describe("M2 source snapshot and artifact", () => {
 
   it("records a snapshot and artifact bound to run, context, binding and digest", () => {
     const { kernel, directory } = openKernel();
-    const ctx = bootstrapRunning(kernel);
+    const ctx = bootstrapRunning(kernel, directory);
     const artifactFile = join(directory, "artifact.bin");
     writeFileSync(artifactFile, "hello");
     const snapshot = success(
@@ -296,8 +296,8 @@ describe("M2 source snapshot and artifact", () => {
   });
 
   it("shares digest across provenance and supersedes previous candidates without changing digest", () => {
-    const { kernel, directory } = openKernel();
-    const ctx = bootstrapRunning(kernel);
+    const { kernel, directory, store } = openKernel();
+    const ctx = bootstrapRunning(kernel, directory);
     const firstFile = join(directory, "first.bin");
     const secondFile = join(directory, "second.bin");
     writeFileSync(firstFile, "same");
@@ -342,6 +342,9 @@ describe("M2 source snapshot and artifact", () => {
       )
     );
     if (!("artifact" in first.data)) throw new Error("missing first artifact");
+    const firstArtifactId = first.data.artifact.id;
+    const firstArtifactDigest = first.data.artifact.digest;
+    const firstArtifactSummary = first.data.artifact.summary;
     const second = success(
       kernel.execute(
         envelope(
@@ -363,17 +366,36 @@ describe("M2 source snapshot and artifact", () => {
       )
     );
     if (!("artifact" in second.data)) throw new Error("missing second artifact");
-    expect(second.data.artifact.id).not.toBe(first.data.artifact.id);
-    expect(second.data.artifact.digest.value).toBe(first.data.artifact.digest.value);
-    const previous = kernel.getArtifact(first.data.artifact.id);
+    expect(second.data.artifact.id).not.toBe(firstArtifactId);
+    expect(second.data.artifact.digest.value).toBe(firstArtifactDigest.value);
+    const previous = kernel.getArtifact(firstArtifactId);
     if (!previous || "code" in previous) throw new Error("missing previous artifact");
-    expect(previous.status).toBe("superseded");
-    expect(previous.digest.value).toBe(first.data.artifact.digest.value);
+    expect(previous.status).toBe("candidate");
+    expect(previous.digest.value).toBe(firstArtifactDigest.value);
+    expect(previous.summary).toBe(firstArtifactSummary);
+    const lineage = store.transaction((transaction) =>
+      transaction.listArtifactLineageByPredecessor(firstArtifactId)
+    );
+    expect(lineage).toEqual([
+      expect.objectContaining({
+        predecessor_id: firstArtifactId,
+        successor_id: second.data.artifact.id
+      })
+    ]);
+    kernel.rebuildReadModels(ctx.projectId);
+    const afterRebuild = kernel.getArtifact(firstArtifactId);
+    if (!afterRebuild || "code" in afterRebuild) throw new Error("missing rebuilt artifact");
+    expect(afterRebuild).toMatchObject({
+      id: firstArtifactId,
+      status: "candidate",
+      summary: firstArtifactSummary,
+      digest: firstArtifactDigest
+    });
   });
 
   it("rejects missing provenance and missing local files", () => {
     const { kernel, directory } = openKernel();
-    const ctx = bootstrapRunning(kernel);
+    const ctx = bootstrapRunning(kernel, directory);
     const missingSnapshot = failure(
       kernel.execute(
         envelope(

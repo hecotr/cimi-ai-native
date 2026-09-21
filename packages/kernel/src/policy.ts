@@ -6,6 +6,7 @@ export interface PolicyDigestInput {
   plan_required_role: ProjectPolicy["plan_required_role"];
   decisions_human_only: ProjectPolicy["decisions_human_only"];
   knowledge_tasks_required: ProjectPolicy["knowledge_tasks_required"];
+  status?: PolicySnapshot["status"];
 }
 
 export const SOLO_POLICY_RULES: PolicyDigestInput = {
@@ -15,7 +16,14 @@ export const SOLO_POLICY_RULES: PolicyDigestInput = {
   knowledge_tasks_required: true
 };
 
-export const computePolicySnapshotDigest = (input: PolicyDigestInput): string => requestDigest(input);
+export const computePolicySnapshotDigest = (input: PolicyDigestInput): string => {
+  if (input.status === "revoked") return requestDigest(input);
+  const { status: _status, ...rules } = input;
+  return requestDigest(rules);
+};
+
+export const isPolicyRevoked = (snapshot: Pick<PolicySnapshot, "status"> | undefined): boolean =>
+  snapshot?.status === "revoked";
 
 export const policyDigestInput = (policy: ProjectPolicy): PolicyDigestInput => ({
   intent_required_role: policy.intent_required_role,

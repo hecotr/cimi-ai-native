@@ -131,6 +131,7 @@ import {
 } from "@cimiloop/protocol";
 import {
   StoreConflictError,
+  type ArtifactLineageRecord,
   type CommandReceipt,
   type ExternalOperationLease,
   type OutboxMessage,
@@ -1039,6 +1040,38 @@ class SqliteTransaction implements StoreTransaction {
     );
   }
 
+  insertArtifactLineage(record: ArtifactLineageRecord): void {
+    this.database
+      .prepare(
+        `INSERT INTO artifact_lineage(successor_id, predecessor_id, project_id, change_id, created_at, payload_json)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        record.successor_id,
+        record.predecessor_id,
+        record.project_id,
+        record.change_id,
+        record.created_at,
+        json(record)
+      );
+  }
+
+  listArtifactLineageByChange(changeId: InternalId): ArtifactLineageRecord[] {
+    return this.listPayload(
+      "SELECT payload_json FROM artifact_lineage WHERE change_id = ? ORDER BY rowid",
+      (value) => value as ArtifactLineageRecord,
+      changeId
+    );
+  }
+
+  listArtifactLineageByPredecessor(predecessorId: InternalId): ArtifactLineageRecord[] {
+    return this.listPayload(
+      "SELECT payload_json FROM artifact_lineage WHERE predecessor_id = ? ORDER BY rowid",
+      (value) => value as ArtifactLineageRecord,
+      predecessorId
+    );
+  }
+
   insertBlocker(blocker: Blocker): void {
     this.database
       .prepare(
@@ -1762,6 +1795,10 @@ class SqliteTransaction implements StoreTransaction {
 
   getImportReport(id: InternalId): ImportReport | undefined {
     return this.getPayload("SELECT payload_json FROM import_reports WHERE id = ?", parseImportReport, id);
+  }
+
+  listImportReports(): ImportReport[] {
+    return this.listPayload("SELECT payload_json FROM import_reports ORDER BY rowid", parseImportReport);
   }
 
   listPortableFacts() {

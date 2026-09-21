@@ -65,6 +65,14 @@ import type {
   WorkItem
 } from "@cimiloop/protocol";
 
+export interface ArtifactLineageRecord {
+  successor_id: InternalId;
+  predecessor_id: InternalId;
+  project_id: InternalId;
+  change_id: InternalId;
+  created_at: string;
+}
+
 export interface ProposedEvent {
   event_id: InternalId;
   event_type: string;
@@ -240,6 +248,9 @@ export interface StoreTransaction {
   updateArtifact(artifact: Artifact): void;
   getArtifact(id: InternalId): Artifact | undefined;
   listArtifactsByChange(changeId: InternalId): Artifact[];
+  insertArtifactLineage(record: ArtifactLineageRecord): void;
+  listArtifactLineageByChange(changeId: InternalId): ArtifactLineageRecord[];
+  listArtifactLineageByPredecessor(predecessorId: InternalId): ArtifactLineageRecord[];
 
   insertBlocker(blocker: Blocker): void;
   updateBlocker(blocker: Blocker, expectedRevision: number): void;
@@ -349,6 +360,7 @@ export interface StoreTransaction {
 
   insertImportReport(report: ImportReport): void;
   getImportReport(id: InternalId): ImportReport | undefined;
+  listImportReports(): ImportReport[];
 
   listPortableFacts(): PortableFact[];
   importPortableSnapshot(facts: readonly PortableFact[]): void;

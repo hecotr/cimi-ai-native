@@ -59,13 +59,14 @@ export const stageImportBundle = (input: {
   maxBytes: number;
   reportId: InternalId;
   stagedAt: string;
-}): { report: ReturnType<typeof createImportReport>; historyDigest: string; stagingPath: string } => {
+}): { report: ReturnType<typeof createImportReport>; historyDigest: string; bundleDigest: string; stagingPath: string } => {
   const validated = validateImportBundle(input);
   const stagingPath = join(input.allowedRoot, ".cimiloop", "staging", input.reportId, "bundle.json");
   mkdirSync(join(input.allowedRoot, ".cimiloop", "staging", input.reportId), { recursive: true });
   writeFileSync(stagingPath, validated.bytes);
   return {
     historyDigest: validated.manifest.content_digest.value,
+    bundleDigest: createHash("sha256").update(validated.bytes).digest("hex"),
     stagingPath,
     report: createImportReport({
       id: input.reportId,
