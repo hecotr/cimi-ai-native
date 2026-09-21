@@ -16,7 +16,8 @@ export const PortableObjectEntrySchema = Type.Object(
     id: InternalIdSchema,
     domain_version: Type.Optional(Type.Integer({ minimum: 1 })),
     digest: DigestSchema,
-    payload_reference: ContentReferenceSchema
+    payload_reference: ContentReferenceSchema,
+    payload: Type.Record(Type.String(), Type.Unknown())
   },
   { additionalProperties: false }
 );

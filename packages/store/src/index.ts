@@ -85,6 +85,14 @@ export interface CommandReceipt {
   created_at: string;
 }
 
+export type PortableFact = {
+  object_type: string;
+  schema_version: string;
+  id: string;
+  domain_version?: number;
+  payload: Record<string, unknown>;
+};
+
 export interface OutboxMessage {
   id: InternalId;
   project_id: InternalId;
@@ -341,6 +349,12 @@ export interface StoreTransaction {
 
   insertImportReport(report: ImportReport): void;
   getImportReport(id: InternalId): ImportReport | undefined;
+
+  listPortableFacts(): PortableFact[];
+  importPortableSnapshot(facts: readonly PortableFact[]): void;
+  insertImportedEvent(event: EventEnvelope): void;
+  setProjectCounters(projectId: InternalId, counters: { change_number: number; event_sequence: number }): void;
+  listOutboxMessages(): OutboxMessage[];
 
   upsertReadModelCheckpoint(projectionName: string, eventSequence: number, payload: Record<string, unknown>): void;
   getReadModelCheckpoint(projectionName: string): { event_sequence: number; payload: Record<string, unknown> } | undefined;

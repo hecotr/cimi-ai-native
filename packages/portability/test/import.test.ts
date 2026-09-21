@@ -27,6 +27,7 @@ const fileRef = (path: string): string => `file://${path.replaceAll("\\", "/")}`
 
 const bundle = (projectId = createInternalId()) => {
   const changeId = createInternalId();
+  const eventId = createInternalId();
   const manifest = exportProjectBundle({
     projectId,
     exporterActorId: createInternalId(),
@@ -46,10 +47,17 @@ const bundle = (projectId = createInternalId()) => {
         schema_version: SCHEMA_VERSION,
         id: changeId,
         domain_version: 1,
-        payload: { id: changeId, title: "Imported change", revision: 1 }
+        payload: { id: changeId, project_id: projectId, title: "Imported change", revision: 1 }
+      },
+      {
+        object_type: "event",
+        schema_version: SCHEMA_VERSION,
+        id: eventId,
+        domain_version: 1,
+        payload: { event_id: eventId, event_sequence: 1, project_id: projectId, event_type: "ChangeCreated" }
       }
     ],
-    events: [{ event_id: createInternalId(), event_sequence: 1 }],
+    events: [{ event_id: eventId, event_sequence: 1 }],
     outbox: [],
     ownershipState: "active"
   });
@@ -111,7 +119,7 @@ describe("staged import validation", () => {
     temporaryDirectories.push(root);
     const packed = bundle();
     const file = join(root, "bundle.json");
-    const bytes = JSON.stringify({ manifest: packed.manifest, facts: packed.manifest.entries });
+    const bytes = JSON.stringify({ manifest: packed.manifest });
     writeFileSync(file, bytes);
     expect(() =>
       validateImportBundle({
@@ -133,6 +141,151 @@ describe("staged import validation", () => {
     expect(staged.report.runtime_ownership).toBe("dormant");
     expect(staged.report.status).toBe("staged");
     expect(staged.historyDigest).toBe(packed.manifest.content_digest.value);
+  });
+
+  it("rejects tampered payload, tampered manifest, missing objects, broken history, and relation mismatch", () => {
+    const root = mkdtempSync(join(tmpdir(), "cimiloop-import-integrity-"));
+    temporaryDirectories.push(root);
+    const packed = bundle();
+    const write = (name: string, manifest: unknown) => {
+      const file = join(root, name);
+      const bytes = JSON.stringify({ manifest });
+      writeFileSync(file, bytes);
+      return { file, bytes };
+    };
+
+    const tamperedPayload = {
+      ...packed.manifest,
+      entries: packed.manifest.entries.map((entry) =>
+        entry.object_type === "project" ? { ...entry, payload: { ...entry.payload, name: "Tampered" } } : entry
+      )
+    };
+    const payloadFile = write("payload.json", tamperedPayload);
+    expect(() =>
+      validateImportBundle({
+        allowedRoot: root,
+        bundleReference: fileRef(payloadFile.file),
+        bundleDigest: digest(payloadFile.bytes),
+        maxBytes: 1_000_000
+      })
+    ).toThrow(/DIGEST_MISMATCH|tamper/i);
+
+    const tamperedManifest = { ...packed.manifest, ownership_state: "dormant" };
+    const manifestFile = write("manifest.json", tamperedManifest);
+    expect(() =>
+      validateImportBundle({
+        allowedRoot: root,
+        bundleReference: fileRef(manifestFile.file),
+        bundleDigest: digest(manifestFile.bytes),
+        maxBytes: 1_000_000
+      })
+    ).toThrow(/DIGEST_MISMATCH|manifest digest|content digest/i);
+
+    const missing = {
+      ...packed.manifest,
+      entries: packed.manifest.entries.map((entry) =>
+        entry.object_type === "change" ? { ...entry, payload: undefined } : entry
+      )
+    };
+    const missingFile = write("missing.json", missing);
+    expect(() =>
+      validateImportBundle({
+        allowedRoot: root,
+        bundleReference: fileRef(missingFile.file),
+        bundleDigest: digest(missingFile.bytes),
+        maxBytes: 1_000_000
+      })
+    ).toThrow(/OBJECT_MISSING|missing object/i);
+
+    const eventA = createInternalId();
+    const eventB = createInternalId();
+    const broken = exportProjectBundle({
+      projectId: packed.projectId,
+      exporterActorId: createInternalId(),
+      sourceInstanceId: packed.projectId,
+      exportedAt: "2026-09-20T00:00:00.000Z",
+      manifestId: createInternalId(),
+      facts: [
+        {
+          object_type: "project",
+          schema_version: SCHEMA_VERSION,
+          id: packed.projectId,
+          domain_version: 1,
+          payload: { id: packed.projectId, name: "Broken", revision: 1, project_id: packed.projectId }
+        },
+        {
+          object_type: "event",
+          schema_version: SCHEMA_VERSION,
+          id: eventA,
+          domain_version: 1,
+          payload: { event_id: eventA, event_sequence: 1, project_id: packed.projectId, event_type: "ChangeCreated" }
+        },
+        {
+          object_type: "event",
+          schema_version: SCHEMA_VERSION,
+          id: eventB,
+          domain_version: 3,
+          payload: { event_id: eventB, event_sequence: 3, project_id: packed.projectId, event_type: "ChangeUpdated" }
+        }
+      ],
+      events: [
+        { event_id: eventA, event_sequence: 1 },
+        { event_id: eventB, event_sequence: 3 }
+      ],
+      outbox: [],
+      ownershipState: "active"
+    });
+    const brokenFile = write("broken.json", broken);
+    expect(() =>
+      validateImportBundle({
+        allowedRoot: root,
+        bundleReference: fileRef(brokenFile.file),
+        bundleDigest: digest(brokenFile.bytes),
+        maxBytes: 1_000_000
+      })
+    ).toThrow(/IMPORT_INVALID|continuous|history/i);
+
+    const orphanEvidence = createInternalId();
+    const mismatched = exportProjectBundle({
+      projectId: packed.projectId,
+      exporterActorId: createInternalId(),
+      sourceInstanceId: packed.projectId,
+      exportedAt: "2026-09-20T00:00:00.000Z",
+      manifestId: createInternalId(),
+      facts: [
+        {
+          object_type: "project",
+          schema_version: SCHEMA_VERSION,
+          id: packed.projectId,
+          domain_version: 1,
+          payload: { id: packed.projectId, name: "Mismatch", revision: 1 }
+        },
+        {
+          object_type: "evidence",
+          schema_version: SCHEMA_VERSION,
+          id: orphanEvidence,
+          domain_version: 1,
+          payload: {
+            id: orphanEvidence,
+            project_id: packed.projectId,
+            change_id: createInternalId(),
+            claim_id: createInternalId()
+          }
+        }
+      ],
+      events: [],
+      outbox: [],
+      ownershipState: "active"
+    });
+    const mismatchFile = write("mismatch.json", mismatched);
+    expect(() =>
+      validateImportBundle({
+        allowedRoot: root,
+        bundleReference: fileRef(mismatchFile.file),
+        bundleDigest: digest(mismatchFile.bytes),
+        maxBytes: 1_000_000
+      })
+    ).toThrow(/IMPORT_INVALID|missing claim|missing change/i);
   });
 
   it("classifies empty, identical, and divergent local history", () => {

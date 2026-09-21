@@ -138,6 +138,7 @@ import {
   type StoreTransaction
 } from "@cimiloop/store";
 import { applyProjectStoreMigrations } from "./migrations.js";
+import { importPortableSnapshot, listOutboxRows, listPortableFacts } from "./portable-snapshot.js";
 
 const parseActor = compileValidator<Actor>(ActorSchema);
 const parseProject = compileValidator<Project>(ProjectSchema);
@@ -1760,6 +1761,49 @@ class SqliteTransaction implements StoreTransaction {
 
   getImportReport(id: InternalId): ImportReport | undefined {
     return this.getPayload("SELECT payload_json FROM import_reports WHERE id = ?", parseImportReport, id);
+  }
+
+  listPortableFacts() {
+    return listPortableFacts(this.database);
+  }
+
+  importPortableSnapshot(facts: Parameters<StoreTransaction["importPortableSnapshot"]>[0]): void {
+    importPortableSnapshot(this, facts);
+  }
+
+  insertImportedEvent(event: EventEnvelope): void {
+    const parsed = parseEvent(event);
+    this.database
+      .prepare(
+        `INSERT INTO event_ledger(
+          event_id, project_id, event_sequence, aggregate_type, aggregate_id,
+          aggregate_revision, event_type, occurred_at, envelope_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        parsed.event_id,
+        parsed.project_id,
+        parsed.event_sequence,
+        parsed.aggregate.object_type,
+        parsed.aggregate.id,
+        parsed.aggregate_revision,
+        parsed.event_type,
+        parsed.occurred_at,
+        json(parsed)
+      );
+  }
+
+  setProjectCounters(projectId: InternalId, counters: { change_number: number; event_sequence: number }): void {
+    const result = this.database
+      .prepare("UPDATE project_counters SET change_number = ?, event_sequence = ? WHERE project_id = ?")
+      .run(counters.change_number, counters.event_sequence, projectId);
+    if (Number(result.changes) !== 1) {
+      throw new Error("Project counter not found");
+    }
+  }
+
+  listOutboxMessages() {
+    return listOutboxRows(this.database);
   }
 
   upsertReadModelCheckpoint(projectionName: string, eventSequence: number, payload: Record<string, unknown>): void {

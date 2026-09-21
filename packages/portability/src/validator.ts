@@ -3,7 +3,14 @@ import { isAbsolute, relative, resolve } from "node:path";
 
 export class PortableImportError extends Error {
   constructor(
-    readonly code: "PATH_TRAVERSAL" | "SYMLINK_ESCAPE" | "BUNDLE_TOO_LARGE" | "DIGEST_MISMATCH" | "DIVERGENT_HISTORY" | "IMPORT_INVALID",
+    readonly code:
+      | "PATH_TRAVERSAL"
+      | "SYMLINK_ESCAPE"
+      | "BUNDLE_TOO_LARGE"
+      | "DIGEST_MISMATCH"
+      | "OBJECT_MISSING"
+      | "DIVERGENT_HISTORY"
+      | "IMPORT_INVALID",
     message: string
   ) {
     super(message);

@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import type { ExportManifest, InternalId } from "@cimiloop/protocol";
+import { validatePortableManifest } from "./integrity.js";
 import { createImportReport } from "./report.js";
 import { PortableImportError, resolveBundlePath } from "./validator.js";
 
@@ -27,20 +28,28 @@ export const validateImportBundle = (input: {
   if (actual !== input.bundleDigest.value) {
     throw new PortableImportError("DIGEST_MISMATCH", "tampered bundle digest");
   }
-  let parsed: { manifest?: ExportManifest };
+  let parsed: { manifest?: unknown };
   try {
-    parsed = JSON.parse(bytes.toString("utf8")) as { manifest?: ExportManifest };
+    parsed = JSON.parse(bytes.toString("utf8")) as { manifest?: unknown };
   } catch {
     throw new PortableImportError("IMPORT_INVALID", "bundle is not valid JSON");
   }
-  if (!parsed.manifest || parsed.manifest.portable_schema_version !== "portable-1.0.0") {
+  if (!parsed.manifest || typeof parsed.manifest !== "object") {
     throw new PortableImportError("IMPORT_INVALID", "bundle manifest is not a portable export");
   }
-  const ids = parsed.manifest.ids;
-  if (new Set(ids).size !== ids.length) {
-    throw new PortableImportError("IMPORT_INVALID", "bundle contains duplicate ids");
+  const raw = parsed.manifest as { entries?: Array<{ payload?: unknown; id?: string }>; ids?: string[] };
+  if (Array.isArray(raw.ids)) {
+    for (const id of raw.ids) {
+      if (!raw.entries?.some((entry) => entry.id === id)) {
+        throw new PortableImportError("OBJECT_MISSING", `missing object ${id}`);
+      }
+    }
   }
-  return { path, bytes, manifest: parsed.manifest };
+  if (Array.isArray(raw.entries) && raw.entries.some((entry) => entry.payload === undefined || entry.payload === null)) {
+    throw new PortableImportError("OBJECT_MISSING", "missing object payload");
+  }
+  const manifest = validatePortableManifest(parsed.manifest);
+  return { path, bytes, manifest };
 };
 
 export const stageImportBundle = (input: {

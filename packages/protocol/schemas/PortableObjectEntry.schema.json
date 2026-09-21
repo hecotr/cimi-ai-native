@@ -7,7 +7,8 @@
     "schema_version",
     "id",
     "digest",
-    "payload_reference"
+    "payload_reference",
+    "payload"
   ],
   "properties": {
     "object_type": {
@@ -56,6 +57,12 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 500
+    },
+    "payload": {
+      "type": "object",
+      "patternProperties": {
+        "^.*$": {}
+      }
     }
   },
   "additionalProperties": false

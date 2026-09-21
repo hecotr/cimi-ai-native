@@ -84,7 +84,8 @@ const validPortableEntry = (objectId = id()) => ({
   schema_version: protocol.SCHEMA_VERSION,
   id: objectId,
   digest: digest("portable_entry"),
-  payload_reference: "cimi-object://export/change.json"
+  payload_reference: "cimi-object://export/change.json",
+  payload: { id: objectId, title: "Exported change" }
 });
 
 const validExportManifest = () => {

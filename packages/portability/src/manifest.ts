@@ -18,8 +18,47 @@ export const toPortableEntries = (facts: ExportContentInput["facts"]): PortableO
       id: fact.id,
       ...(fact.domain_version ? { domain_version: fact.domain_version } : {}),
       digest: digestOf(fact.payload, "portable_entry"),
-      payload_reference: `cimi-object://export/${fact.object_type}/${fact.id}`
+      payload_reference: `cimi-object://export/${fact.object_type}/${fact.id}`,
+      payload: { ...fact.payload }
     }));
+
+export const canonicalExportContent = (input: ExportContentInput): ExportContentInput => {
+  const facts = [...input.facts];
+  for (const event of input.events) {
+    if (!facts.some((fact) => fact.object_type === "event" && fact.id === event.event_id)) {
+      facts.push({
+        object_type: "event",
+        schema_version: SCHEMA_VERSION,
+        id: event.event_id,
+        domain_version: event.event_sequence,
+        payload: { event_id: event.event_id, event_sequence: event.event_sequence }
+      });
+    }
+  }
+  for (const item of input.outbox) {
+    if (!facts.some((fact) => fact.object_type === "outbox_message" && fact.id === item.id)) {
+      facts.push({
+        object_type: "outbox_message",
+        schema_version: SCHEMA_VERSION,
+        id: item.id,
+        payload: { id: item.id, status: item.status }
+      });
+    }
+  }
+  return {
+    facts,
+    events: facts
+      .filter((fact) => fact.object_type === "event")
+      .map((fact) => ({
+        event_id: fact.id,
+        event_sequence: Number(fact.payload.event_sequence ?? fact.domain_version ?? 0)
+      })),
+    outbox: facts
+      .filter((fact) => fact.object_type === "outbox_message")
+      .map((fact) => ({ id: fact.id, status: String(fact.payload.status ?? "") })),
+    ...(input.objectDigests ? { objectDigests: input.objectDigests } : {})
+  };
+};
 
 export const assembleExportManifest = (
   input: ExportContentInput & {
@@ -32,8 +71,9 @@ export const assembleExportManifest = (
     latestRevision: number;
   }
 ): ExportManifest => {
-  const entries = toPortableEntries(input.facts);
-  const sequences = input.events.map((item) => item.event_sequence);
+  const content = canonicalExportContent(input);
+  const entries = toPortableEntries(content.facts);
+  const sequences = content.events.map((item) => item.event_sequence);
   const draft: ExportManifest = {
     portable_schema_version: PORTABLE_SCHEMA_VERSION,
     id: input.id,
@@ -48,7 +88,7 @@ export const assembleExportManifest = (
     latest_revision: input.latestRevision,
     ownership_state: input.ownershipState,
     excluded: [...DEFAULT_EXPORT_EXCLUSIONS],
-    content_digest: contentDigest(input),
+    content_digest: contentDigest(content),
     manifest_digest: digestOf({}, "export_manifest")
   };
   return { ...draft, manifest_digest: manifestDigest(draft) };

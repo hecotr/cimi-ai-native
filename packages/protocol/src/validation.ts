@@ -101,6 +101,7 @@ import {
   type ExportManifestShowResult,
   type ImportReportShowResult
 } from "./m5/results.js";
+import { ExportManifestSchema, type ExportManifest } from "./m5/portable.js";
 import {
   ChangeListResultSchema,
   ChangeShowResultSchema,
@@ -190,6 +191,7 @@ export const parseReleaseShowResult = compileValidator<ReleaseShowResult>(Releas
 export const parseDeploymentShowResult = compileValidator<DeploymentShowResult>(DeploymentShowResultSchema);
 export const parseClosureEvaluationShowResult =
   compileValidator<ClosureEvaluationShowResult>(ClosureEvaluationShowResultSchema);
+export const parseExportManifest = compileValidator<ExportManifest>(ExportManifestSchema);
 export const parseExportManifestShowResult = compileValidator<ExportManifestShowResult>(ExportManifestShowResultSchema);
 export const parseImportReportShowResult = compileValidator<ImportReportShowResult>(ImportReportShowResultSchema);
 

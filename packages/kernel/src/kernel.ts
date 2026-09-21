@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import {
@@ -79,6 +80,7 @@ import {
   type SupersedeChangeCommand,
   type ArchiveChangeCommand,
   type CreateLearningCandidateCommand,
+  type ExportManifest,
   type ExportProjectCommand,
   type StageImportCommand,
   type CommitImportCommand,
@@ -115,6 +117,7 @@ import {
 import {
   StoreConflictError,
   type OutboxMessage,
+  type PortableFact,
   type ProjectStore,
   type ProposedEvent,
   type StoreTransaction
@@ -144,7 +147,8 @@ import {
   exportProjectBundle,
   PortableExportError,
   PortableImportError,
-  stageImportBundle
+  stageImportBundle,
+  validateImportBundle
 } from "@cimiloop/portability";
 import { evaluateKnowledgeClosureGate } from "./closure/gate.js";
 import { createProposedLearningCandidate } from "./closure/learning.js";
@@ -4970,42 +4974,7 @@ export class CimiLoopKernel {
         return domainError(command.correlation_id, "CHANGE_NOT_FOUND", "未找到指定 Change", "not_found");
       }
     }
-    const changes = this.#store
-      .listChanges()
-      .filter((item) => !command.payload.change_id || item.id === command.payload.change_id);
-    const events = this.#historyEvents(
-      this.#store.listEvents().filter((event) => {
-        if (event.project_id !== context.project.id) return false;
-        if (!command.payload.change_id) return true;
-        return (
-          event.aggregate.id === command.payload.change_id ||
-          event.payload.change_id === command.payload.change_id
-        );
-      })
-    );
-    const facts = [
-      {
-        object_type: "project",
-        schema_version: SCHEMA_VERSION,
-        id: context.project.id,
-        domain_version: context.project.revision,
-        payload: { ...context.project }
-      },
-      ...changes.map((change) => ({
-        object_type: "change",
-        schema_version: SCHEMA_VERSION,
-        id: change.id,
-        domain_version: change.revision,
-        payload: { ...change }
-      })),
-      ...events.map((event) => ({
-        object_type: "event",
-        schema_version: SCHEMA_VERSION,
-        id: event.event_id,
-        domain_version: event.event_sequence,
-        payload: { ...event }
-      }))
-    ];
+    const exported = this.#portableExportInput(transaction, context.project, command.payload.change_id);
     try {
       const manifest = exportProjectBundle({
         projectId: context.project.id,
@@ -5013,11 +4982,11 @@ export class CimiLoopKernel {
         sourceInstanceId: context.project.instance_id,
         exportedAt: this.#now(),
         manifestId: this.#id(),
-        facts,
-        events: events.map((event) => ({ event_id: event.event_id, event_sequence: event.event_sequence })),
-        outbox: this.#historyOutbox(events),
+        facts: exported.facts,
+        events: exported.events,
+        outbox: exported.outbox,
         ownershipState: "active",
-        latestRevision: Math.max(context.project.revision, ...changes.map((item) => item.revision))
+        latestRevision: exported.latestRevision
       });
       const now = this.#now();
       const event = this.#appendEvent(transaction, {
@@ -5178,18 +5147,16 @@ export class CimiLoopKernel {
     if (!existing && command.expected_revision !== 1) {
       return domainError(command.correlation_id, "REVISION_CONFLICT", "空目标导入必须使用 expected_revision=1", "conflict");
     }
-    const incomingDigest = this.#stagedImportDigest(report.summary);
-    if (!incomingDigest) {
-      return domainError(
-        command.correlation_id,
-        "DIGEST_MISMATCH",
-        "CommitImport 必须重新核对 staging bundle 的 content_digest",
-        "validation"
-      );
+    const staged = this.#readStagedImport(report.summary);
+    if ("code" in staged) {
+      return domainError(command.correlation_id, staged.code, staged.message, "validation");
     }
+    const incomingDigest = staged.manifest.content_digest.value;
     const history = classifyImportHistory({
-      ...(existing ? { localProjectId: existing.id, localDigest: this.#currentContentDigest(existing.id) } : {}),
-      incomingProjectId: report.project_id,
+      ...(existing
+        ? { localProjectId: existing.id, localDigest: this.#currentContentDigest(transaction, existing.id) }
+        : {}),
+      incomingProjectId: staged.manifest.project_id,
       incomingDigest
     });
     if (history === "divergent") {
@@ -5199,7 +5166,7 @@ export class CimiLoopKernel {
         stagedAt: this.#now(),
         status: "rejected",
         conflicts: ["DIVERGENT_HISTORY"],
-        digestMismatches: incomingDigest ? [incomingDigest] : [],
+        digestMismatches: [incomingDigest],
         summary: "Local project history diverges from the staged bundle."
       });
       transaction.insertImportReport(rejected);
@@ -5207,9 +5174,22 @@ export class CimiLoopKernel {
         import_report_id: rejected.id
       });
     }
+    if (history === "empty_target") {
+      try {
+        transaction.importPortableSnapshot(this.#factsFromManifest(staged.manifest));
+      } catch (error) {
+        return domainError(
+          command.correlation_id,
+          "IMPORT_INVALID",
+          error instanceof Error ? error.message : "导入激活失败",
+          "storage",
+          true
+        );
+      }
+    }
     const accepted = createImportReport({
       id: this.#id(),
-      projectId: report.project_id,
+      projectId: staged.manifest.project_id,
       stagedAt: this.#now(),
       status: "accepted",
       summary:
@@ -5218,11 +5198,12 @@ export class CimiLoopKernel {
           : "Empty target accepted the staged bundle without activating runtime ownership."
     });
     transaction.insertImportReport(accepted);
-    const events = existing
+    const project = transaction.getCurrentProject();
+    const events = project
       ? [
           this.#appendEvent(transaction, {
             event_type: "ImportCommitted",
-            project_id: existing.id,
+            project_id: project.id,
             aggregate: { object_type: "import_report", id: accepted.id, domain_version: 1 },
             aggregate_revision: 1,
             actor_id: command.actor_id,
@@ -5235,7 +5216,7 @@ export class CimiLoopKernel {
     return this.#success(
       command,
       { object_type: "import_report", id: accepted.id, domain_version: 1 },
-      existing?.revision ?? 1,
+      project?.revision ?? existing?.revision ?? 1,
       events,
       { import_report: accepted }
     );
@@ -5258,45 +5239,131 @@ export class CimiLoopKernel {
       .map((item) => ({ id: item.id, status: item.status }));
   }
 
-  #currentContentDigest(projectId: string): string {
-    const project = this.#store.getProject();
-    if (!project) return "";
-    const changes = this.#store.listChanges();
-    const events = this.#historyEvents(this.#store.listEvents().filter((event) => event.project_id === projectId));
+  #currentContentDigest(transaction: StoreTransaction, projectId: string): string {
+    const project = transaction.getCurrentProject();
+    if (!project || project.id !== projectId) return "";
+    const exported = this.#portableExportInput(transaction, project);
     return exportProjectBundle({
       projectId,
       exporterActorId: project.id,
       sourceInstanceId: project.instance_id,
       exportedAt: this.#now(),
       manifestId: this.#id(),
-      facts: [
-        {
-          object_type: "project",
-          schema_version: SCHEMA_VERSION,
-          id: project.id,
-          domain_version: project.revision,
-          payload: { ...project }
-        },
-        ...changes.map((change) => ({
-          object_type: "change",
-          schema_version: SCHEMA_VERSION,
-          id: change.id,
-          domain_version: change.revision,
-          payload: { ...change }
-        })),
-        ...events.map((event) => ({
-          object_type: "event",
-          schema_version: SCHEMA_VERSION,
-          id: event.event_id,
-          domain_version: event.event_sequence,
-          payload: { ...event }
-        }))
-      ],
-      events: events.map((event) => ({ event_id: event.event_id, event_sequence: event.event_sequence })),
-      outbox: this.#historyOutbox(events),
+      facts: exported.facts,
+      events: exported.events,
+      outbox: exported.outbox,
       ownershipState: "active",
-      latestRevision: Math.max(project.revision, ...changes.map((item) => item.revision))
+      latestRevision: exported.latestRevision
     }).content_digest.value;
+  }
+
+  #portableExportInput(
+    transaction: StoreTransaction,
+    project: Project,
+    changeId?: InternalId
+  ): {
+    facts: PortableFact[];
+    events: Array<{ event_id: string; event_sequence: number }>;
+    outbox: Array<{ id: InternalId; status: string }>;
+    latestRevision: number;
+  } {
+    const collected = transaction.listPortableFacts().filter((fact) => this.#includePortableFact(fact, project.id, changeId));
+    const events = collected
+      .filter((fact) => fact.object_type === "event")
+      .map((fact) => ({
+        event_id: fact.id,
+        event_sequence: Number(fact.payload.event_sequence ?? fact.domain_version ?? 0)
+      }))
+      .sort((left, right) => left.event_sequence - right.event_sequence);
+    const historyIds = new Set(events.map((item) => item.event_id));
+    const facts = collected.filter(
+      (fact) => fact.object_type !== "outbox_message" || historyIds.has(String(fact.payload.event_id ?? ""))
+    );
+    const outbox = facts
+      .filter((fact) => fact.object_type === "outbox_message")
+      .map((fact) => ({ id: fact.id as InternalId, status: String(fact.payload.status ?? "") }));
+    const revisions = facts
+      .map((fact) => fact.domain_version ?? (typeof fact.payload.revision === "number" ? fact.payload.revision : 0))
+      .filter((value) => value > 0);
+    return {
+      facts,
+      events,
+      outbox,
+      latestRevision: Math.max(project.revision, ...revisions)
+    };
+  }
+
+  #includePortableFact(fact: PortableFact, projectId: string, changeId?: InternalId): boolean {
+    if (fact.object_type === "event") {
+      const eventType = String(fact.payload.event_type ?? "");
+      if (eventType === "ProjectExported" || eventType === "ImportStaged" || eventType === "ImportCommitted") {
+        return false;
+      }
+      if (String(fact.payload.project_id ?? "") !== projectId) return false;
+      if (!changeId) return true;
+      return (
+        String(fact.payload.aggregate && typeof fact.payload.aggregate === "object"
+          ? (fact.payload.aggregate as { id?: string }).id
+          : "") === changeId || fact.payload.change_id === changeId
+      );
+    }
+    if (fact.object_type === "outbox_message") {
+      return String(fact.payload.project_id ?? "") === projectId;
+    }
+    if (String(fact.payload.project_id ?? fact.id) !== projectId && fact.payload.project_id !== undefined) {
+      return false;
+    }
+    if (!changeId) return true;
+    if (
+      fact.object_type === "project" ||
+      fact.object_type === "actor" ||
+      fact.object_type === "role" ||
+      fact.object_type === "assignment" ||
+      fact.object_type === "project_policy" ||
+      fact.object_type === "policy_snapshot" ||
+      fact.object_type === "change_profile"
+    ) {
+      return true;
+    }
+    return fact.id === changeId || fact.payload.change_id === changeId;
+  }
+
+  #factsFromManifest(manifest: ExportManifest): PortableFact[] {
+    return manifest.entries.map((entry) => ({
+      object_type: entry.object_type,
+      schema_version: entry.schema_version,
+      id: entry.id,
+      ...(entry.domain_version ? { domain_version: entry.domain_version } : {}),
+      payload: { ...entry.payload }
+    }));
+  }
+
+  #readStagedImport(summary: string): { manifest: ExportManifest } | { code: string; message: string } {
+    const encoded = /staging=([^;]+)/.exec(summary)?.[1];
+    if (!encoded) {
+      return { code: "DIGEST_MISMATCH", message: "CommitImport 必须重新核对 staging bundle 的 content_digest" };
+    }
+    const stagingPath = decodeURIComponent(encoded);
+    try {
+      const bytes = readFileSync(stagingPath);
+      const digest = {
+        algorithm: "sha256" as const,
+        value: createHash("sha256").update(bytes).digest("hex"),
+        subject: "import_bundle"
+      };
+      const validated = validateImportBundle({
+        allowedRoot: dirname(stagingPath),
+        bundleReference: `file://${stagingPath.replaceAll("\\", "/")}`,
+        bundleDigest: digest,
+        maxBytes: 5_000_000
+      });
+      return { manifest: validated.manifest };
+    } catch (error) {
+      if (error instanceof PortableImportError) {
+        return { code: error.code, message: error.message };
+      }
+      return { code: "DIGEST_MISMATCH", message: "CommitImport 必须重新核对 staging bundle 的 content_digest" };
+    }
   }
 
   #touchChange(transaction: StoreTransaction, change: Change, expectedRevision: number, now: string): Change {
