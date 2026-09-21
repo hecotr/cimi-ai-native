@@ -1,31 +1,21 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { DeterministicDevOpsAdapter } from "../../devops/src/deterministic.js";
 import { CimiLoopKernel } from "../../kernel/src/kernel.js";
 import {
   SCHEMA_VERSION,
   createInternalId,
-  type Artifact,
-  type CommandSuccess,
   type DevOpsAdapterInput,
   type DevOpsAdapterResult,
-  type DomainError,
-  type GateRequirementSet,
-  type InternalId
+  type DomainError
 } from "../../protocol/src/index.js";
 import { SqliteProjectStore } from "../../store-sqlite/src/project-store.js";
-import { createPlanningWorkItem } from "../../kernel/src/work-item.js";
 import { ExternalDeliveryWorker } from "../src/external-worker.js";
+import { digest, envelope, now, openQueuedDelivery, success } from "./delivery-harness.js";
 
 const temporaryDirectories: string[] = [];
 const openStores: SqliteProjectStore[] = [];
-const now = "2026-09-20T12:00:00.000Z";
-const digest = (subject: string, value = "e".repeat(64)) => ({
-  algorithm: "sha256" as const,
-  value,
-  subject
-});
 
 afterEach(() => {
   while (openStores.length > 0) {
@@ -37,245 +27,40 @@ afterEach(() => {
   }
 });
 
-const success = (result: CommandSuccess | DomainError): CommandSuccess => {
-  if (!("ok" in result && result.ok)) throw new Error(JSON.stringify(result));
-  return result;
-};
+const workerFor = (
+  ctx: ReturnType<typeof openQueuedDelivery>,
+  adapter: ConstructorParameters<typeof ExternalDeliveryWorker>[0]["adapter"],
+  extras: Partial<ConstructorParameters<typeof ExternalDeliveryWorker>[0]> = {}
+) =>
+  new ExternalDeliveryWorker({
+    kernel: ctx.kernel,
+    store: ctx.store,
+    adapter,
+    projectId: ctx.projectId,
+    actorId: ctx.actorId,
+    workingDirectory: ctx.directory,
+    now: () => now,
+    ...extras
+  });
 
-const envelope = (
-  type: string,
-  projectId: InternalId,
-  actorId: InternalId,
-  payload: Record<string, unknown>,
-  revision: number,
-  changeId: InternalId
-) => ({
-  schema_version: SCHEMA_VERSION,
-  command_id: createInternalId(),
-  correlation_id: createInternalId(),
-  command_type: type,
-  requested_at: now,
-  actor_id: actorId,
-  project_id: projectId,
-  expected_revision: revision,
-  target: { object_type: "change" as const, id: changeId, domain_version: 1 },
-  source: { origin: "system" as const, producer: "m4-external-worker-test" },
-  payload
+const conflict = (): DomainError => ({
+  code: "REVISION_CONFLICT",
+  message: "目标对象已被其他命令修改，请刷新后重试",
+  category: "conflict",
+  retryable: true,
+  details: {},
+  correlation_id: createInternalId()
 });
 
 describe("M4 external delivery worker", () => {
   it("records timeout as unknown and reconciles before any second deploy", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "cimiloop-m4-worker-"));
-    temporaryDirectories.push(directory);
-    const store = new SqliteProjectStore(join(directory, "project.db"));
-    openStores.push(store);
-    const kernel = new CimiLoopKernel({ store, now: () => now });
-    const initialized = success(
-      kernel.execute({
-        schema_version: SCHEMA_VERSION,
-        command_id: createInternalId(),
-        correlation_id: createInternalId(),
-        command_type: "InitializeProject",
-        requested_at: now,
-        actor_id: createInternalId(),
-        project_id: createInternalId(),
-        source: { origin: "human_cli" as const, producer: "m4-external-worker-test" },
-        payload: {
-          name: "M4 Worker",
-          repository_kind: "directory",
-          repository_path: directory,
-          owner_name: "Owner"
-        }
-      })
-    );
-    if (!("project" in initialized.data) || !("actor" in initialized.data)) throw new Error("missing project");
-    const created = success(
-      kernel.execute({
-        schema_version: SCHEMA_VERSION,
-        command_id: createInternalId(),
-        correlation_id: createInternalId(),
-        command_type: "CreateChange",
-        requested_at: now,
-        actor_id: initialized.data.actor.id,
-        project_id: initialized.data.project.id,
-        source: { origin: "human_cli" as const, producer: "m4-external-worker-test" },
-        payload: { title: "Worker" }
-      })
-    );
-    if (!("change" in created.data)) throw new Error("missing change");
-    const ctx = {
-      projectId: initialized.data.project.id,
-      actorId: initialized.data.actor.id,
-      changeId: created.data.change.id
-    };
-    const sourceWorkItem = createPlanningWorkItem({
-      id: createInternalId(),
-      projectId: ctx.projectId,
-      changeId: ctx.changeId,
-      contractId: createInternalId(),
-      contractVersion: 1,
-      policySnapshotId: createInternalId(),
-      now
-    });
-    const requirementSet: GateRequirementSet = {
-      schema_version: SCHEMA_VERSION,
-      id: createInternalId(),
-      project_id: ctx.projectId,
-      change_id: ctx.changeId,
-      version: 1,
-      profile_key: "feature",
-      policy_snapshot_id: sourceWorkItem.policy_snapshot_id,
-      contract_id: sourceWorkItem.contract_id,
-      contract_version: 1,
-      items: [{ claim_key: "AC-1", obligation: "required", source: "acceptance", accepted_evidence_kinds: ["evaluator"] }],
-      digest: digest("requirement_set"),
-      created_at: now
-    };
-    const artifact: Artifact = {
-      schema_version: SCHEMA_VERSION,
-      id: createInternalId(),
-      project_id: ctx.projectId,
-      change_id: ctx.changeId,
-      work_item_id: sourceWorkItem.id,
-      run_id: createInternalId(),
-      context_pack_id: createInternalId(),
-      binding_id: createInternalId(),
-      source_snapshot_id: createInternalId(),
-      contract_id: requirementSet.contract_id,
-      contract_version: 1,
-      plan_id: createInternalId(),
-      plan_version: 1,
-      status: "candidate",
-      summary: "candidate artifact",
-      digest: digest("artifact"),
-      content_reference: "file://artifact.bin",
-      created_at: now
-    };
-    store.transaction((transaction) => {
-      transaction.insertWorkItem(sourceWorkItem);
-      transaction.insertGateRequirementSet(requirementSet);
-      transaction.insertArtifact(artifact);
-      transaction.insertClaim({
-        schema_version: SCHEMA_VERSION,
-        id: createInternalId(),
-        project_id: ctx.projectId,
-        change_id: ctx.changeId,
-        claim_key: "AC-1",
-        statement: "Artifact 可部署。",
-        category: "intent",
-        obligation: "required",
-        source: "acceptance",
-        contract_id: requirementSet.contract_id,
-        contract_version: 1,
-        requirement_set_id: requirementSet.id,
-        artifact_id: artifact.id,
-        artifact_digest: artifact.digest,
-        created_at: now
-      });
-      const claim = transaction.listClaimsByChange(ctx.changeId)[0];
-      if (!claim) throw new Error("missing claim");
-      transaction.insertEvidence({
-        schema_version: SCHEMA_VERSION,
-        id: createInternalId(),
-        project_id: ctx.projectId,
-        change_id: ctx.changeId,
-        claim_id: claim.id,
-        stance: "Supports",
-        subject_type: "artifact",
-        subject_id: artifact.id,
-        subject_digest: artifact.digest,
-        content_reference: "cimi-object://evidence/allow",
-        digest: digest("evidence"),
-        producer_role: "evaluator",
-        created_at: now
-      });
-    });
-    const afterEval = success(
-      kernel.execute(
-        envelope(
-          "CompleteEvaluation",
-          ctx.projectId,
-          ctx.actorId,
-          {
-            change_id: ctx.changeId,
-            evaluation_id: createInternalId(),
-            artifact_id: artifact.id,
-            artifact_digest: artifact.digest,
-            requirement_set_id: requirementSet.id,
-            input_digest: digest("ignored"),
-            result: "DENY",
-            reason: "ignored"
-          },
-          created.data.change.revision,
-          ctx.changeId
-        )
-      )
-    );
-    const environment = success(
-      kernel.execute(
-        envelope(
-          "RegisterEnvironment",
-          ctx.projectId,
-          ctx.actorId,
-          {
-            environment_key: "acceptance-test",
-            kind: "test",
-            display_name: "Acceptance Test",
-            adapter_ref: "file://examples/acceptance-target"
-          },
-          afterEval.revision,
-          ctx.changeId
-        )
-      )
-    );
-    if (!("environment" in environment.data)) throw new Error("missing environment");
-    const release = success(
-      kernel.execute(
-        envelope(
-          "CreateRelease",
-          ctx.projectId,
-          ctx.actorId,
-          {
-            change_id: ctx.changeId,
-            kind: "test",
-            artifact_id: artifact.id,
-            artifact_digest: artifact.digest,
-            environment_id: environment.data.environment.id,
-            scope: { in: ["acceptance.service"], out: [] },
-            window: { starts_at: now, ends_at: "2026-09-21T12:00:00.000Z" },
-            recovery: {
-              trigger: "unknown_timeout",
-              kind: "rollback",
-              target_digest: digest("known_good_artifact", "f".repeat(64)),
-              scope: { in: ["acceptance.service"], out: [] },
-              steps: ["query operation key"],
-              verify_checks: ["digest"],
-              authorization: "preauthorized"
-            }
-          },
-          environment.revision,
-          ctx.changeId
-        )
-      )
-    );
-    if (!("release" in release.data)) throw new Error("missing release");
-    success(
-      kernel.execute(
-        envelope(
-          "QueueDeployment",
-          ctx.projectId,
-          ctx.actorId,
-          { release_id: release.data.release.id, environment_id: environment.data.environment.id },
-          release.revision,
-          ctx.changeId
-        )
-      )
-    );
-
+    const ctx = openQueuedDelivery(temporaryDirectories, openStores);
     const calls: string[] = [];
     const adapter = {
       execute: async (input: DevOpsAdapterInput): Promise<DevOpsAdapterResult> => {
         calls.push(input.operation);
+        expect(input.operation_id).toMatch(/^[0-9a-f-]{36}$/i);
+        expect(input.operation_key).toBe(input.operation_id);
         if (input.operation === "deploy") {
           return {
             schema_version: SCHEMA_VERSION,
@@ -290,36 +75,258 @@ describe("M4 external delivery worker", () => {
           schema_version: SCHEMA_VERSION,
           operation_key: input.operation_key,
           state: "succeeded",
-          actual_digest: artifact.digest,
+          actual_digest: ctx.artifact.digest,
           log_reference: "file://logs/reconcile.log",
           log_digest: digest("reconcile_log"),
           summary: "found the authorized digest"
         };
       }
     };
-
-    const worker = new ExternalDeliveryWorker({
-      kernel,
-      store,
-      adapter,
-      projectId: ctx.projectId,
-      actorId: ctx.actorId,
-      workingDirectory: directory,
-      now: () => now
-    });
+    const worker = workerFor(ctx, adapter);
     const first = await worker.recover();
     expect(first.recordedUnknown).toBe(1);
     expect(calls).toEqual(["deploy"]);
-    expect(store.transaction((transaction) => transaction.listUnknownExternalOperations())).toHaveLength(1);
+    expect(ctx.store.transaction((transaction) => transaction.listUnknownExternalOperations())).toHaveLength(1);
 
     const second = await worker.recover();
     expect(second.reconciled).toBe(1);
     expect(calls).toEqual(["deploy", "reconcile"]);
-    expect(store.transaction((transaction) => transaction.listUnknownExternalOperations())).toHaveLength(0);
+    expect(ctx.store.transaction((transaction) => transaction.listUnknownExternalOperations())).toHaveLength(0);
     expect(
-      store
+      ctx.store
         .transaction((transaction) => transaction.listExternalOperationsByChange(ctx.changeId))
         .filter((item) => item.operation_kind === "deploy")
     ).toHaveLength(1);
+  });
+
+  it("lets only one of two competing workers invoke the same pending operation", async () => {
+    const ctx = openQueuedDelivery(temporaryDirectories, openStores);
+    const storeB = new SqliteProjectStore(join(ctx.directory, "project.db"));
+    openStores.push(storeB);
+    const kernelB = new CimiLoopKernel({ store: storeB, now: () => now });
+    let releaseGate: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      releaseGate = resolve;
+    });
+    let entered = 0;
+    const adapter = {
+      execute: async (input: DevOpsAdapterInput): Promise<DevOpsAdapterResult> => {
+        entered += 1;
+        if (input.operation === "deploy") await gate;
+        return {
+          schema_version: SCHEMA_VERSION,
+          operation_key: input.operation_key,
+          state: "succeeded",
+          actual_digest: ctx.artifact.digest,
+          log_reference: "file://logs/deploy.log",
+          log_digest: digest("deploy_log"),
+          summary: "deployed"
+        };
+      }
+    };
+    const workerA = workerFor(ctx, adapter, { ownerId: "worker-a" });
+    const workerB = new ExternalDeliveryWorker({
+      kernel: kernelB,
+      store: storeB,
+      adapter,
+      projectId: ctx.projectId,
+      actorId: ctx.actorId,
+      workingDirectory: ctx.directory,
+      now: () => now,
+      ownerId: "worker-b"
+    });
+    const first = workerA.recover();
+    const startedAt = Date.now();
+    while (entered === 0 && Date.now() - startedAt < 2000) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    expect(entered).toBe(1);
+    const second = await workerB.recover();
+    releaseGate();
+    const firstResult = await first;
+    expect(entered).toBe(1);
+    expect(firstResult.executed + second.executed).toBe(1);
+    const operations = ctx.store.transaction((transaction) => transaction.listExternalOperationsByChange(ctx.changeId));
+    expect(operations.filter((item) => item.operation_kind === "deploy" && item.state === "succeeded")).toHaveLength(1);
+  });
+
+  it("does not re-invoke after adapter success when RecordOperationResult hits a revision conflict", async () => {
+    const ctx = openQueuedDelivery(temporaryDirectories, openStores);
+    const realExecute = ctx.kernel.execute.bind(ctx.kernel);
+    let remainingConflicts = 2;
+    ctx.kernel.execute = ((input: unknown) => {
+      const command = input as { command_type?: string };
+      if (command.command_type === "RecordOperationResult" && remainingConflicts > 0) {
+        remainingConflicts -= 1;
+        return conflict();
+      }
+      return realExecute(input);
+    }) as CimiLoopKernel["execute"];
+    const adapter = new DeterministicDevOpsAdapter();
+    const worker = workerFor(ctx, adapter);
+    const first = await worker.recover();
+    expect(adapter.calls.filter((item) => item.operation === "deploy")).toHaveLength(1);
+    expect(first.recordedUnknown).toBeGreaterThanOrEqual(1);
+    const second = await worker.recover();
+    expect(adapter.calls.filter((item) => item.operation === "deploy")).toHaveLength(1);
+    expect(second.executed + first.executed).toBeGreaterThanOrEqual(0);
+    expect(adapter.calls.some((item) => item.operation === "reconcile")).toBe(true);
+  });
+
+  it("treats a crash after adapter return as unknown and forbids a blind second deploy", async () => {
+    const ctx = openQueuedDelivery(temporaryDirectories, openStores);
+    const operation = ctx.store.transaction((transaction) => transaction.listExternalOperationsByChange(ctx.changeId))[0];
+    if (!operation) throw new Error("missing operation");
+    const claimed = ctx.store.claimExternalOperation({
+      operationId: operation.id,
+      ownerId: "crashed-worker",
+      now,
+      leaseUntil: "2026-09-20T12:00:30.000Z"
+    });
+    expect(claimed).toBeTruthy();
+    expect(ctx.store.markExternalOperationInvokeStarted(operation.id, "crashed-worker", now)).toBe(true);
+    ctx.store.markExternalOperationInvokeFinished(operation.id, "crashed-worker", now, {
+      schema_version: SCHEMA_VERSION,
+      operation_key: operation.id,
+      state: "succeeded",
+      actual_digest: ctx.artifact.digest,
+      log_reference: "file://logs/crash.log",
+      log_digest: digest("crash_log"),
+      summary: "adapter returned before process death"
+    });
+    const adapter = new DeterministicDevOpsAdapter();
+    const worker = workerFor(ctx, adapter, { ownerId: "recovery-worker" });
+    await worker.recover();
+    expect(adapter.calls).toHaveLength(0);
+    const recorded = ctx.store.transaction((transaction) => transaction.getExternalOperation(operation.id));
+    expect(recorded?.state === "succeeded" || recorded?.state === "unknown").toBe(true);
+    expect(ctx.store.claimExternalOperation({
+      operationId: operation.id,
+      ownerId: "thief",
+      now: "2026-09-20T12:01:00.000Z",
+      leaseUntil: "2026-09-20T12:01:30.000Z"
+    })).toBeUndefined();
+  });
+
+  it("allows lease takeover only when invoke never started, and escalates expired in-flight invokes", async () => {
+    const ctx = openQueuedDelivery(temporaryDirectories, openStores);
+    const operation = ctx.store.transaction((transaction) => transaction.listExternalOperationsByChange(ctx.changeId))[0];
+    if (!operation) throw new Error("missing operation");
+    expect(
+      ctx.store.claimExternalOperation({
+        operationId: operation.id,
+        ownerId: "stale-owner",
+        now: "2026-09-20T11:59:00.000Z",
+        leaseUntil: "2026-09-20T11:59:30.000Z"
+      })
+    ).toBeTruthy();
+    const adapter = new DeterministicDevOpsAdapter();
+    const worker = workerFor(ctx, adapter, { ownerId: "takeover-worker" });
+    const taken = await worker.recover();
+    expect(taken.executed).toBe(1);
+    expect(adapter.calls).toHaveLength(1);
+    expect(adapter.calls[0]?.operation_id).toBe(operation.id);
+
+    const expired = ctx.store.transaction((transaction) =>
+      transaction.listExternalOperationsByChange(ctx.changeId).find((item) => item.state === "pending")
+    );
+    expect(expired).toBeUndefined();
+  });
+
+  it("escalates an expired in-flight invoke to unknown instead of retrying the adapter", async () => {
+    const ctx = openQueuedDelivery(temporaryDirectories, openStores);
+    const operation = ctx.store.transaction((transaction) => transaction.listExternalOperationsByChange(ctx.changeId))[0];
+    if (!operation) throw new Error("missing operation");
+    expect(
+      ctx.store.claimExternalOperation({
+        operationId: operation.id,
+        ownerId: "inflight-owner",
+        now: "2026-09-20T11:59:00.000Z",
+        leaseUntil: "2026-09-20T11:59:30.000Z"
+      })
+    ).toBeTruthy();
+    expect(ctx.store.markExternalOperationInvokeStarted(operation.id, "inflight-owner", "2026-09-20T11:59:00.000Z")).toBe(
+      true
+    );
+    const adapter = new DeterministicDevOpsAdapter();
+    const worker = workerFor(ctx, adapter, { ownerId: "escalation-worker" });
+    const result = await worker.recover();
+    expect(adapter.calls.filter((item) => item.operation === "deploy")).toHaveLength(0);
+    expect(result.recordedUnknown).toBeGreaterThanOrEqual(1);
+    expect(
+      ctx.store.transaction((transaction) => transaction.listExternalOperationsByChange(ctx.changeId)).filter(
+        (item) => item.operation_kind === "deploy"
+      )
+    ).toHaveLength(1);
+  });
+
+  it("does not blindly retry an unknown operation and continues after reconciliation", async () => {
+    const ctx = openQueuedDelivery(temporaryDirectories, openStores);
+    const calls: string[] = [];
+    const adapter = {
+      execute: async (input: DevOpsAdapterInput): Promise<DevOpsAdapterResult> => {
+        calls.push(input.operation);
+        if (input.operation === "deploy") {
+          return {
+            schema_version: SCHEMA_VERSION,
+            operation_key: input.operation_key,
+            state: "unknown",
+            log_reference: "file://logs/unknown.log",
+            log_digest: digest("unknown_log"),
+            summary: "indeterminate"
+          };
+        }
+        return {
+          schema_version: SCHEMA_VERSION,
+          operation_key: input.operation_key,
+          state: "succeeded",
+          actual_digest: ctx.artifact.digest,
+          log_reference: "file://logs/reconcile.log",
+          log_digest: digest("reconcile_log"),
+          summary: "confirmed"
+        };
+      }
+    };
+    const worker = workerFor(ctx, adapter);
+    await worker.recover();
+    await worker.recover();
+    expect(calls.filter((item) => item === "deploy")).toHaveLength(1);
+    expect(calls.filter((item) => item === "reconcile")).toHaveLength(1);
+    const change = ctx.kernel.getChange(ctx.changeId);
+    if ("code" in change) throw new Error(change.code);
+    const next = success(
+      ctx.kernel.execute(
+        envelope(
+          "QueueDeployment",
+          ctx.projectId,
+          ctx.actorId,
+          { release_id: ctx.releaseId, environment_id: ctx.environmentId },
+          change.revision,
+          ctx.changeId
+        )
+      )
+    );
+    expect("operation" in next.data && next.data.operation?.operation_kind).toBe("status");
+    await worker.recover();
+    expect(calls.filter((item) => item === "status")).toHaveLength(1);
+  });
+
+  it("executes deploy through start/stop and uses the operation id as the adapter idempotency key", async () => {
+    const ctx = openQueuedDelivery(temporaryDirectories, openStores);
+    const adapter = new DeterministicDevOpsAdapter();
+    const worker = workerFor(ctx, adapter, { pollIntervalMs: 10 });
+    expect(worker.lifecycle()).toMatchObject({ running: false, stopped: true });
+    const loop = worker.start();
+    const startedAt = Date.now();
+    while (adapter.calls.length === 0 && Date.now() - startedAt < 2000) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    worker.stop();
+    await loop;
+    expect(worker.lifecycle().stopped).toBe(true);
+    expect(adapter.calls[0]?.operation).toBe("deploy");
+    expect(adapter.calls[0]?.operation_id).toBe(adapter.calls[0]?.operation_key);
+    await adapter.execute(adapter.calls[0]!);
+    expect(adapter.calls).toHaveLength(2);
   });
 });

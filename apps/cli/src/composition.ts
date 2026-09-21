@@ -1,7 +1,9 @@
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { DeterministicDevOpsAdapter, type DevOpsAdapter } from "@cimiloop/devops";
 import { CimiLoopKernel } from "@cimiloop/kernel";
 import {
+  ExternalDeliveryWorker,
   MemoryProcessRegistry,
   RunOrchestrator,
   type OrchestratorDependencies,
@@ -42,4 +44,17 @@ export const createRunOrchestrator = (
     actorPermissions: input.actorPermissions,
     providerPermissions: input.providerPermissions,
     ...(input.now ? { now: input.now } : {})
+  });
+
+export const createDeliveryWorker = (
+  context: ReturnType<typeof openProject>,
+  adapter: DevOpsAdapter = new DeterministicDevOpsAdapter()
+): ExternalDeliveryWorker =>
+  new ExternalDeliveryWorker({
+    kernel: context.kernel,
+    store: context.store,
+    adapter,
+    projectId: context.instance.project_id,
+    actorId: context.instance.actor_id,
+    workingDirectory: context.location.repositoryPath
   });

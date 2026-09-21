@@ -271,7 +271,7 @@ describe("M5 store migrations", () => {
         request_digest: "m0-m5-receipt"
       });
       const inspect = new DatabaseSync(databasePath, { readOnly: true });
-      expect(getProjectStoreSchemaVersion(inspect)).toBe(6);
+      expect(getProjectStoreSchemaVersion(inspect)).toBe(7);
       expect(inspect.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'learning_candidates'").get()).toBeTruthy();
       expect(inspect.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'import_reports'").get()).toBeTruthy();
       expect(inspect.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'read_model_checkpoints'").get()).toBeTruthy();
@@ -286,8 +286,8 @@ describe("M5 store migrations", () => {
     first.close();
     const second = new SqliteProjectStore(databasePath);
     const inspect = new DatabaseSync(databasePath, { readOnly: true });
-    expect(getProjectStoreSchemaVersion(inspect)).toBe(6);
-    expect(inspect.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get()).toMatchObject({ count: 6 });
+    expect(getProjectStoreSchemaVersion(inspect)).toBe(7);
+    expect(inspect.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get()).toMatchObject({ count: 7 });
     inspect.close();
     second.close();
   });

@@ -203,7 +203,8 @@ const validAdapterInput = () => ({
   artifact_digest: digest("artifact"),
   working_directory: "examples/acceptance-target",
   config_digest: digest("adapter_config"),
-  input_reference: "file://ops/deploy.json"
+  input_reference: "file://ops/deploy.json",
+  operation_id: id()
 });
 
 const validAdapterResult = () => ({

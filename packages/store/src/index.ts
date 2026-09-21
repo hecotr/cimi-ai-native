@@ -360,6 +360,17 @@ export interface StoreTransaction {
   getReadModelCheckpoint(projectionName: string): { event_sequence: number; payload: Record<string, unknown> } | undefined;
 }
 
+export interface ExternalOperationLease {
+  operation_id: InternalId;
+  owner_id: string;
+  claimed_at: string;
+  expires_at: string;
+  generation: number;
+  invoke_started_at?: string;
+  invoke_finished_at?: string;
+  adapter_result_json?: string;
+}
+
 export interface ProjectStore {
   transaction<T>(work: (transaction: StoreTransaction) => T): T;
   getProject(): Project | undefined;
@@ -370,6 +381,23 @@ export interface ProjectStore {
   claimOutbox(now: string, leaseUntil: string): OutboxMessage | undefined;
   markOutboxDelivered(messageId: InternalId, deliveredAt: string): void;
   releaseOutbox(messageId: InternalId, availableAt: string): void;
+  claimExternalOperation(input: {
+    operationId: InternalId;
+    ownerId: string;
+    now: string;
+    leaseUntil: string;
+  }): ExternalOperationLease | undefined;
+  markExternalOperationInvokeStarted(operationId: InternalId, ownerId: string, now: string): boolean;
+  markExternalOperationInvokeFinished(
+    operationId: InternalId,
+    ownerId: string,
+    now: string,
+    adapterResult: unknown
+  ): boolean;
+  getExternalOperationLease(operationId: InternalId): ExternalOperationLease | undefined;
+  listInvokedUnrecordedOperations(): Array<{ operation: ExternalOperation; lease: ExternalOperationLease }>;
+  listAbandonedExternalInvokes(now: string): Array<{ operation: ExternalOperation; lease: ExternalOperationLease }>;
+  releaseExternalOperationLease(operationId: InternalId): void;
   close(): void;
 }
 

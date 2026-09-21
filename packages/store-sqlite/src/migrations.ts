@@ -671,6 +671,33 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_update_change ON knowledge_update_evide
 CREATE INDEX IF NOT EXISTS idx_closure_evaluations_change ON closure_evaluations(change_id);
 CREATE INDEX IF NOT EXISTS idx_attention_items_status ON attention_items(status);
 `
+  },
+  {
+    version: 7,
+    sql: `
+CREATE TABLE IF NOT EXISTS external_operation_leases (
+  operation_id TEXT PRIMARY KEY REFERENCES external_operations(id),
+  owner_id TEXT NOT NULL,
+  claimed_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  generation INTEGER NOT NULL,
+  invoke_started_at TEXT,
+  invoke_finished_at TEXT,
+  adapter_result_json TEXT
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS artifact_lineage (
+  successor_id TEXT PRIMARY KEY REFERENCES artifacts(id),
+  predecessor_id TEXT NOT NULL REFERENCES artifacts(id),
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  change_id TEXT NOT NULL REFERENCES changes(id),
+  created_at TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+) STRICT;
+
+CREATE INDEX IF NOT EXISTS idx_external_operation_leases_expiry ON external_operation_leases(expires_at);
+CREATE INDEX IF NOT EXISTS idx_artifact_lineage_predecessor ON artifact_lineage(predecessor_id);
+`
   }
 ];
 

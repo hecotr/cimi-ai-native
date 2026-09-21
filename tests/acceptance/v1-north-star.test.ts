@@ -2,8 +2,10 @@ import { execFileSync } from "node:child_process";
 import { rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { createInternalId, SCHEMA_VERSION, type InternalId } from "../../packages/protocol/src/index.js";
+import { DeterministicDevOpsAdapter } from "../../packages/devops/src/deterministic.js";
 import { createPlanningWorkItem } from "../../packages/kernel/src/work-item.js";
+import { ExternalDeliveryWorker } from "../../packages/orchestrator/src/external-worker.js";
+import { createInternalId, SCHEMA_VERSION, type InternalId } from "../../packages/protocol/src/index.js";
 import {
   contractPayload,
   digest,
@@ -34,48 +36,33 @@ const roleId = (
   return role.id;
 };
 
-const verifyRelease = (ctx: AcceptanceContext, releaseId: InternalId, environmentId: InternalId, artifactDigest: ReturnType<typeof digest>) => {
-  const deploy = exec(ctx, "QueueDeployment", { release_id: releaseId, environment_id: environmentId });
-  if (!("operation" in deploy.data) || !deploy.data.operation) throw new Error("missing deploy");
-  exec(ctx, "RecordOperationResult", {
-    operation_id: deploy.data.operation.id,
-    operation_key: deploy.data.operation.operation_key,
-    state: "succeeded",
-    actual_digest: artifactDigest,
-    log_reference: "file://logs/deploy.log",
-    log_digest: digest("deploy_log"),
-    summary: "deployed requested digest"
+const verifyRelease = async (
+  ctx: AcceptanceContext,
+  releaseId: InternalId,
+  environmentId: InternalId,
+  artifactDigest: ReturnType<typeof digest>
+) => {
+  const adapter = new DeterministicDevOpsAdapter();
+  const worker = new ExternalDeliveryWorker({
+    kernel: ctx.kernel,
+    store: ctx.store,
+    adapter,
+    projectId: ctx.projectId,
+    actorId: ctx.actorId,
+    workingDirectory: ctx.directory
   });
-  const status = exec(ctx, "QueueDeployment", { release_id: releaseId, environment_id: environmentId });
-  if (!("operation" in status.data) || !status.data.operation) throw new Error("missing status");
-  exec(ctx, "RecordOperationResult", {
-    operation_id: status.data.operation.id,
-    operation_key: status.data.operation.operation_key,
-    state: "succeeded",
-    actual_digest: artifactDigest,
-    health: "healthy",
-    core_path: "pass",
-    log_reference: "file://logs/status.log",
-    log_digest: digest("status_log"),
-    summary: "status healthy"
-  });
-  const verify = exec(ctx, "QueueDeployment", { release_id: releaseId, environment_id: environmentId });
-  if (!("operation" in verify.data) || !verify.data.operation) throw new Error("missing verify");
-  exec(ctx, "RecordOperationResult", {
-    operation_id: verify.data.operation.id,
-    operation_key: verify.data.operation.operation_key,
-    state: "succeeded",
-    actual_digest: artifactDigest,
-    health: "healthy",
-    core_path: "pass",
-    log_reference: "file://logs/verify.log",
-    log_digest: digest("verify_log"),
-    summary: "verified requested digest"
-  });
+  for (let step = 0; step < 3; step += 1) {
+    exec(ctx, "QueueDeployment", { release_id: releaseId, environment_id: environmentId });
+    const recovered = await worker.recover();
+    if (recovered.executed < 1) throw new Error(`worker did not execute step ${step}`);
+  }
+  expect(adapter.calls.map((item) => item.operation)).toEqual(["deploy", "status", "verify"]);
+  expect(adapter.calls.every((item) => item.operation_id === item.operation_key)).toBe(true);
+  expect(adapter.calls.every((item) => item.artifact_digest.value === artifactDigest.value)).toBe(true);
 };
 
 describe("V1 north-star Feature loop", () => {
-  it("closes a Feature after intent, plan, evaluation, same-digest delivery, knowledge, and export", () => {
+  it("closes a Feature after intent, plan, evaluation, same-digest delivery, knowledge, and export", async () => {
     const ctx = openAcceptanceProject("cimiloop-v1-north-star-");
     temporary.push(ctx);
     expect(execFileSync("git", ["rev-parse", "--is-inside-work-tree"], { cwd: ctx.directory, encoding: "utf8" }).trim()).toBe(
@@ -219,7 +206,7 @@ describe("V1 north-star Feature loop", () => {
     });
     if (!("release" in testRelease.data)) throw new Error("missing test release");
     expect(testRelease.data.release.status).toBe("authorized");
-    verifyRelease(ctx, testRelease.data.release.id, testEnv.data.environment.id, artifactDigest);
+    await verifyRelease(ctx, testRelease.data.release.id, testEnv.data.environment.id, artifactDigest);
     expect(ctx.kernel.getRelease(testRelease.data.release.id)).toMatchObject({
       status: "verified",
       artifact_digest: artifactDigest
@@ -252,7 +239,7 @@ describe("V1 north-star Feature loop", () => {
       acting_role_id: roleId(ctx, "release_owner"),
       reason: "Approve production release of the evaluated digest."
     });
-    verifyRelease(ctx, prodRelease.data.release.id, prodEnv.data.environment.id, artifactDigest);
+    await verifyRelease(ctx, prodRelease.data.release.id, prodEnv.data.environment.id, artifactDigest);
     expect(ctx.kernel.getRelease(prodRelease.data.release.id)).toMatchObject({
       status: "verified",
       artifact_digest: artifactDigest

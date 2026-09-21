@@ -82,16 +82,8 @@ $releaseId = $release.data.release.id
 if ($release.data.release.status -ne "authorized") { throw "Test release must be auto-authorized" }
 
 $deploy = Invoke-CimiLoop release queue $releaseId --environment $environmentId
-$deployOp = $deploy.data.operation
-Invoke-CimiLoop deployment record-result $deployOp.id --key $deployOp.operation_key --state succeeded --log-reference "file://logs/m4-deploy.log" --log-digest ("a" * 64) --summary "demo deploy" --actual-digest $artifactDigest | Out-Null
-
 $status = Invoke-CimiLoop release queue $releaseId --environment $environmentId
-$statusOp = $status.data.operation
-Invoke-CimiLoop deployment record-result $statusOp.id --key $statusOp.operation_key --state succeeded --log-reference "file://logs/m4-status.log" --log-digest ("b" * 64) --summary "demo status" --actual-digest $artifactDigest --health healthy --core-path pass | Out-Null
-
 $verify = Invoke-CimiLoop release queue $releaseId --environment $environmentId
-$verifyOp = $verify.data.operation
-Invoke-CimiLoop deployment record-result $verifyOp.id --key $verifyOp.operation_key --state succeeded --log-reference "file://logs/m4-verify.log" --log-digest ("c" * 64) --summary "demo verify" --actual-digest $artifactDigest --health healthy --core-path pass | Out-Null
 
 $shownRelease = Invoke-CimiLoop release show $releaseId
 if ($shownRelease.release.status -ne "verified") {

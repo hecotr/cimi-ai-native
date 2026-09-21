@@ -44,6 +44,7 @@ import {
   showRelease,
   requestReleaseDecisionCli,
   queueDeploymentCli,
+  recoverDeliveryWorkerCli,
   showDeployment,
   recordOperationResultCli,
   requestReconciliationCli,
@@ -414,6 +415,11 @@ release
   .requiredOption("--environment <id>", "Environment ID")
   .option("--expected-revision <revision>", "期望 Revision")
   .action((id, options, command) => queueDeploymentCli(id, { ...globals(command), ...options }));
+const deliveryWorker = program.command("delivery-worker").description("ExternalDeliveryWorker 生命周期与恢复");
+deliveryWorker
+  .command("recover")
+  .description("启动一次 Worker：原子 claim pending operation、调用 Adapter、回写 Kernel")
+  .action((_options, command) => recoverDeliveryWorkerCli(globals(command)));
 release
   .command("authorize-recovery <id>")
   .description("授权 Production Recovery")
@@ -430,7 +436,7 @@ deployment.command("show <id>").description("查看 Deployment").action((id, _op
 );
 deployment
   .command("record-result <operation>")
-  .description("记录外部操作结果")
+  .description("运维恢复：人工记录外部操作结果。北极星主路径由 delivery-worker 回写，不要在 Demo 中伪造成功")
   .requiredOption("--key <key>", "Operation key")
   .requiredOption("--state <state>", "pending | unknown | succeeded | failed | not_found")
   .requiredOption("--log-reference <ref>", "日志引用")

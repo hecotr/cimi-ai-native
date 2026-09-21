@@ -48,7 +48,8 @@ const inputFor = (
   artifact_digest: { algorithm: "sha256" as const, value: digestValue, subject: "artifact" },
   working_directory: directory,
   config_digest: protocolDigest("acceptance-config", "adapter_config"),
-  input_reference: "file://ops/input.json"
+  input_reference: "file://ops/input.json",
+  operation_id: createInternalId()
 });
 
 const writeArtifact = (root: string, digestValue: string, payload: string): void => {

@@ -38,7 +38,8 @@ const inputFor = (operation: "build" | "deploy" | "status" | "verify" | "recover
   artifact_digest: digest("artifact"),
   working_directory: directory,
   config_digest: digest("adapter_config"),
-  input_reference: "file://ops/input.json"
+  input_reference: "file://ops/input.json",
+  operation_id: createInternalId()
 });
 
 const createAdapter = (behavior: string, timeoutMs = 5_000) => {

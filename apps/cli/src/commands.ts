@@ -34,7 +34,7 @@ import {
 } from "@cimiloop/protocol";
 import { ClaudeCodeRuntimeAdapter } from "@cimiloop/runtime-claude-code";
 import { SqliteProjectRegistry, SqliteProjectStore } from "@cimiloop/store-sqlite";
-import { createRunOrchestrator, openProject } from "./composition.js";
+import { createDeliveryWorker, createRunOrchestrator, openProject } from "./composition.js";
 import { writeInstance } from "./instance.js";
 import { locateProject, readGitIdentity, registryDatabasePath } from "./location.js";
 import { formatChangeRoom, formatDecisionInbox, inputError, isDomainError, outputError, outputJson } from "./output.js";
@@ -1175,10 +1175,10 @@ export const requestReleaseDecisionCli = (
   }
 };
 
-export const queueDeploymentCli = (
+export const queueDeploymentCli = async (
   releaseId: string,
   options: GlobalOptions & { environment: string; expectedRevision?: string }
-): void => {
+): Promise<void> => {
   const context = openProject(options);
   try {
     const release = context.kernel.getRelease(releaseId as InternalId);
@@ -1191,8 +1191,28 @@ export const queueDeploymentCli = (
       options
     );
     if (isDomainError(result)) return outputError(result, Boolean(options.json));
+    const workerResult = await createDeliveryWorker(context).recover();
     if (options.json) return outputJson(result, parseCommandResult);
-    if ("deployment" in result.data) stdout.write(`Deployment ${result.data.deployment.id} ${result.data.deployment.status}\n`);
+    if ("deployment" in result.data) {
+      stdout.write(
+        `Deployment ${result.data.deployment.id} ${result.data.deployment.status} worker=${workerResult.executed}/${workerResult.reconciled}/${workerResult.recordedUnknown}\n`
+      );
+    }
+  } finally {
+    context.store.close();
+  }
+};
+
+export const recoverDeliveryWorkerCli = async (options: GlobalOptions): Promise<void> => {
+  const context = openProject(options);
+  try {
+    const workerResult = await createDeliveryWorker(context).recover();
+    if (options.json) {
+      return outputJson({ ok: true, ...workerResult }, (value) => value);
+    }
+    stdout.write(
+      `worker executed=${workerResult.executed} reconciled=${workerResult.reconciled} unknown=${workerResult.recordedUnknown}\n`
+    );
   } finally {
     context.store.close();
   }

@@ -132,6 +132,7 @@ import {
 import {
   StoreConflictError,
   type CommandReceipt,
+  type ExternalOperationLease,
   type OutboxMessage,
   type ProjectStore,
   type ProposedEvent,
@@ -2000,6 +2001,155 @@ export class SqliteProjectStore implements ProjectStore {
       )
       .run(availableAt, messageId);
     if (Number(result.changes) !== 1) throw new StoreConflictError("Outbox message is not claimed");
+  }
+
+  claimExternalOperation(input: {
+    operationId: InternalId;
+    ownerId: string;
+    now: string;
+    leaseUntil: string;
+  }): ExternalOperationLease | undefined {
+    this.#database.exec("BEGIN IMMEDIATE");
+    try {
+      const operation = this.#database
+        .prepare("SELECT state FROM external_operations WHERE id = ?")
+        .get(input.operationId) as SqlRow | undefined;
+      if (!operation || String(operation.state) !== "pending") {
+        this.#database.exec("COMMIT");
+        return undefined;
+      }
+      const existing = this.#readLease(input.operationId);
+      if (existing?.invoke_finished_at) {
+        this.#database.exec("COMMIT");
+        return undefined;
+      }
+      if (existing?.invoke_started_at) {
+        this.#database.exec("COMMIT");
+        return undefined;
+      }
+      if (existing && existing.expires_at > input.now) {
+        this.#database.exec("COMMIT");
+        return undefined;
+      }
+      const generation = (existing?.generation ?? 0) + 1;
+      this.#database
+        .prepare(
+          `INSERT INTO external_operation_leases(
+             operation_id, owner_id, claimed_at, expires_at, generation,
+             invoke_started_at, invoke_finished_at, adapter_result_json
+           ) VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL)
+           ON CONFLICT(operation_id) DO UPDATE SET
+             owner_id = excluded.owner_id,
+             claimed_at = excluded.claimed_at,
+             expires_at = excluded.expires_at,
+             generation = excluded.generation,
+             invoke_started_at = NULL,
+             invoke_finished_at = NULL,
+             adapter_result_json = NULL
+           WHERE external_operation_leases.invoke_started_at IS NULL
+             AND external_operation_leases.invoke_finished_at IS NULL
+             AND external_operation_leases.expires_at <= excluded.claimed_at`
+        )
+        .run(input.operationId, input.ownerId, input.now, input.leaseUntil, generation);
+      const claimed = this.#readLease(input.operationId);
+      this.#database.exec("COMMIT");
+      return claimed?.owner_id === input.ownerId && claimed.claimed_at === input.now ? claimed : undefined;
+    } catch (error) {
+      if (this.#database.isTransaction) this.#database.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  markExternalOperationInvokeStarted(operationId: InternalId, ownerId: string, now: string): boolean {
+    const result = this.#database
+      .prepare(
+        `UPDATE external_operation_leases
+         SET invoke_started_at = ?
+         WHERE operation_id = ? AND owner_id = ? AND invoke_started_at IS NULL`
+      )
+      .run(now, operationId, ownerId);
+    return Number(result.changes) === 1;
+  }
+
+  markExternalOperationInvokeFinished(
+    operationId: InternalId,
+    ownerId: string,
+    now: string,
+    adapterResult: unknown
+  ): boolean {
+    const result = this.#database
+      .prepare(
+        `UPDATE external_operation_leases
+         SET invoke_finished_at = ?, adapter_result_json = ?
+         WHERE operation_id = ? AND owner_id = ? AND invoke_finished_at IS NULL`
+      )
+      .run(now, json(adapterResult), operationId, ownerId);
+    return Number(result.changes) === 1;
+  }
+
+  getExternalOperationLease(operationId: InternalId): ExternalOperationLease | undefined {
+    return this.#readLease(operationId);
+  }
+
+  listInvokedUnrecordedOperations(): Array<{ operation: ExternalOperation; lease: ExternalOperationLease }> {
+    const rows = this.#database
+      .prepare(
+        `SELECT o.payload_json AS payload_json, l.operation_id, l.owner_id, l.claimed_at, l.expires_at,
+                l.generation, l.invoke_started_at, l.invoke_finished_at, l.adapter_result_json
+         FROM external_operation_leases l
+         JOIN external_operations o ON o.id = l.operation_id
+         WHERE o.state = 'pending' AND l.invoke_finished_at IS NOT NULL
+         ORDER BY l.claimed_at, o.rowid`
+      )
+      .all() as SqlRow[];
+    return rows.map((row) => ({
+      operation: parseExternalOperation(parseJson(row.payload_json)),
+      lease: this.#leaseFromRow(row)
+    }));
+  }
+
+  listAbandonedExternalInvokes(now: string): Array<{ operation: ExternalOperation; lease: ExternalOperationLease }> {
+    const rows = this.#database
+      .prepare(
+        `SELECT o.payload_json AS payload_json, l.operation_id, l.owner_id, l.claimed_at, l.expires_at,
+                l.generation, l.invoke_started_at, l.invoke_finished_at, l.adapter_result_json
+         FROM external_operation_leases l
+         JOIN external_operations o ON o.id = l.operation_id
+         WHERE o.state = 'pending'
+           AND l.invoke_started_at IS NOT NULL
+           AND l.invoke_finished_at IS NULL
+           AND l.expires_at <= ?
+         ORDER BY l.claimed_at, o.rowid`
+      )
+      .all(now) as SqlRow[];
+    return rows.map((row) => ({
+      operation: parseExternalOperation(parseJson(row.payload_json)),
+      lease: this.#leaseFromRow(row)
+    }));
+  }
+
+  releaseExternalOperationLease(operationId: InternalId): void {
+    this.#database.prepare("DELETE FROM external_operation_leases WHERE operation_id = ?").run(operationId);
+  }
+
+  #readLease(operationId: InternalId): ExternalOperationLease | undefined {
+    const row = this.#database
+      .prepare("SELECT * FROM external_operation_leases WHERE operation_id = ?")
+      .get(operationId) as SqlRow | undefined;
+    return row ? this.#leaseFromRow(row) : undefined;
+  }
+
+  #leaseFromRow(row: SqlRow): ExternalOperationLease {
+    return {
+      operation_id: String(row.operation_id) as InternalId,
+      owner_id: String(row.owner_id),
+      claimed_at: String(row.claimed_at),
+      expires_at: String(row.expires_at),
+      generation: Number(row.generation),
+      ...(row.invoke_started_at ? { invoke_started_at: String(row.invoke_started_at) } : {}),
+      ...(row.invoke_finished_at ? { invoke_finished_at: String(row.invoke_finished_at) } : {}),
+      ...(row.adapter_result_json ? { adapter_result_json: String(row.adapter_result_json) } : {})
+    };
   }
 
   close(): void {

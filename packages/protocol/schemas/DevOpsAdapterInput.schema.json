@@ -11,7 +11,8 @@
     "artifact_digest",
     "working_directory",
     "config_digest",
-    "input_reference"
+    "input_reference",
+    "operation_id"
   ],
   "properties": {
     "schema_version": {
@@ -116,6 +117,10 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 500
+    },
+    "operation_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
     }
   },
   "additionalProperties": false

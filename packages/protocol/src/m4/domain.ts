@@ -221,7 +221,8 @@ export const DevOpsAdapterInputSchema = Type.Object(
     artifact_digest: DigestSchema,
     working_directory: Type.String({ minLength: 1, maxLength: 500 }),
     config_digest: DigestSchema,
-    input_reference: ContentReferenceSchema
+    input_reference: ContentReferenceSchema,
+    operation_id: InternalIdSchema
   },
   { additionalProperties: false }
 );

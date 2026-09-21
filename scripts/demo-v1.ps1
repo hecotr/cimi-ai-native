@@ -77,22 +77,16 @@ Write-Host "Verify the same artifact digest in test and production..."
 $testEnv = Invoke-CimiLoop environment register CHG-0001 --key "acceptance-test" --kind test --name "Acceptance Test" --adapter "file://examples/acceptance-target"
 $testRelease = Invoke-CimiLoop release create CHG-0001 --kind test --artifact $artifactId --digest $artifactDigest --environment $testEnv.data.environment.id --scope "acceptance.health" --window-start "2026-09-20T00:00:00.000Z" --window-end "2026-09-21T00:00:00.000Z" --recovery-file $recoveryFile
 $deploy = Invoke-CimiLoop release queue $testRelease.data.release.id --environment $testEnv.data.environment.id
-Invoke-CimiLoop deployment record-result $deploy.data.operation.id --key $deploy.data.operation.operation_key --state succeeded --log-reference "file://logs/v1-test-deploy.log" --log-digest ("a" * 64) --summary "test deploy" --actual-digest $artifactDigest | Out-Null
 $status = Invoke-CimiLoop release queue $testRelease.data.release.id --environment $testEnv.data.environment.id
-Invoke-CimiLoop deployment record-result $status.data.operation.id --key $status.data.operation.operation_key --state succeeded --log-reference "file://logs/v1-test-status.log" --log-digest ("b" * 64) --summary "test status" --actual-digest $artifactDigest --health healthy --core-path pass | Out-Null
 $verify = Invoke-CimiLoop release queue $testRelease.data.release.id --environment $testEnv.data.environment.id
-Invoke-CimiLoop deployment record-result $verify.data.operation.id --key $verify.data.operation.operation_key --state succeeded --log-reference "file://logs/v1-test-verify.log" --log-digest ("c" * 64) --summary "test verify" --actual-digest $artifactDigest --health healthy --core-path pass | Out-Null
 
 $prodEnv = Invoke-CimiLoop environment register CHG-0001 --key "prod" --kind production --name "Production" --adapter "file://examples/acceptance-target"
 $prodRelease = Invoke-CimiLoop release create CHG-0001 --kind production --artifact $artifactId --digest $artifactDigest --environment $prodEnv.data.environment.id --scope "production.service" --window-start "2026-09-20T00:00:00.000Z" --window-end "2026-09-21T00:00:00.000Z" --recovery-file $prodRecoveryFile
 $releaseRequest = Invoke-CimiLoop release request-review $prodRelease.data.release.id
 Invoke-CimiLoop decision submit $releaseRequest.data.request.id --outcome approve --acting-role $releaseRole.id --reason "Demo approve production release" | Out-Null
 $prodDeploy = Invoke-CimiLoop release queue $prodRelease.data.release.id --environment $prodEnv.data.environment.id
-Invoke-CimiLoop deployment record-result $prodDeploy.data.operation.id --key $prodDeploy.data.operation.operation_key --state succeeded --log-reference "file://logs/v1-prod-deploy.log" --log-digest ("a" * 64) --summary "prod deploy" --actual-digest $artifactDigest | Out-Null
 $prodStatus = Invoke-CimiLoop release queue $prodRelease.data.release.id --environment $prodEnv.data.environment.id
-Invoke-CimiLoop deployment record-result $prodStatus.data.operation.id --key $prodStatus.data.operation.operation_key --state succeeded --log-reference "file://logs/v1-prod-status.log" --log-digest ("b" * 64) --summary "prod status" --actual-digest $artifactDigest --health healthy --core-path pass | Out-Null
 $prodVerify = Invoke-CimiLoop release queue $prodRelease.data.release.id --environment $prodEnv.data.environment.id
-Invoke-CimiLoop deployment record-result $prodVerify.data.operation.id --key $prodVerify.data.operation.operation_key --state succeeded --log-reference "file://logs/v1-prod-verify.log" --log-digest ("c" * 64) --summary "prod verify" --actual-digest $artifactDigest --health healthy --core-path pass | Out-Null
 $shownProd = Invoke-CimiLoop release show $prodRelease.data.release.id
 if ($shownProd.release.status -ne "verified") { throw "Expected verified production release" }
 if ($shownProd.release.artifact_digest.value -ne $artifactDigest) { throw "Production digest drifted" }

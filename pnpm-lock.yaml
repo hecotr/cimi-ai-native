@@ -178,6 +178,9 @@ importers:
 
   apps/cli:
     dependencies:
+      '@cimiloop/devops':
+        specifier: workspace:*
+        version: link:../../packages/devops
       '@cimiloop/kernel':
         specifier: workspace:*
         version: link:../../packages/kernel
