@@ -36,7 +36,8 @@ CimiLoop 是一个面向 AI-Native 软件研发的 Runtime-neutral Harness（运
 ```text
 .
 ├─ apps/
-│  └─ cli/            # cimiloop 命令行入口与本地装配
+│  ├─ cli/            # cimiloop 命令行入口与本地装配
+│  └─ demo-web/       # 纯前端交互演示原型，不连接正式 Kernel
 ├─ packages/
 │  ├─ protocol/       # Protocol Schema、ID、Command/Event 与校验
 │  ├─ kernel/         # 聚合规则、状态转换和命令处理
@@ -70,6 +71,14 @@ node apps/cli/dist/bin.js change list
 ```
 
 Agent 或脚本在命令中增加 `--json` 即可获得经过 Protocol Schema 校验的稳定结构输出。
+
+交互式演示原型（固定数据，可离线）：
+
+```text
+npx pnpm@12.4.2 --filter @cimiloop/demo-web dev
+```
+
+讲解入口、7 个场景和 Presenter 快捷键见 [apps/demo-web/README.md](apps/demo-web/README.md)。
 
 ## V1 北极星流程
 

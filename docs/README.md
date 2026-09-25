@@ -4,9 +4,10 @@
 
 ## 快速理解
 
-1. [CimiLoop 整体架构通俗解读](architecture/CimiLoop整体架构通俗解读-v0.1.md)
-2. [CimiLoop AI-Native 软件研发流程规范](articles/02-CimiLoop-AI-Native软件研发流程规范-v0.1.md)
-3. [AI-Native 软件研发新范式](articles/01-AI-Native软件研发新范式.md)
+1. [从 AI Native 新范式到 CimiLoop：分享讲稿](articles/03-从AI-Native新范式到CimiLoop-分享讲稿-v0.1.md)
+2. [CimiLoop 整体架构通俗解读](architecture/CimiLoop整体架构通俗解读-v0.1.md)
+3. [CimiLoop AI-Native 软件研发流程规范](articles/02-CimiLoop-AI-Native软件研发流程规范-v0.1.md)
+4. [AI-Native 软件研发新范式](articles/01-AI-Native软件研发新范式.md)
 
 ## 正式架构
 
@@ -25,6 +26,8 @@
 
 ## 产品范围与计划
 
+- [CimiLoop 交互式演示原型需求与实施计划](plans/2026-09-21-cimiloop-interactive-demo-prototype.md)
+- [CimiLoop 交互式演示原型开发 Agent 提示词](plans/2026-09-21-cimiloop-interactive-demo-agent-prompt.md)
 - [V1 产品范围与实施里程碑](plans/2026-09-19-cimiloop-v1产品范围与实施里程碑-v0.1.md)
 - [V1 完整执行计划（开发 Agent 总入口）](plans/2026-09-20-cimiloop-v1-complete-execution-plan.md)
 - [M1：Intent、Plan 与 Human Decision 实施计划](plans/2026-09-20-cimiloop-m1-intent-plan-decision-implementation-plan.md)
