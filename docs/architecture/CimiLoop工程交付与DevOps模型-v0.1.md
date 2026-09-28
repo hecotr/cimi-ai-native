@@ -2,11 +2,14 @@
 
 > 状态：讨论确认稿
 > 日期：2026-09-19
+> 修订：2026-09-28，多个需求共同集成、release 发布与共享测试环境；文件名保留。
 > 范围：定义 Workspace、Source Snapshot、Artifact、Environment、Release、Deployment、Recovery 与 Reconciliation 的权威边界和生命周期；不规定具体 Git 平台、CI/CD 产品、云厂商或部署技术。
 
 ## 1. 文档定位
 
-本文回答“一个 Change 如何从隔离实现形成不可变制品，再把同一制品安全地送入测试和生产环境，并在失败或外部状态未知时闭环”。
+本文回答“多个需求 / 缺陷如何隔离实现、共同合入 feature，再由 release 固定本次发布范围，完成测试验证和同制品生产晋升”。
+
+本次依据 `docs/plans/2026-09-28-cimiloop-requirement-bug-unified-model-design.md` 同步文档，不表示现有代码或流水线已调整。目标版本、实际发布版本和环境授权必须区分；具体字段、状态枚举及迁移另行设计。
 
 本文承接：
 
@@ -20,7 +23,7 @@ CimiLoop 是 Runtime-neutral Harness，不替代 Git、构建系统、Artifact R
 
 ## 2. 核心原则
 
-1. **隔离执行**：Agent 不直接修改主工作区；默认一个 Change 一个隔离 Worktree。
+1. **隔离执行**：Agent 不直接修改主工作区；进入实施后默认一个需求 / 缺陷（内部 Change）一个隔离 Worktree，录入与澄清不要求立即分配工作区。
 2. **授权先于动作**：任何构建、部署、恢复和环境变更都必须来自有效 Work Item 或 Release 授权。
 3. **构建一次、逐环境晋升**：测试验证和生产部署使用同一 Artifact ID 与 Digest。
 4. **制品不可变**：修复或重新构建产生新 Artifact，不在原对象上覆盖内容。
@@ -30,25 +33,26 @@ CimiLoop 是 Runtime-neutral Harness，不替代 Git、构建系统、Artifact R
 8. **恢复是向前动作**：Rollback、Roll-forward 和 Compensation 都创建新动作、记录与 Evidence，不回写历史。
 9. **权限最小化**：生产权限一次性、范围化、限时，并绑定具体 Release 与 Artifact。
 10. **即时验证不等于长期成功**：ReleaseVerified 只表示生产部署和即时检查通过。
+11. **共享发布不复制部署**：一个发布版本可纳入多个 Change，一次环境部署只记录一个共享 Deployment；各需求验收与交付分别核验。
+12. **冻结范围、保护环境**：feature 持续集成；release 固定本次范围并占用测试环境，冻结期间暂停 feature 覆盖，但不停止开发合入。
+13. **先修复、后延期**：问题优先修复；无法按上线窗口修复并验证则核对依赖、从 release 实际内容剔除、重建并回归，不能只调整需求清单。
 
 ## 3. 交付语义链
 
 ```text
-Change / Plan / Task
-→ 隔离 Workspace / Worktree
-→ Work Item / Agent Run
-→ 不可变 Source Snapshot
-→ Build
-→ Artifact Candidate
-→ Change 级独立评价
-→ Test Release / Deployment / Validation
-→ Production Release Decision
-→ 同一 Artifact 晋升生产
-→ Production Deployment / Immediate Verification
-→ ReleaseVerified 或 Recovery
+各需求 / 缺陷 → 授权计划与任务 → 隔离分支 / Worktree → 自检与独立评价
+→ 授权合入 feature → 固定集成 Source Snapshot → Build / Artifact / 纳入清单
+→ 共享测试 Release / Deployment → 产品与测试验证
+→ 从确定快照切出 release，固定本次范围并占用测试环境
+→ 必要修复 / 剔除 → 新快照、新制品及必要回归
+→ Production Release Decision → 同一获批 Artifact 晋升生产
+→ 共享 Production Deployment / Immediate Verification
+→ 按实际纳入与验收核验各需求已交付，或进入本批 Recovery
 ```
 
 Task 和 Run 可以多次产生中间结果；只有具备固定来源、完整性和构建 Evidence 的不可变输出才能成为可晋升 Artifact Candidate。
+
+目标版本是可空的规划归属。发布版本固定集成快照、Artifact 与实际纳入清单，不等于目标版本名称或可变分支头；从 feature 到 release 的实际内容不同则必须验证最终发布制品。
 
 ## 4. Workspace 与 Worktree
 
@@ -58,7 +62,7 @@ Workspace/Worktree 是 Kernel Runtime Protocol 中的执行资源，不是 Cimi 
 
 ### 4.2 默认隔离策略
 
-- 每个 Change 默认拥有一个隔离 Worktree；
+- 每个进入实施的 Change 默认拥有一个隔离 Worktree；
 - 同一 Change 的顺序 Task 共享该 Worktree，以保持连续实现上下文；
 - 只有 Task 依赖、文件范围和集成策略明确时，才创建并行子 Worktree；
 - 并行子 Worktree 必须绑定具体 Task/Work Item，并声明整合目标；
@@ -72,8 +76,27 @@ Workspace/Worktree 是 Kernel Runtime Protocol 中的执行资源，不是 Cimi 
 1. 每个子 Worktree 产生独立来源引用和局部验证结果；
 2. 合并冲突、接口不兼容或跨 Task 影响形成 Failure/Blocker；
 3. 集成必须在授权的 Integration Work Item 中完成；
-4. Change 级 Artifact 从集成后的统一 Source Snapshot 构建；
+4. 本需求局部产物从固定来源构建；最终集成 Artifact 从项目级共享快照构建，关联全部实际纳入来源；
 5. 子 Worktree 的局部测试不能替代集成 Artifact 的评价。
+
+### 4.4 多需求集成与 release 分支
+
+```mermaid
+flowchart LR
+    A["需求 A 的开发分支"] --> Feature["共享 feature 集成分支"]
+    B["需求 B 的开发分支"] --> Feature
+    Feature --> FB["集成快照 / 构建 / 测试"]
+    Feature --> ReleaseBranch["从确定快照切出 release"]
+    ReleaseBranch --> Fix["本次范围修复或必要剔除"]
+    Fix --> RB["最终快照 / 新制品 / 纳入清单"]
+    RB --> Test["release 占用测试环境并验证"]
+    Test --> Approve["针对本批的生产批准"]
+    Approve --> Prod["同一获批制品晋升生产"]
+```
+
+各开发分支以共享 feature 为集成基线，合入前完成自检和需求级评价。项目级 Integration / Build Work Item 固定多需求来源与授权范围，不必为整合动作伪造额外需求或为每条需求重复部署。
+
+release 固定本次发布范围，不表示禁止修复或剔除；每次内容变化生成新的精确提交 / 快照与制品。feature 的后续合入不自动进入 release。具体 PR / Merge / Squash 操作、release 修复回流和延期代码保留仍由后续 SCM Policy 设计，不能擅自同步剔除破坏后续研发。
 
 ## 5. Source Snapshot
 
@@ -82,7 +105,7 @@ Source Snapshot（源快照）是 Artifact 构建输入的不可变引用，至�
 - Repository 与精确 Git Commit/Tree；
 - 必要的子模块、依赖锁文件和生成输入；
 - 构建配置与构建脚本版本；
-- 来源 Change、Plan、Task、Work Item 和 Run；
+- 来源 Change 及各自精确 Contract/Plan、Task / Work Item / Run 引用；集成构建可关联多个 Change，并记录基线与本次差异；
 - 未提交内容的内容 Digest（仅用于允许的中间构建）。
 
 可发布 Artifact 必须来自可重建的不可变 Source Snapshot。脏工作区可以用于开发期自检，但不能仅凭“当前目录内容”成为生产 Release 的来源。
@@ -99,6 +122,7 @@ Artifact 是不可变的候选交付物或交付物 Manifest。它可以代表�
 - Artifact 使用 Digest 固定内容，不提供可原地修改的业务版本；
 - 多组件交付使用一个不可变 Artifact Manifest 固定全部成员及各自 Digest；
 - 同一内容可以被多个 Change 或 Release 引用，但不能更改其历史来源；
+- 最终发布制品可以共同实现多条需求，清单必须反映实际代码纳入，不能用目标版本规划清单冒充；
 - Artifact 元数据不包含凭据或可变签名 URL。
 
 ### 6.2 构建来源与证明
@@ -110,7 +134,7 @@ Artifact 必须关联：
 - 构建工具和环境摘要；
 - 构建结果与原始记录 External Reference；
 - 内容 Digest 与必要供应链 Evidence；
-- 当前适用的 Contract/Plan Version。
+- 实际纳入需求的精确 Contract/Plan Version 及集成验证范围。
 
 Build success 只证明构建动作成功，不证明 Artifact 满足 Contract。它仍需任务级验证、独立评价和环境验证。
 
@@ -137,15 +161,26 @@ Environment 至少在语义上声明：
 
 环境的实时资源状态由 DevOps/Environment Provider 负责。CimiLoop 保存最后核对事实和 Evidence，但不把缓存状态冒充外部当前事实。
 
+### 7.1 共享测试环境的阶段占用
+
+| 阶段 | 允许更新测试环境的来源 | feature 的其他活动 |
+|---|---|---|
+| 持续集成 | 当前获准的 feature 集成构建 | 正常开发、合入与构建 |
+| 发布验证 | 当前 release 范围内的指定制品 | 可继续开发、合入与构建，但暂停覆盖测试环境 |
+
+切换前核对已运行的部署，切换后在实际执行边界重新检查环境占用与授权；旧的排队 feature 流水线不能晚到覆盖 release。无法确认在途操作已停止或结束时进入核对 / 等待，不能宣称环境已安全切换。只关闭自动触发入口不足以保护环境。
+
+测试 Evidence 固定实际 Artifact、Environment 与配置。占用的 Runtime Lock / Lease 不是新的需求对象，但关键切换、拒绝覆盖及核对结果必须可审计。验证结束后何时恢复 feature，及取消 / 失败后的释放规则尚待明确，不能每次 Deployment 结束就自动释放。
+
 ## 8. Release 模型
 
-Release 是 Change 范围内、面向一个目标 Environment 的部署授权边界。它回答：
+Release 是 Project 范围内、面向一个目标 Environment 的共享部署授权边界；一个确定发布版本可以实际纳入多个 Change。它回答：
 
 > 允许把哪个不可变 Artifact，在什么时间、范围和策略下部署到哪个 Environment？
 
 Release 绑定：
 
-- Change、Contract/Plan Version 与 Risk Assessment；
+- 发布版本 / 精确集成快照、实际纳入清单，以及各需求精确 Contract/Plan 与 Risk Assessment；
 - Artifact ID 与 Digest；
 - 目标 Environment；
 - 发布范围、流量、租户或资源边界；
@@ -156,9 +191,11 @@ Release 绑定：
 
 Artifact、Environment、发布范围、关键配置、时间窗口或 Recovery Strategy 发生实质变化时，必须创建新 Release 或重新取得 Release Decision，不能沿用旧批准。
 
+同一发布版本的测试和生产授权分别绑定对应 Environment，不把一个测试授权当作生产权限；一次共享部署不为各需求复制多个 Deployment。发布版本的字段和独立物理对象尚待设计，本节确认语义而非新增 Schema。
+
 ### 8.1 测试 Release
 
-测试环境 Release 在 Change 级评价和 Gate 通过后可以由 Kernel 自动授权，不重复增加人工点击；Policy 指定的高风险测试环境除外。
+测试环境 Release 在必要需求级评价、共享构建 / 集成 Gate 和环境占用检查通过后可以由 Kernel 自动授权，不重复增加人工点击；Policy 指定的高风险测试环境除外。单条需求通过自检不是整包可部署的充分条件。
 
 ### 8.2 生产 Release
 
@@ -185,7 +222,7 @@ Deployment 的过程状态可以通过 Event 与 Read Model 展示；历史尝�
 ## 10. 测试环境闭环
 
 ```text
-Artifact Candidate
+当前阶段获准的集成 Artifact 与实际纳入清单
 → Test Release
 → Test Deployment
 → Test Validation
@@ -205,6 +242,20 @@ Artifact Candidate
 - 任何实现修复都回到授权的 Workspace/Work Item，生成新 Artifact；
 - 达到修复、成本或时间预算时进入 AwaitingDecision；
 - 旧 Artifact 的通过结论不能自动转移到新 Artifact。
+
+验收以各纳入需求为单位，集成健康及公共约束以当前整包为单位。一次 Deployment 成功不等于所有需求验收通过；feature 早期测试通过也不自动证明改变后的 release 候选通过。
+
+### 10.1 修复优先与延期剔除
+
+1. 产品 / 测试报告问题并关联失败 Evidence、当前制品和受影响需求。
+2. 先判断能否在约定窗口内完成修复与验证；获准修复在 Workspace / release 来源中受控完成，产生新快照和制品。
+3. 最终无法按时修复则记录延期结论，保留需求身份、已有进度及原目标版本规划历史，调整后续归属；下个版本未明确时允许为空。
+4. 核对其他需求对被剔除代码、接口、配置、迁移和数据的依赖；必要时调整相关范围，不能只删一行需求清单。
+5. 从 release 实际发布来源移除受影响内容，受控重建并更新实际纳入清单，不修改旧制品或历史测试。
+6. 对新制品完成受影响回归和必要集成检查；旧 Evidence 的复用需有明确适用性判断，不机械要求所有测试重跑，也不无条件继承通过结论。
+7. 对当前范围与制品重新核验生产授权。若剔除或验证无法安全按时完成，本批不得强行放行。
+
+例如 B1 含 A、B、C、D；D 延期后 B2 实际只含 A、B、C。B1 的历史保留，B2 通过并获批后才晋升生产，D 不能因 B2 成功被标记完成。Feature Disable 是另一种须明确授权及验证的范围控制，不能默认等同于代码已剔除。
 
 ## 11. 制品晋升
 
@@ -237,13 +288,13 @@ ReleaseReady / AwaitingDecision
 → ProductionDeploying
 → 一次性 Deployment
 → 查询并记录外部结果
-→ 目标版本、健康、配置和核心路径即时验证
-→ ReleaseVerified 或 Recovery
+→ 实际发布快照 / Digest、健康、配置和核心路径即时验证
+→ 共享发布已验证或 Recovery，再分别核验实际纳入需求的交付终点
 ```
 
 即时验证至少按 Release Requirement 检查：
 
-- 实际 Artifact Digest 或目标版本；
+- 实际 Artifact Digest 与发布版本快照（不是规划目标版本名称）；
 - 基础健康与关键依赖；
 - 核心路径冒烟；
 - 配置和迁移结果；
@@ -253,11 +304,13 @@ ReleaseReady / AwaitingDecision
 
 ReleaseVerified 不声明长期稳定、SLO 达标或业务价值已经实现。长期 Outcome Evidence 可以在 DeliveryClosed 后继续补充。
 
+需求显示已完成需要自身必要验收通过且达到约定交付终点。共享发布成功只能作为输入事实；未纳入、延期、已拆分及仅完成自检的记录不能随整批成功而完成。
+
 ## 13. 外部结果未知与 Reconciliation
 
 当调用超时、连接中断或 Adapter 无法确认外部操作结果时：
 
-1. Deployment 保持结果未知，Change 保持原生命周期位置；
+1. 共享 Deployment 保持结果未知，发布流程与受影响 Change 不误报成功或完成；
 2. Kernel 打开“外部状态未知”Blocker，停止同类操作重试；
 3. 创建 Reconciliation Work Item，绑定原请求、幂等键和外部引用；
 4. 优先查询实际资源、Pipeline、版本、Digest 和副作用；
@@ -303,7 +356,7 @@ Recovery Strategy 可以包括：
 恢复成功只说明系统回到已知安全状态：
 
 - 原失败和恢复历史保留；
-- Change 进入 AwaitingDecision，暂停新的生产动作；
+- 共享发布暂停新的生产动作并等待 Release Owner 统筹，受影响 Change 分别关联处理结论；
 - 修复重发时回到 Executing，产生新 Artifact 并重走评价和测试；
 - 结束本次交付时记录未交付结论、残余影响和后续 Change；
 - 需要事故治理时创建独立 Incident Change。
@@ -317,7 +370,7 @@ Recovery Strategy 可以包括：
 | Build / CI | 构建与测试原始执行结果 | 转换为 Artifact、Evidence、Failure 和 Event |
 | Artifact Registry | 制品内容、Digest、存储位置和可用性 | 维护领域 Artifact 身份、来源和晋升关系 |
 | DevOps / Environment Provider | Pipeline、资源和部署的外部实际状态 | 管理 Release、Deployment、核对、Gate 和恢复闭环 |
-| CimiLoop Kernel | Change 状态、授权、Decision、Gate、Transition 和关联历史 | 唯一执行状态迁移与调度决策 |
+| CimiLoop Kernel | Change 进度、共享发布授权、Decision、Gate、Transition 和关联历史 | 唯一执行状态迁移与调度决策，防止重复部署和误完成 |
 
 Adapter 只能通过 Command、Query 和 Event 与 Kernel 协作，不能直接修改 Change State、Release Decision 或 Gate 结果。
 
@@ -335,10 +388,13 @@ Adapter 只能通过 Command、Query 和 Event 与 Kernel 协作，不能直接�
 
 V1 必须实现：
 
-- 每个 Change 默认一个隔离 Worktree；
+- 每个进入实施的 Change 默认一个隔离 Worktree；
 - Work Item 驱动的 Agent Runtime 执行；V1 首个 Runtime 从 Claude Code 或 OpenCode 中选择；
 - 不可变 Source Snapshot 与 Artifact/Digest；
 - 测试部署、验证、修复和重建循环；
+- 多需求合入 feature、release 固定范围、实际纳入清单与共享集成验证；
+- 测试环境切到 release 后暂停 feature 覆盖，保护排队及在途部署边界；
+- 修复优先、无法按期修复时剔除延期，并重新构建、必要回归及核验授权；
 - 测试到生产的同 Digest 晋升；
 - Environment、Release 与 Deployment 分离；
 - Release Owner 的生产发布 Decision；
@@ -368,9 +424,14 @@ V1 不承诺：
 8. 外部结果未知时必须先 Reconciliation，不得盲目重试。
 9. Recovery 和 Compensation 创建新动作与 Event，不回滚历史记录。
 10. ReleaseVerified 只表示即时验证通过，不表示长期稳定或业务 Outcome 已实现。
+11. 共享发布属于项目范围，不能为每条需求重复部署，也不能因整批成功自动完成未纳入需求。
+12. 环境占用必须在实际执行边界核对，旧 feature 部署不能覆盖 release 验证环境。
+13. 目标版本规划变化不能替代实际代码剔除；延期、已拆分与已交付分别记录。
 
 ## 19. 阶段结论
 
-本模型采用“隔离 Workspace → 不可变 Source Snapshot → Artifact/Digest → 测试环境验证 → 同制品生产晋升 → 即时验证或恢复”的交付链，并以 Release 管授权、Deployment 管尝试、Reconciliation 管未知外部状态。
+本模型采用“需求隔离实施 → 多需求 feature 集成 → release 固定本次范围及测试环境占用 → 不可变快照与集成制品验证 → 同制品生产晋升 → 各需求交付核验”的链路，以项目级 Release 管共享授权、Deployment 管一次尝试、Reconciliation 管未知外部状态。
 
 上述语义已经确认。后续 Git、Runtime、CI/CD、Artifact Registry、DevOps 与云平台选型只能作为 Adapter/Provider 接入，不得改变隔离执行、制品不可变、同 Digest 晋升、授权先行和未知结果先核对等核心约束。
+
+发布对象完整字段与状态机、release 修复回流、延期代码保留、生产基线同步、测试环境占用释放及取消 / 失败恢复规则尚待确定。本次文档同步不等于这些实现细节或实际流水线配置已完成。

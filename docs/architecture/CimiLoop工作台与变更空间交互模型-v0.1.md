@@ -1,12 +1,15 @@
-# CimiLoop 工作台与变更空间交互模型 v0.1
+# CimiLoop 工作台与需求 / 缺陷详情交互模型 v0.1
 
 > 状态：讨论确认稿
 > 日期：2026-09-19
+> 修订：2026-09-28，熟悉的业务入口、统一需求池与共享发布记录；保留原文件名。
 > 范围：定义 Project Workbench、Change Room、Decision Inbox、Attention Queue、双层时间线与 V1 交互闭环；不定义最终视觉规范、前端框架或 Teams/飞书界面。
 
 ## 1. 文档定位
 
-本文回答“用户打开 CimiLoop 后看见什么、如何知道 Change 为什么停在这里、现在需要谁做什么，以及怎样从创建走到闭环”。
+本文回答“用户如何录入并澄清需求 / 缺陷、规划可选目标版本、拆任务，以及理解多个需求共同测试和发布的进度”。
+
+依据 `docs/plans/2026-09-28-cimiloop-requirement-bug-unified-model-design.md` 同步交互语义；当前演示原型尚未更新。业务入口使用项目、版本、需求、缺陷和任务，不要求用户额外创建或维护 Change、Delivery Item 或 Work Item。
 
 本文承接：
 
@@ -22,7 +25,7 @@ Workbench 与 Change Room 是 Operator Surface（操作界面）和 Derived Read
 
 每个主界面优先回答：
 
-1. 这是什么 Change，为什么创建；
+1. 这是什么需求或缺陷，原始诉求及澄清来源是什么；
 2. 当前处于什么生命周期状态；
 3. 为什么停在这里，阻塞条件是什么；
 4. 现在需要哪个 Human Role 作出什么决定；
@@ -30,34 +33,35 @@ Workbench 与 Change Room 是 Operator Surface（操作界面）和 Derived Read
 6. 当前结论由哪些 Contract、Artifact、Evidence 和 Decision 支撑；
 7. 下一步可能进入哪里，失败时如何修复或恢复。
 
+涉及测试或发布时，还必须显示目标版本与实际发布版本的区别、当前环境实际制品以及本需求是否真的纳入；同批发布成功不等于本需求已完成。
+
 界面不以“展示所有数据库对象”为目标，而以降低理解和决策成本为目标。
 
 ## 3. 交互架构
 
 ```text
 Project Workbench
-├── Attention Queue
-├── Decision Inbox
-├── Change Lifecycle Board / List
-└── Project-level status
-        ↓ 选择一个 Change
-Change Room
-├── Current Focus / Next Action
-├── Lifecycle
-├── Contract & Risk
-├── Plan & Work
-├── Artifact & Evidence
-├── Release & Deployment
-└── Lifecycle Timeline → Run Detail
+├── 需求池：全部需求 / 缺陷，按类型、状态、目标版本筛选
+├── 目标版本：规划清单，与实际发布记录分开
+├── 任务：实施计划中的工作
+├── 待决定 / 需关注事项
+└── 发布记录与环境概览：共享构建、测试、release 占用及生产结果
+        ↓ 选择一条需求 / 缺陷
+需求 / 缺陷详情（内部 Change Room）
+├── 原始诉求、当前焦点与下一步
+├── 澄清 / 验收约定 / 拆分来源
+├── 实施计划、任务与执行记录
+├── 验收结果与依据
+└── 关联发布记录与业务时间线
 ```
 
-Project Workbench 负责跨 Change 汇总；Change Room 负责单个 Change 的完整闭环。二者不复制两套事实，只使用不同 Read Model 组织相同协议对象。
+项目工作台负责跨需求汇总，详情跟踪单条需求，项目级发布记录跟踪共同集成与部署。需求池、类型入口和目标版本视图组织相同 Change 事实，不制造两份对象；共享发布也不在每条详情复制一套部署。
 
 ## 4. Project Workbench
 
-### 4.1 Attention-first
+### 4.1 熟悉的业务入口与关注提示
 
-Workbench 默认不是传统 Task Kanban，而是 Attention-first（关注优先）：
+工作台支持团队熟悉的录入和跟踪，需求池是统一台账；需求、缺陷入口是类型筛选而不是两个独立池。Attention 与 Decision 作为突出的待办提示，不替代项目、版本和需求跟踪。在需关注区域按以下顺序组织：
 
 - 第一优先：需要当前用户作出的正式 Decision；
 - 第二优先：Failure、Blocker、Evidence 缺口、风险变化、权限过期和未知外部状态；
@@ -71,11 +75,13 @@ Workbench 默认不是传统 Task Kanban，而是 Attention-first（关注优先
 |---|---|---|
 | Attention Queue（关注队列） | 哪些事项需要处理，为什么，谁负责 | 从 Failure、Blocker、Evidence 缺口等派生 |
 | Decision Inbox（决策箱） | 当前有哪些正式决策请求 | 从未决 Decision Request 派生 |
-| Change Lifecycle（变更列表/看板） | 所有 Change 当前在哪里 | 从 Change Current State 派生 |
+| 需求池 / 需求与缺陷列表 | 全部记录当前在哪里，有无目标版本 | 同一 Change 事实按类型、状态、目标版本筛选 |
+| 目标版本 | 计划纳入哪些需求，与实际交付有何差异 | 规划归属及历史，不代表已合入或已上线 |
+| 发布记录 | 每次集成 / 发布快照实际纳入什么、验收与部署如何 | 共享发布、实际清单、Artifact、Release 和 Deployment |
 | Active Runs（活动运行） | Agent 和外部操作当前在做什么 | 从 Work Item、Run、Outbox、Deployment 派生 |
-| Environments（环境概览） | 哪些 Change 占用或影响测试/生产目标 | 从 Environment、Lock、Release、Deployment 派生 |
+| Environments（环境概览） | 当前实际制品及 feature / release 的环境占用 | 从 Environment、占用 / 核对、Release、Deployment 派生 |
 
-V1 可以先以列表实现，后续再增加 Board。无论哪种形式，卡片单位是 Change，不把 N1–N5 当作看板列，也不把每个 Task 提升为项目级噪声。
+V1 可以先以列表实现，后续再增加 Board。业务卡片单位是需求或缺陷（内部 Change）；未指定版本不是处理状态，需求池也不等于待规划列表。不把 N1–N5 当作看板列；任务可有独立列表，但不把运行尝试冒充任务。
 
 ### 4.3 Attention Item
 
@@ -90,13 +96,13 @@ Attention Item 只是一条可重建查询项，至少向用户说明：
 
 “已读”只改变用户视图，不解除 Blocker、不等于 Decision，也不关闭 Failure。
 
-## 5. 创建 Change
+## 5. 录入需求 / 缺陷与澄清
 
 ### 5.1 显式创建边界
 
-普通对话、Agent 建议或浏览需求不会自动创建 Change。入口包括：
+普通对话和未确认的 Agent 建议不会自动录入正式记录。入口包括：
 
-- 用户主动选择“创建 Change”；
+- 用户主动选择“录入需求 / 缺陷”，选择需求或缺陷类型；
 - Agent 提出创建建议，用户明确确认；
 - 导入外部 Issue/Incident 后由用户确认创建。
 
@@ -104,26 +110,32 @@ Attention Item 只是一条可重建查询项，至少向用户说明：
 
 创建时只要求足以建立责任边界的信息：
 
-- 简短标题和原始诉求；
-- 来源或 External Reference；
-- 唯一 Human Change Owner；
-- Provisional Profile（临时类型）建议；
-- 初始范围、紧急度和已知影响。
+- 项目与业务类型（需求 / 缺陷）；
+- 简短标题或一句话原始诉求，不要求先写完整需求规格；
+- 责任归属可由有效项目配置解析并展示，缺失时明确提示；
+- 来源、紧急度、影响和目标版本可补充，目标版本不强制；
+- 不要求用户选择内部 Profile，它由澄清与 Policy 提出建议，后续确认。
 
-提交后立即生成 Draft Change 和唯一 Change Room。Contract、Risk 与正式 Profile 在 Change Room 中继续澄清，不要求创建表单一次填完所有内容。
+提交即创建同一需求 / 缺陷身份（内部 Draft Change）和详情页，默认待澄清；不在决定要做时再建第二份 Change。Contract、Risk 与正式 Profile 后续形成，创建不授权正式实现。
 
 ### 5.3 创建后的第一屏
 
 用户应立即看到：
 
-- 稳定 Change ID 与当前 Draft 状态；
-- Change Owner；
+- 稳定需求 / 缺陷编号及待澄清状态，不同时展示两个业务身份；
+- 当前负责人和业务类型；
 - 原始诉求与来源；
 - Agent 建议的下一步澄清问题；
 - 尚缺少哪些 Contract 信息；
 - “开始澄清”而不是“立即实现”的主动作。
 
-## 6. Change Room 信息架构
+### 5.4 澄清与平级拆分
+
+澄清允许细化原记录、经人确认拆成多个独立需求 / 缺陷，或暂缓 / 不采纳。拆分界面展示原文、每条建议的独立业务结果、验收标准和来源；技术分工进入任务，不生成子需求树。
+
+确认拆分后原记录显示已拆分及新记录链接，新记录显示拆分自哪个来源；不级联关闭。已拆分不能出现在已交付统计中；延期则保留身份、已有进度及规划变更历史，不重录需求。
+
+## 6. 需求 / 缺陷详情信息架构（内部 Change Room）
 
 每个 Change 自动拥有唯一逻辑 Change Room。推荐信息层次如下：
 
@@ -131,10 +143,10 @@ Attention Item 只是一条可重建查询项，至少向用户说明：
 
 持续展示：
 
-- Change Display Key 与标题；
-- Profile、Change Owner 和关键责任角色；
-- lifecycle state、flow condition、delivery status 与 outcome status；
-- 当前 Contract/Plan Version 和 Artifact Digest；
+- 需求 / 缺陷编号、类型、标题与负责人；
+- 业务阶段、阻塞 / 等待原因和关键责任角色；
+- 可选目标版本，未指定时直接显示未指定，不冒充待澄清状态；
+- 需求基线 / 计划修订及本需求关联的实际发布版本；技术 Digest 可下钻查看；
 - 风险摘要与最后更新时间。
 
 宏观生命周期状态与局部 Task/Run 状态分开展示，避免一次测试失败让用户误以为整个 Change 状态反复跳动。
@@ -157,10 +169,10 @@ Attention Item 只是一条可重建查询项，至少向用户说明：
 | 分区 | 主要内容 |
 |---|---|
 | Overview（概览） | 当前焦点、状态、责任、风险、依赖和下一步 |
-| Contract（契约） | Intent、Outcome、Non-goals、Acceptance Criteria、版本与 Amendment |
-| Plan & Work（计划与工作） | Plan Version、Task DAG、Ready/Blocked Task、Work Item 与 Run |
-| Evidence（证据） | Claim 覆盖、Supports/Refutes/Inconclusive、失效和 Evidence Package |
-| Delivery（交付） | Artifact、Environment、Release、Deployment、Recovery 与 Reconciliation |
+| 目标与验收 | 原始诉求、澄清、范围、非目标、验收标准、基线修订和拆分来源 |
+| 实施计划与任务 | 计划修订、Task DAG、阻塞与执行记录；内部授权和 Run 可下钻 |
+| 验收结果 | 验收项覆盖、通过 / 反驳 / 不足、适用发布快照和原始依据 |
+| 交付记录 | 关联共享发布、实际纳入与延期、环境、部署 / 恢复和状态核对 |
 | Activity（活动） | 生命周期时间线和 Run 技术明细入口 |
 
 分区只负责查询与发起 Command，不各自发明状态或写入方式。
@@ -169,14 +181,16 @@ Attention Item 只是一条可重建查询项，至少向用户说明：
 
 界面可以把完整状态机压缩为用户可理解的六个阶段：
 
-1. 创建 Change；
-2. 契约与意图授权；
+1. 录入需求 / 缺陷并澄清，必要时平级拆分；
+2. 明确验收约定并批准需求基线；
 3. 计划、执行与独立评价；
-4. 测试环境验证；
-5. 生产发布与即时验证；
+4. 纳入共享集成并在实际测试快照上验证；
+5. 关联 release 的共同生产发布与即时验证；
 6. 关闭与学习。
 
 阶段导航用于解释和定位，不是新的状态字段。实际状态仍使用 Kernel lifecycle state 与 flow condition。
+
+测试 / 生产部署进度来自共享发布记录，需求详情仅显示关联，不因展开阶段创建本需求独占的部署流程。业务状态与协议枚举的完整映射仍待设计。
 
 每个阶段展开后显示：权威对象、完成条件、当前证据、决策历史、失败/修复循环和下一迁移。
 
@@ -185,8 +199,9 @@ Attention Item 只是一条可重建查询项，至少向用户说明：
 ### 8.1 Decision Inbox 与 Change Room
 
 - Workbench Decision Inbox 汇总当前用户具备 acting role 的全部待决事项；
-- Change Room 只显示当前 Change 的 Decision Request；
+- 需求详情显示本需求的决定，以及实际关联的共享发布请求；共享请求明确展开本批全部纳入范围，不只显示当前需求；
 - 二者指向同一个 Decision Request ID；
+- 同一共享发布请求在工作台、发布页和多条需求详情都指向同一 ID，批准一次，不逐条复制审批；
 - 外部通知只提供入口，不成为另一套批准系统。
 
 ### 8.2 决策面板
@@ -196,6 +211,7 @@ Attention Item 只是一条可重建查询项，至少向用户说明：
 - 系统正在询问什么；
 - 所需 acting role；
 - 被决定对象及精确版本/Digest/Environment；
+- 发布批准包含完整实际纳入清单、延期 / 剔除差异及共同风险，目标版本规划清单不能替代实际内容；
 - 推荐动作和理由，但明确标注为建议；
 - 支持与反驳 Evidence；
 - 风险、Policy、Exception 与残余问题；
@@ -214,7 +230,7 @@ Decision 必须结构化提交。聊天回复、评论、“已读”或关闭�
 
 ## 9. Agent 与 Work Item 呈现
 
-Change Room 把 Agent 作为一等参与者显示，但不把每次 Token 或 Tool Call 都放入主时间线。
+需求详情把 Agent 作为参与者显示，日常用任务、执行记录和验收结果解释工作；Work Item / Run 仅在执行明细中说明，不成为用户必须先学习的主入口，也不把每次 Token 或 Tool Call 放入主时间线。
 
 ### 9.1 Change 级摘要
 
@@ -253,6 +269,18 @@ Evidence 视图围绕 Claim，而不是围绕文件列表组织：
 
 ## 11. Delivery 呈现
 
+### 11.1 项目级发布记录
+
+一个发布页统一展示：精确 feature / release 来源、不可变发布快照与制品、实际纳入需求及各自验收、原规划与实际交付差异、测试环境占用、生产授权和实际部署。目标版本页展示规划归属，发布页展示实际内容，允许发布包含尚未指定目标版本的需求。
+
+冻结后突出显示测试环境由 release 占用、feature 环境部署暂停；仍可继续开发合入。若有旧 feature 在途部署，明确显示核对 / 阻塞，不能显示环境已安全切换。
+
+问题处理入口先提供修复与影响分析；赶不上窗口时提交延期 / 剔除建议，展示依赖、实际代码移除、新制品、必要回归及重新核验授权的条件。不是取消勾选后立即发布；未确认责任与授权时不得自动执行剔除。
+
+### 11.2 需求详情中的关联交付
+
+同一需求可关联多次测试快照，同一发布可被多条需求引用；共同部署只显示同一条记录。显示本需求是否实际纳入、在哪个制品通过验收、是否达到交付终点，延期及已拆分不能显示已完成。
+
 Delivery 分区按“授权”和“实际尝试”分开：
 
 - Artifact：来源、Digest、构建与评价状态；
@@ -270,10 +298,11 @@ Delivery 分区按“授权”和“实际尝试”分开：
 Change Room 默认显示对业务闭环有意义的事件：
 
 - Change 创建和 Owner 移交；
+- 澄清、平级拆分来源、目标版本归属变化和延期；
 - Contract/Plan 批准与 Amendment；
 - Gate 结果和状态迁移；
 - 关键 Artifact 与评价结论；
-- Release Decision、Deployment 与 Recovery；
+- 关联的共享发布 Decision、Deployment 与 Recovery，以及本需求实际交付核验；
 - Blocker 打开/解除；
 - 关闭、取消、取代和学习候选。
 
@@ -333,8 +362,8 @@ Team Mode 不改变 Change Room 的一一对应关系、Command 权威、Decisio
 V1 至少包含：
 
 1. Project Workbench；
-2. 创建 Change；
-3. Change Room Overview；
+2. 统一需求池与需求 / 缺陷录入、澄清及平级拆分入口；
+3. 需求 / 缺陷详情（内部 Change Room）；
 4. Contract 与 Plan 查看/修订入口；
 5. Decision Inbox 与结构化决策面板；
 6. Task/Work Item/Run 状态与 Run Detail；
@@ -342,6 +371,8 @@ V1 至少包含：
 8. Artifact/Release/Deployment/Recovery 视图；
 9. 生命周期时间线；
 10. Project/Role/Environment 最小配置入口。
+11. 目标版本规划视图与归属变更历史；
+12. 项目级发布页、实际纳入清单及 feature / release 环境占用提示。
 
 V1 不包含通用聊天、社交动态、实时协作文档、复杂可定制 Dashboard 或传统 Issue Tracker 全量能力。
 
@@ -357,9 +388,12 @@ V1 不包含通用聊天、社交动态、实时协作文档、复杂可定制 D
 8. 生命周期时间线与技术 Run 日志分层展示。
 9. Read Model 延迟不能导致重复 Command 或虚假状态。
 10. Solo 与 Team 使用同一 Protocol、Kernel 和交互语义。
+11. 需求池组织同一批需求 / 缺陷；录入和实施均不强制目标版本，不创建第二份 Change 身份。
+12. 需求阶段与共享部署阶段分开，部署成功不批量完成未纳入或延期记录。
+13. 原始记录已拆分只保留溯源，不产生子需求级联或虚假交付统计。
 
 ## 19. 阶段结论
 
-本模型采用“Project Workbench 跨 Change 关注优先、Change Room 单 Change 闭环、Current Focus 驱动下一动作、Decision 结构化、Evidence 按 Claim 呈现、生命周期与 Run 双层时间线”的交互架构。
+本模型采用熟悉的项目、版本、需求、缺陷和任务入口，以统一需求池组织记录，以需求详情跟踪同一身份，以项目级发布页表达共同测试与部署；保留关注提示、结构化决定、验收依据与分层时间线。
 
-上述语义及交互原型已经确认。后续视觉样式、前端框架和外部协作渠道可以独立演进，但不得把 Change Room 变成新的事实聚合、把通知或评论当作 Decision，或把技术日志重新淹没生命周期主线。
+本次确认并同步的是交互语义，旧交互原型尚未同步。状态映射、发布物理对象和环境占用释放仍待设计；不得把查询页面变成新的事实聚合、把通知或评论当作 Decision，或把技术日志淹没业务主线。

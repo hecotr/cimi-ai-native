@@ -2,6 +2,7 @@
 
 > 状态：讨论确认稿
 > 日期：2026-09-19
+> 修订：2026-09-28，需求级验收与共享集成发布证据；不表示测试实现已更新。
 > 范围：定义 Claim、Evidence、独立评价、覆盖、适用性、失效与 Gate 证明语义；不规定具体测试框架、CI 产品、安全扫描器或质量指标阈值。
 
 ## 1. 文档定位
@@ -17,6 +18,8 @@
 - `docs/architecture/CimiLoop能力装配模型-v0.1.md`。
 
 验证不是“测试命令返回 0”的别名。它是从 Contract 和风险要求推导 Claim，再使用适用、可追溯的 Evidence 进行独立评价，最终由 Gate 在精确版本快照上作出确定性结论。
+
+需求 / 缺陷就是内部 Change。需求级自检与独立评价、发布版本的共享集成验证、环境部署事实各自证明不同内容；共享制品可以关联多个需求，不能凭一条需求通过推断整包通过，也不能凭整包部署成功推断所有需求已完成。
 
 ## 2. 核心原则
 
@@ -249,6 +252,9 @@ Evidence 创建后不可修改；所谓“失效”是新的影响判断，不�
 | Contract Acceptance Criteria 变化 | 重新判断对应 Claim 与 Evidence，可能 Stale 或 Superseded |
 | Plan 实现策略变化 | 只影响依赖该策略或验证方法的 Evidence |
 | Artifact Digest 变化 | 绑定旧 Artifact 行为的测试、扫描与评价默认 Stale |
+| feature 合入、release 修复或剔除改变集成快照 | 核对各需求与公共集成 Claim；旧通过结论不能自动迁移，必要回归由明确影响分析决定 |
+| 仅调整目标版本规划归属 | 保留事实，不仅因排期变化就让实现 Evidence 全部失效 |
+| 测试环境由 feature 切到 release 或被其他制品覆盖 | 核对实际 Digest、环境配置及证据适用性，分支名相同或页面状态不能替代实际内容核对 |
 | 仅文档或无行为变化 | 经影响分析后可保持 Valid |
 | Environment 配置、数据或依赖变化 | 对环境级 Evidence 执行精确影响评估 |
 | Policy/Risk 要求提高 | Evidence 事实保留，但可能不再满足新 Requirement Set |
@@ -276,6 +282,7 @@ Package 至少说明：
 - 服务哪个 Gate、Decision 或评审；
 - 使用的 Requirement Set；
 - Contract/Plan Version、Artifact Digest、Environment 与时间范围；
+- 共享发布版本的实际纳入范围及各需求精确基线 / 计划引用，区分单需求验收与公共集成要求；
 - Claim 覆盖与当前 Assessment；
 - Evidence 引用、来源和适用性；
 - 未满足、冲突、例外和残余风险；
@@ -295,6 +302,10 @@ Evidence Index 是可重建的查询视图，用于快速查找 Claim、Evidence
 | Production Verification | 部署事实和即时健康满足要求 | Deployment、Digest、一致性、健康检查与业务冒烟 |
 | Recovery / Reconciliation | 外部状态已知且系统回到安全状态 | 平台事实、恢复动作、补偿和验证 Evidence |
 | Learning | 经验具备可复用性且不会固化错误结论 | 多案例、独立 Eval、Owner Decision |
+
+共享发布 Gate 必须覆盖实际纳入需求的必要验收、跨需求接口 / 数据依赖以及当前整包的健康和安全要求。延期剔除产生新制品后保留旧失败记录，对保留需求和公共要求重新判断；复用 Evidence 须有明确适用性结论，不能无条件继承，也不机械要求全部从零重测。
+
+已拆分、延期或未实际纳入的记录不能靠同批成功计为交付。需求显示已完成需要通过必要验收并达到约定交付终点；长期业务 Outcome 的观察仍独立。
 
 ## 14. V1 边界
 

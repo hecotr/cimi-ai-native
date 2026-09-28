@@ -4,13 +4,15 @@
 >
 > 日期：2026-09-19
 >
+> 修订：2026-09-28，业务词汇与多需求共享发布；代码、旧文章插图及原型尚未同步。
+>
 > 读者：第一次接触 CimiLoop 的产品、研发、测试、运维、业务和管理人员
 >
-> 定位：本文用一个完整例子解释 CimiLoop 已确认架构，便于介绍、培训和形成共同理解；它不是字段级 Schema 或实现说明。发生语义冲突时，以对应专项架构文档和决策账本为准。
+> 定位：本文用例子解释当前架构，便于介绍、培训和形成共同理解；不是字段级 Schema 或实现说明。发生语义冲突时，以 2026-09-28 统一模型设计说明及修订后的专项文档为准，历史决策保留但不覆盖新约定。
 
 ## 1. 先用一句话认识 CimiLoop
 
-CimiLoop 是围绕一次软件 Change（变更），管理它从意图澄清、计划、执行、验证、发布、知识更新、恢复到关闭全过程的 Runtime-neutral Harness（运行时中立的智能体治理与交付框架）。
+CimiLoop 让大家继续录入和跟踪熟悉的需求、缺陷与任务，以 AI 协助澄清和实施，再通过共同的集成、测试和发布完成交付。内部 Change 是需求 / 缺陷的协议名称，不是必须额外维护的一份对象；它仍是 Runtime-neutral Harness（运行时中立的智能体治理与交付框架）。
 
 最重要的分工是：
 
@@ -168,7 +170,7 @@ Kernel 是 Change 生命周期的唯一状态权威。
 
 Trust & Governance 以及 Protocol, Data & Integration 是横切能力，贯穿整个生命周期。
 
-## 6. 三个最上层概念
+## 6. 业务对象与内部名称的对照
 
 ### 6.1 Project（项目）
 
@@ -183,9 +185,11 @@ Project 是长期治理边界，管理共同的：
 
 Project 不保存单个 Change 的运行状态。同一个 Project 可以同时存在多个处于不同阶段的 Change。
 
-### 6.2 Change（变更）
+### 6.2 需求 / 缺陷（内部 Change）
 
-Change 是最小独立交付、责任、验证和生命周期单元，拥有自己的：
+需求和缺陷共用一个需求池，区别只是业务类型。允许一句话录入并先澄清；细化沿用身份，必要时拆成多个平级记录并保留来源，原记录已拆分不计为已交付。
+
+内部 Change 表达这一身份及独立业务验收边界；Draft 是尚待澄清的候选交付单元。它维护自己的：
 
 - Change Owner；
 - Contract；
@@ -193,12 +197,16 @@ Change 是最小独立交付、责任、验证和生命周期单元，拥有自�
 - Work Item 和 Agent Run；
 - Artifact；
 - Claim、Evidence 和 Gate Evaluation；
-- Release 和 Deployment；
+- 关联的共享发布记录及自身验收 / 交付依据，而非独占 Release 和 Deployment；
 - 生命周期与关闭结论。
 
-Change 不等于 Issue、Git 分支、PR、Agent Session 或 Pipeline Run。一次 Change 可以跨越多个这些工程对象。
+系统内需求 / 缺陷与 Change 是同一业务身份；外部 Issue 作为来源引用，Git 分支、PR、Agent Session 和 Pipeline Run 仍是工程对象，不能替代需求生命周期。
+
+目标版本是可选规划归属，没挂版本也能实施；发布版本是固定代码、制品和实际纳入范围的快照，可以共同包含多个需求。需求池包含全部记录，不仅是未挂版本或待规划列表。
 
 ### 6.3 Change Room（变更空间）
+
+日常界面称为需求 / 缺陷详情，内部仍沿用 Change Room，不增加一份业务身份。
 
 Change Room 是与 Change 一一对应的交互和查询投影，组合展示 Contract、Plan、Run、Evidence、Decision、Delivery 和 Timeline。
 
@@ -245,7 +253,7 @@ Task 是 Plan 中有稳定身份的工作节点。Task DAG 表达依赖关系。
 
 ### 7.4 Work Item
 
-Work Item 是一次有边界执行授权，固定：
+Work Item 是一次有边界执行授权。需求实施授权通常固定：
 
 - Contract/Plan Version；
 - Task 和目标；
@@ -253,6 +261,8 @@ Work Item 是一次有边界执行授权，固定：
 - 权限和能力；
 - 预算和停止条件；
 - 要求输出的 Artifact/Evidence。
+
+项目级集成、构建与发布授权固定实际范围及多个需求依据，不要求伪造一个额外需求或 Task 来承载共同部署。
 
 ### 7.5 Agent Run
 
@@ -268,19 +278,18 @@ Draft
 → Planned
 → Executing
 → Evaluating
-→ TestDeploying
+→ 待集成（协议名待定）
 → TestValidating
 → ReleaseReady
-→ ProductionDeploying
-→ ReleaseVerified
+→ 关联的共同发布达到约定终点、本需求验收满足后 ReleaseVerified
 → DeliveryClosed
 ```
 
 ### 8.1 Draft
 
-用户明确创建 Change，系统生成稳定 ID、Human Change Owner 和初始来源。普通对话不会自动创建正式 Change。
+用户明确录入需求或缺陷，系统生成同一稳定业务身份、负责人和初始来源，内部创建 Draft Change。普通对话不会自动录入正式记录。
 
-Draft 允许澄清、分析和原型，但未授权正式实现。
+Draft 对用户表示待澄清，允许一句话及未指定目标版本；允许澄清、分析和获准的有限原型，但未授权正式实现。上述阶段是逻辑讲解，完整协议状态映射仍待设计。
 
 ### 8.2 IntentReady
 
@@ -296,19 +305,25 @@ Kernel 只为依赖、版本、权限、能力和资源条件满足的 Ready Tas
 
 ### 8.5 Evaluating
 
-完整 Artifact Candidate、Claim 和 Delivery Evidence 形成后，由独立 Evaluator 评价。失败时保留 Evidence，返回 Executing 并创建 Repair Work Item。
+固定实现来源、产物、Claim 和 Evidence 形成后，由独立 Evaluator 评价。失败时保留 Evidence，返回 Executing 并创建 Repair Work Item；通过后参加共享集成，不为每条需求单独部署。
 
-### 8.6 TestDeploying / TestValidating
+### 8.6 共享测试部署与本需求 TestValidating
 
-通过评价的 Artifact 部署测试环境并验证。测试失败后必须回到源码修复、重新构建新 Artifact，再走评价和测试，不能在环境中热改后直接发布。
+各需求自检和评价后合入共享 feature，由固定集成快照构建共同制品，部署测试环境供产品 / 测试验证。单需求自检不替代整包集成检查，部署成功也不替代逐需求验收。
 
-### 8.7 ReleaseReady / ProductionDeploying
+上线前切出 release 固定本次范围，测试环境改由 release 占用并暂停 feature 覆盖；feature 可以继续开发和合入。release 内容改变须验证新制品，不能用先前 feature 的通过结论替代。
 
-测试通过后形成具体 Release Package。Release Owner 批准指定 Artifact Digest、Environment、范围、时间窗和 Recovery Strategy。Kernel 基于最新事实重新求值 Gate 后才允许生产部署。
+### 8.7 本需求待发布与共享生产部署
+
+测试通过后形成共同 Release Package。Release Owner 对整批实际纳入范围、Artifact Digest、Environment、窗口和恢复策略批准一次，Kernel 重新执行 Gate 后才允许一次共享生产部署。
+
+问题先修复；赶不上窗口就核对依赖、从 release 实际内容剔除并安排后续版本，保留需求身份与进度。剔除后重建、必要回归并核验授权，不是只取消清单勾选；无法安全剔除和验证仍不能上线。
 
 ### 8.8 ReleaseVerified / DeliveryClosed
 
 生产部署后核对实际 Digest、健康和核心路径。关闭前还要确认 Decision、Evidence、已知问题、残余风险、知识义务和学习候选完整。
+
+需求只有通过必要验收且达到约定交付终点才显示已完成，通常是实际上线；延期或未实际纳入的需求不能随整批发布成功而完成。共享部署状态属于发布流程，需求只关联其事实和自身结果。
 
 交付关闭不等于业务结果已经验证；Outcome 可以在关闭后继续观察。
 
@@ -470,7 +485,7 @@ Provider Descriptor 描述具体实现；Resolver 按 Policy、权限、兼容�
 - Planner 获得 Contract、架构和规划资料；
 - Executor 获得 Task、Work Item、相关代码和测试方法；
 - Evaluator 获得 Contract、Artifact、Claim 和 Evidence，但不继承 Executor 完整对话；
-- Release Operator 获得 Release、Environment 和 Recovery Strategy。
+- Release Operator 获得本批实际纳入清单、精确制品、Release、Environment 占用和 Recovery Strategy，不只拿某一需求的上下文。
 
 ### 12.4 三层 Memory
 
@@ -586,14 +601,12 @@ Import 先进入 Staging，校验引用、事件连续性、Digest、Schema 和�
 V1 选择“窄范围、完整闭环”，必须用真实项目完成：
 
 ```text
-创建 Feature Change
-→ 批准 Contract
-→ 批准 Plan
-→ Runtime 在隔离 Worktree 实现
-→ 构建不可变 Artifact
-→ 独立评价
-→ 部署和验证测试环境
-→ 批准具体生产 Release
+录入需求 / 缺陷并澄清（必要时平级拆分）
+→ 批准基线与计划 → 各需求在隔离 Worktree 实现、自检及独立评价
+→ 共同合入 feature → 集成构建与早期测试
+→ 切出 release、占用测试环境并暂停 feature 覆盖
+→ 必要修复 / 延期剔除后的最终制品验证
+→ 批准共同生产 Release
 → 同一 Artifact Digest 晋升生产
 → 即时验证
 → 完成知识义务
@@ -610,7 +623,7 @@ V1 选择“窄范围、完整闭环”，必须用真实项目完成：
 | M1 | Draft、Contract、Plan、Task DAG、Role、Decision、Knowledge Impact 和基础 Change Room |
 | M2 | Work Item、Runtime Adapter、Worktree、Context/Capability Binding、Run、Artifact |
 | M3 | Claim、Evidence、独立 Evaluator、Gate Evaluation、Stale 传播和 Repair 循环 |
-| M4 | Environment、Release、Deployment、真实 DevOps、同 Digest 晋升、Recovery/Reconciliation |
+| M4 | 共享发布范围、feature / release、Environment 占用、Release / Deployment、同 Digest 晋升、Recovery/Reconciliation |
 | M5 | 完整 Workbench、关闭与异常、知识 Closure、Export/Import、故障注入和发布加固 |
 
 ## 19. Build / Adopt / Adapt 最终组合

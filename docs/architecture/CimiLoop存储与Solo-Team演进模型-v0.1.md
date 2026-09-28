@@ -2,6 +2,7 @@
 
 > 状态：讨论确认稿
 > 日期：2026-09-19
+> 修订：2026-09-28，补充规划、拆分与共享发布的可移植关联；具体 Schema 待定。
 > 范围：定义 Store Port、事务一致性、可移植事实、备份、Export/Import 与 Embedded Solo Mode 到 Shared Team Mode 的迁移语义；不定义数据库表、ORM、云拓扑或高可用实现。
 
 ## 1. 文档定位
@@ -223,6 +224,7 @@ Export Manifest 至少在语义上声明：
 - Project、Profile、Policy、Environment；
 - Actor、Role、Assignment 与 Delegation；
 - Change、Contract/Plan、Task、Risk 与关系；
+- 目标版本规划归属与变更历史、平级拆分来源、发布版本快照和实际纳入清单（物理 Schema 待设计）；
 - Work Item 与可移植 Run Record；
 - Artifact/Context/Capability Manifest；
 - Claim、Evidence、Gate、Decision、Transition；
@@ -241,6 +243,8 @@ Export Manifest 至少在语义上声明：
 - Host 本地路径和不可移植进程信息。
 
 被排除不等于删除历史。Export 保留允许的 External Reference、Digest 和“内容未包含”说明。
+
+共享发布在迁移中保留项目级关联，不能变成每条 Change 的重复部署。环境当前由 release 占用等业务保护事实须保留或显式核对，但 Runtime Lock / Lease 及执行所有权不能复制后直接生效；迁移后先核对环境实际制品、在途动作及授权，再决定可否恢复 feature 部署。
 
 ## 13. Portable Import
 

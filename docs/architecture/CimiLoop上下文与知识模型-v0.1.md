@@ -2,6 +2,7 @@
 
 > 状态：讨论确认稿
 > 日期：2026-09-19
+> 修订：2026-09-28，补充项目级共享发布上下文边界；不改变现有实现。
 > 范围：定义 Context Pack、知识来源与权威、Run/Change/Project Memory、冲突、过期与知识晋升语义；不定义向量数据库、CodeGraph、飞书、具体检索算法或存储实现。
 
 ## 1. 文档定位
@@ -95,15 +96,17 @@ CimiLoop 保存“关联、摘要和治理事实”不代表它取代外部原�
 
 Context Pack Manifest 是一个不可变清单，描述一次 Agent Run 的初始上下文边界。它至少在语义上包含：
 
-- 绑定的 Project、Change、Work Item 与 Agent Run；
+- 绑定的 Project、Work Item 与 Agent Run；需求执行关联具体 Change，项目级集成 / 发布关联实际范围及多个需求精确依据；
 - 角色、目标、允许动作和禁止动作；
-- 精确 Contract Version、Plan Version 与 Policy Snapshot；
+- 适用需求的精确 Contract Version、Plan Version 与 Policy Snapshot；共享部署还固定集成快照、Artifact、实际纳入清单与 Environment；
 - 选入的知识项及其分类、来源、版本/Digest、适用范围与新鲜度；
 - 依赖的 Artifact、Evidence 和 External Reference；
 - 组装策略、组装者和组装时间；
 - Manifest 自身的 Digest。
 
 Manifest 是“目录和证据”，不是必须把所有内容内嵌在一个大文件中。内容可以来自 CimiLoop Store、Git、Runtime 或外部系统，但必须被精确固定或记录当时解析结果。
+
+共享发布的最小上下文涵盖本批实际纳入需求及必要公共约束，不能只继承某一需求的上下文，也不能无限扩大到全项目。规划目标版本不是已构建或已测内容；release 验证期间执行部署还必须核对环境占用，旧 feature 上下文不能授权覆盖当前发布环境。
 
 ### 6.2 组装流程
 

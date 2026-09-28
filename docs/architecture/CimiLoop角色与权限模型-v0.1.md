@@ -2,6 +2,7 @@
 
 > 状态：讨论确认稿
 > 日期：2026-09-19
+> 修订：2026-09-28，共享发布作用域与需求业务身份；不表示权限实现已更新。
 > 范围：定义 Actor、Role、Assignment、Delegation、Decision Authority 与职责分离；不定义登录系统、组织目录、具体 RBAC/ABAC 产品或存储 Schema。
 
 ## 1. 文档定位
@@ -100,8 +101,11 @@ Project
 ├── Change
 │   ├── Contract / Plan
 │   ├── Task / Work Item / Run
-│   ├── Artifact / Release / Deployment
 │   └── Decision / Exception
+├── 发布版本 / 实际纳入范围
+│   ├── 多个 Change 的精确来源与验收依据
+│   ├── 项目级集成 / 构建授权
+│   └── Release / Deployment / Recovery
 └── Environment
 ```
 
@@ -112,6 +116,8 @@ Project
 - Work Item 是执行授权的最小常用边界，不因 Actor 具有 Executor 角色就获得任意仓库或工具权限；
 - Environment 权限独立于 Change 权限；有 Change 权限不等于有生产权限；
 - Release 授权必须绑定 Artifact Digest、Environment、范围、时间窗和恢复策略；
+- 共享 Release 属于 Project 发布范围，Release Owner 面向整批实际内容批准一次；单条 Change 的责任角色无权隐式代表其他纳入需求；
+- 目标版本归属不授予合入或环境权限；release 占用测试环境时，已有 feature 流水线也必须在执行边界重新核验占用与授权；
 - 更窄作用域的授权不能扩大上层 Policy 允许的能力。
 
 ## 6. 指派、移交与委托
@@ -172,6 +178,8 @@ Incident Commander 不会因进入事故模式自动成为 Change Owner，除非
 | 组合优先级、WIP 与容量 | Flow / Portfolio Owner | 提供依赖和吞吐分析 | 不改写单个 Change 的 Contract 或状态权威 |
 
 Decision 只记录决定，不直接迁移状态。Kernel 在 Decision 写入后重新执行 Gate Evaluation，成功后才创建 Transition Record 与 Event。
+
+共享发布的风险、实际纳入清单及各需求验收必须完整呈现，不能只看打开页面的那条需求。窗口内优先修复、无法按时修复时延期剔除的业务规则已确认；具体范围调整的责任分工、环境占用释放资格和权限字段尚待设计，Agent 不得据此自行执行 revert、扩大生产范围或解除保护。
 
 ## 8. 执行权限矩阵
 

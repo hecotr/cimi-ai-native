@@ -2,6 +2,7 @@
 
 > 状态：讨论确认稿
 > 日期：2026-09-18
+> 修订：2026-09-28，需求 / 缺陷业务入口与项目级共享发布；现有代码及原型未同步。
 > 范围：定义 CimiLoop Harness 的产品边界、一级能力架构、核心运行闭环、权威关系、部署模式和 V1 边界；不包含字段级 Schema、完整状态迁移表、页面设计和具体开源项目适配实现。
 
 ## 1. 文档定位
@@ -16,9 +17,11 @@
 
 本文是后续 Cimi Change Protocol、Kernel、Workbench、Adapter 和 V1 实现设计的架构约束。
 
+本次业务模型以 `docs/plans/2026-09-28-cimiloop-requirement-bug-unified-model-design.md` 及已修订专项架构文档为准；历史文章和早期决策中的单 Change 发布描述不覆盖本次约定。字段、完整状态枚举及迁移仍待设计。
+
 ## 2. 产品定义与边界
 
-> **CimiLoop 是一套以 Change（变更）为运行单元、以 Change Contract（变更契约）为基线、以 Evidence（证据）驱动 Gate（关卡）的 AI Native 软件研发 Harness，用于编排人和 Agent 完成从意图澄清到生产闭环的完整研发过程。**
+> **CimiLoop 使用项目、版本、需求、缺陷和任务组织日常研发，内部以 Change 表达同一需求 / 缺陷身份，以授权基线、Evidence 与 Gate 编排人和 Agent，并通过项目级发布实现多个需求共同集成、测试和上线。**
 
 CimiLoop 管理“这次变更如何可信地走完”；Agent Runtime 管理“Agent 如何把当前任务执行出来”。V1 首个 Runtime 从 Claude Code 或 OpenCode 中选择，企业内部 cimicode 后续按相同 Adapter 契约接入。
 
@@ -111,11 +114,12 @@ CimiLoop 由四类产品构件组成：
 
 - Attention Queue：失败、阻塞、风险变化、证据不足等需要关注的事项；
 - Decision Inbox：需要正式 Human Decision 的事项；
-- Change Lifecycle Board：以 Change 为卡片的生命周期看板；
+- 统一需求池与类型筛选：以同一需求 / 缺陷事实为卡片，不要求额外创建 Change；
+- 可选目标版本规划、归属历史与平级拆分来源；
 - Active Agent Runs：正在运行、等待和失败的 Agent Run；
 - Environment/Release Overview：测试、生产部署和发布状态。
 
-项目工作台采用 Attention-first，而不是退化为传统 Task Kanban。N1–N5 是价值和责任模型，不直接作为看板列。
+项目工作台保留熟悉的录入与跟踪入口，并突出需要关注和决定的事项。需求池包含全部记录，不等于未挂版本列表；N1–N5 是价值和责任模型，不直接作为看板列。
 
 #### Change Room
 
@@ -129,6 +133,8 @@ CimiLoop 由四类产品构件组成：
 - 生命周期时间线和 Agent Run 技术日志。
 
 Change Room 采用两层时间线：默认展示生命周期关键事件，进入具体 Run 后再展示工具调用、命令、Token、重试和错误等技术日志。
+
+业务界面称为需求 / 缺陷详情。录入允许一句话并先澄清，细化沿用身份；经确认拆分产生平级记录和溯源，原记录已拆分不计为交付。Work Item / Run 在执行明细中下钻，共享发布页承载多需求的实际集成、验收和部署，不在每条详情重复创建部署。
 
 #### Actor 与协作信息
 
@@ -186,9 +192,11 @@ Gate Requirement Set 由 Core Requirements、Profile、Risk、Environment Policy
 ### 7.4 Work Item 与变更控制
 
 - Kernel 调度结构化 Work Item，不下发无边界自由 Prompt；
-- Work Item 绑定 Change、Task、Contract Version、Plan Version、权限、预算和停止条件；
+- 需求实施 Work Item 绑定 Change、Task、Contract Version、Plan Version、权限、预算和停止条件；
 - Runtime 为 Work Item 创建 Agent Run；
 - Run 成功只表示本次工作项结束，不代表 Change 可以迁移。
+
+项目级集成、构建和发布 Work Item 绑定确定发布范围及多条需求的精确依据，不为共同部署伪造另一个需求。需求进度与共享部署进度分别维护；发布事实由 Kernel 按实际纳入、单条验收和约定终点分别求值，不能整批自动完成。
 
 计划变化采用三级控制：
 
@@ -274,7 +282,7 @@ V1 使用 Change 记录、仓库文档、代码/Git、Project Policy、Agent Run
 
 ### 9.1 Workspace 与 Runtime
 
-- 默认每个 Change 一个隔离 Worktree；
+- 默认每个进入实施的 Change 一个隔离 Worktree，录入不强制分配；
 - 顺序 Task 共享 Change Worktree；
 - 只有依赖和文件范围明确时才创建并行子 Worktree；
 - Agent 不直接修改主工作区；
@@ -286,13 +294,15 @@ V1 使用 Change 记录、仓库文档、代码/Git、Project Policy、Agent Run
 每次有效代码变化产生不可变 Artifact Candidate：
 
 ```text
-代码版本
-→ Artifact Candidate
-→ 测试环境部署与验证
-→ 同一 Digest 晋升生产
+各需求开发来源 → feature 共享集成与早期测试
+→ 切出 release 固定本次范围、切换测试环境并暂停 feature 覆盖
+→ 当前精确快照 / 共同 Artifact / 实际纳入清单
+→ 修复或延期剔除后的必要验证 → 同一获批 Digest 晋升生产
 ```
 
 测试失败并修改代码后，必须生成新 Artifact 并重新验证。生产发布前不能重新构建未经测试的制品。
+
+目标版本只是可选规划归属，实际发布版本固定代码与制品；发布窗口内先修复，最终赶不上时从 release 实际内容剔除并延期，核对依赖、重建和回归。feature 可继续开发合入，但旧的排队或在途部署也不能覆盖 release 测试环境。
 
 ### 9.3 DevOps 与交付闭环
 

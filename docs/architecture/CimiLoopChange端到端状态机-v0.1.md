@@ -2,11 +2,14 @@
 
 > 状态：讨论确认稿
 > 日期：2026-09-19  
+> 修订：2026-09-28，需求 / 缺陷与共享发布双流程；文件名保留以维持引用。
 > 范围：定义 Change 从创建、契约、规划、执行、评价、测试、生产发布到关闭的主流程、多维状态、Gate、异常与恢复语义；不包含字段级 Schema、页面布局和具体 Runtime/DevOps 实现。
+
+业务语义依据 `docs/plans/2026-09-28-cimiloop-requirement-bug-unified-model-design.md`。本次只修订文档；新增阶段与英文标识是逻辑说明，不是已冻结或已实现的 Schema。已拆分、延期的协议表达及完整状态映射仍待设计。
 
 ## 1. 文档定位
 
-本文回答“一个 Change 如何被创建、授权、执行、验证、发布、恢复并关闭”。
+本文回答“需求 / 缺陷如何从一句话录入开始澄清和实施，以及如何参与多个需求共同构建、测试和发布的过程”。
 
 本文承接：
 
@@ -14,11 +17,11 @@
 - `docs/architecture/CimiChangeProtocol核心领域模型-v0.1.md`；
 - `docs/articles/02-CimiLoop-AI-Native软件研发流程规范-v0.1.md`。
 
-本文把既有 N1–N5 价值流程转化为 Kernel 可执行的状态机。N1–N5 仍用于组织理解和责任划分，不直接作为数据库状态。
+本文把既有 N1–N5 价值流程组织为需求进度与共享发布两条关联的逻辑流程。N1–N5 用于理解和责任划分，不直接作为数据库状态；具体可执行状态枚举及 Schema 映射尚待设计。
 
 ## 2. 状态模型总览
 
-Change 同时拥有四个正交状态维度：
+需求 / 缺陷就是内部 Change，不维护第二份交付身份。Change 同时拥有四个正交状态维度；项目级发布另有自身的部署进度，不能塞进每个 Change 后重复触发部署：
 
 | 维度 | 中文解释 | 回答的问题 |
 |---|---|---|
@@ -31,6 +34,8 @@ Change 同时拥有四个正交状态维度：
 
 ## 3. 主生命周期
 
+以下先表达需求侧逻辑阶段。目标版本是可选规划信息，不是任一阶段的准入条件；测试和生产部署状态属于共享发布流程。
+
 ```mermaid
 flowchart LR
     Draft[草稿 Draft]
@@ -38,16 +43,15 @@ flowchart LR
     Planned[已规划 Planned]
     Executing[执行中 Executing]
     Evaluating[评价中 Evaluating]
-    TestDeploying[测试部署中 TestDeploying]
+    ReadyIntegration[待集成 / 协议名待定]
     TestValidating[测试验证中 TestValidating]
     ReleaseReady[发布就绪 ReleaseReady]
-    ProductionDeploying[生产部署中 ProductionDeploying]
     ReleaseVerified[发布已验证 ReleaseVerified]
     DeliveryClosed[交付已关闭 DeliveryClosed]
 
     Draft --> IntentReady --> Planned --> Executing --> Evaluating
-    Evaluating --> TestDeploying --> TestValidating --> ReleaseReady
-    ReleaseReady --> ProductionDeploying --> ReleaseVerified --> DeliveryClosed
+    Evaluating --> ReadyIntegration --> TestValidating --> ReleaseReady
+    ReleaseReady -->|关联的发布达到交付终点且本需求验收满足| ReleaseVerified --> DeliveryClosed
     Evaluating -->|评价失败，创建修复工作项| Executing
     TestValidating -->|测试失败，创建修复工作项| Executing
 ```
@@ -56,16 +60,15 @@ flowchart LR
 
 | 状态 | 中文含义 | 最低进入事实 |
 |---|---|---|
-| Draft | 草稿 | Change ID、Human Change Owner、初始诉求来源 |
+| Draft | 待澄清的草稿 | 同一需求 / 缺陷身份、负责人和一句话原始诉求；不要求目标版本 |
 | IntentReady | 意图就绪 | 正式 Contract Version 与 Profile 已获批准 |
 | Planned | 已规划 | 当前 Plan Version 与验证策略已获批准 |
 | Executing | 执行中 | 至少一个有效 Work Item 已可执行或正在执行 |
-| Evaluating | 评价中 | 完整 Artifact Candidate 与 Delivery Evidence 已提交 |
-| TestDeploying | 测试部署中 | Change 级评价和 Gate 允许部署测试环境 |
-| TestValidating | 测试验证中 | 测试环境 Deployment 成功且可开始环境验收 |
-| ReleaseReady | 发布就绪 | Test Evidence Package 完整，Release Package 已准备 |
-| ProductionDeploying | 生产部署中 | 针对具体 Release 的生产授权有效 |
-| ReleaseVerified | 发布已验证 | 生产部署与即时验证成功 |
+| Evaluating | 本需求实现评价中 | 固定实现来源、产物及自检 Evidence 已提交 |
+| 待集成（协议名待定） | 可纳入共享集成 | 需求级独立评价和合入检查通过，尚未等同环境验证通过 |
+| TestValidating | 本需求测试验证中 | 关联发布快照实际纳入本需求，测试部署及实际环境内容已核对 |
+| ReleaseReady | 本需求待发布 | 当前拟发布快照上的必要验收满足，等待共享发布授权 / 部署 |
+| ReleaseVerified | 约定交付终点已验证 | 当前范围确已交付且本需求验收满足，不因同批部署成功就自动进入 |
 | DeliveryClosed | 交付已关闭 | 证据、已知问题、例外和学习候选完成归档 |
 
 ### 3.2 非正常终止状态
@@ -78,6 +81,27 @@ flowchart LR
 | Superseded | 已被取代 | 新 Change 的取代关系、工作转移和副作用处置经确认且 Gate 允许 |
 
 Kernel 不再为终止状态创建正常 Work Item。Rollback 和 Compensation 是受控动作、Evidence 与 Event，不作为“把历史倒回过去”的生命周期状态。
+
+已拆分是原记录的业务处理结论，不能算已交付；它对应新的终态还是处理标记仍待确认。拆分新记录保持平级独立身份和来源，不级联状态。延期也不是终止：保留身份与进度，从本次发布移出并安排后续目标版本（可以暂未指定）。
+
+### 3.3 共享发布流程
+
+```mermaid
+flowchart LR
+    Feature["feature 集成与测试"] --> Freeze["切出 release / 固定范围"]
+    Freeze --> TestDeploying["release 占用测试环境并部署"]
+    TestDeploying --> TestValidation["本次集成快照验证"]
+    TestValidation --> ReleaseReady["本批待批准发布"]
+    ReleaseReady --> ProductionDeploying["一次共享生产部署"]
+    ProductionDeploying --> Verified["即时验证 / 交付事实"]
+    TestValidation -->|优先修复| Rebuild["新快照 / 新制品"]
+    TestValidation -->|赶不上窗口则核对依赖并剔除延期| Rebuild
+    Rebuild --> TestDeploying
+```
+
+TestDeploying / ProductionDeploying 在这里表示项目级共享部署阶段，不是每条 Change 发起各自部署的状态。一次发布可包含多个 Change；同一 Change 可参与多个测试快照。部署结果先作为发布事实记录，再由 Kernel 对实际纳入且满足验收的需求分别求值，不能对整池批量置为完成。
+
+冻结后测试环境切到 release，暂停 feature 覆盖；feature 可继续开发与合入。环境切换须防止旧的排队或在途 feature 部署覆盖，释放时机与取消 / 失败恢复规则尚待明确。
 
 ## 4. 运行状况
 
@@ -99,14 +123,18 @@ Kernel 不再为终止状态创建正常 Work Item。Rollback 和 Compensation �
 
 ```text
 用户明确请求创建，或确认 Agent 的创建建议
-→ 创建 Draft Change
-→ 生成稳定 Change ID
+→ 录入需求或缺陷，创建 Draft Change
+→ 生成贯穿澄清与交付的稳定业务身份
 → 指定唯一 Human Change Owner
 → 保存原始诉求摘要与来源引用
 → 建立 Change Room
 ```
 
 Draft 允许 Contract、Risk、Profile 和 Owner 信息尚未完整，但不允许没有归属的正式实现工作。
+
+最初允许只有一句话诉求，不强制目标版本或完整验收标准；责任归属可由有效项目配置解析，但不得制造无人负责的正式执行。
+
+澄清结果可以细化原记录、经人确认拆为多个独立需求，或暂缓 / 不采纳。拆分保留原文与来源，原记录标记已拆分；技术分工仍拆成 Task，不变成子需求。
 
 ### 5.2 暂定 Profile
 
@@ -202,7 +230,7 @@ Ready Task
 满足以下条件后才能执行 `Executing → Evaluating`：
 
 - 当前 Plan 的所有阻塞 Task 已完成；
-- 形成完整且不可变的 Artifact Candidate；
+- 形成固定的实现来源及任务产物；可有局部 Artifact，不强制每条需求独自形成最终生产包；
 - 任务级确定性验证已完成；
 - Executor 已提交 Claims 与 Delivery Evidence；
 - Contract、Plan 和 Risk 仍然有效；
@@ -212,7 +240,7 @@ Ready Task
 
 Evaluator 使用独立 Session，从 Contract 推导验收场景、边界和反例，并检查实现、测试和追踪关系。
 
-- 评价通过且 Gate 允许：进入 TestDeploying；
+- 评价通过且合入 Gate 允许：进入待集成，参与授权的共享 Integration 工作；不能直接为每条需求单独部署测试环境；
 - 评价失败：生成 Failure/Evidence，返回 Executing，创建 Repair Work Item；
 - 证据不足：保持 Evaluating 或回到授权的证据生成活动；
 - 风险、契约或规则冲突：设置 AwaitingDecision 或 Blocked。
@@ -223,17 +251,18 @@ Evaluator 不直接修复生产代码。
 
 ### 8.1 测试部署
 
-Change 级评价通过后，不增加重复人工审批。Kernel 创建测试环境 Release/Deployment 工作：
+需求级评价通过后，在授权的 Integration 工作中合入共享 feature。项目级构建固定集成提交和实际纳入清单，再获得测试环境 Release/Deployment 授权；普通测试部署无需重复人工批准，高风险仍由 Policy 限定：
 
 ```text
-Evaluating
-→ Gate ALLOW
-→ TestDeploying
-→ 测试 Deployment 成功
-→ TestValidating
+需求评价通过 → 待集成 → 合入 feature
+→ 固定集成提交 / 发布快照 / Artifact / 实际纳入清单
+→ 共享测试 Gate 与环境占用检查 → 一次测试部署
+→ 核对实际 Digest → 各纳入需求开始 TestValidating
 ```
 
 测试环境必须使用指定 Artifact ID 与 Digest。
+
+持续集成阶段可由 feature 更新测试环境；切出 release 后同一环境改由 release 占用，feature 部署暂停。release 的最终快照与先前 feature 已测快照不同时，必须验证实际拟发布内容。
 
 ### 8.2 测试验证与修复循环
 
@@ -241,24 +270,28 @@ Evaluating
 
 ```mermaid
 flowchart LR
-    TestValidating[测试验证中 TestValidating]
-    Failure[失败 Evidence]
-    Executing[执行中 Executing]
-    Evaluating[评价中 Evaluating]
-    TestDeploying[测试部署中 TestDeploying]
-
-    TestValidating --> Failure --> Executing --> Evaluating --> TestDeploying --> TestValidating
+    TestValidating["共享快照上的需求验收与集成验证"]
+    Failure["失败 Evidence / 影响范围"]
+    Repair["优先授权修复"]
+    Defer["赶不上窗口：剔除并延期"]
+    Rebuild["新集成快照 / 新制品"]
+    TestDeploying["共享测试部署及必要回归"]
+    TestValidating --> Failure --> Repair --> Rebuild
+    Failure --> Defer --> Rebuild
+    Rebuild --> TestDeploying --> TestValidating
 ```
 
 代码变化后必须生成新的 Artifact，重新执行评价和测试部署，不能沿用旧 Artifact 的通过结论。
 
 达到修复、时间或成本预算后，Change 保持原生命周期位置并进入等待决定（AwaitingDecision）。
 
+发布窗口内先评估并修复；最终无法按时修复并验证时，从 release 实际内容中剔除并延期，保留原需求身份。需要核对其他需求的代码、接口和数据依赖；不能只取消清单勾选。若无法安全剔除并完成回归，本批也不能放行。未受影响需求不必退回开发，但旧证据在新快照上的适用性必须明确评估。
+
 ### 8.3 进入 ReleaseReady
 
 `TestValidating → ReleaseReady` 至少要求：
 
-- 测试环境使用拟发布的同一 Artifact；
+- 测试环境使用当前 release 拟发布的同一 Artifact，且实际纳入清单包含本需求；
 - 必需环境验证通过；
 - 失败循环关闭或转化为明确残余风险；
 - Contract、Plan、Risk 和 Policy 引用有效；
@@ -271,20 +304,20 @@ flowchart LR
 
 ### 9.1 ReleaseReady 与发布决定
 
-进入发布就绪（ReleaseReady）后创建具体 Release 和生产发布决策请求（Decision Request）。等待期间：
+本需求进入发布就绪（ReleaseReady）后关联到本批项目级 Release。生产发布 Decision Request 按共享 Release 创建一次，而非每条需求重复创建。需求详情显示等待本批发布，不因此产生独立部署动作：
 
 ```text
-lifecycle_state = ReleaseReady
-flow_condition = AwaitingDecision
+需求侧：ReleaseReady，关联具体共享发布记录
+发布侧：等待 Release Owner 的生产发布决定
 ```
 
 Release Owner 批准的是指定 Artifact、目标 Environment、发布范围、时间窗口和恢复策略，不是通用生产权限。
 
 | 决策结果 | 系统行为 |
 |---|---|
-| 批准（approve） | 重新执行 Gate，仍有效时进入 ProductionDeploying |
+| 批准（approve） | 核对实际纳入范围、共享集成证据和环境后，发布流程进入 ProductionDeploying |
 | 请求修改（request changes） | 保持 ReleaseReady，更新 Release Package 后重新审核 |
-| 拒绝（reject） | 保持 ReleaseReady，进入 Paused，由 Change Owner 决定修订、延期或取消 |
+| 拒绝（reject） | 本批暂停生产动作；发布范围调整与延期须与受影响需求负责人核对，不能单条需求绕过本批批准 |
 
 ### 9.2 生产部署与即时验证
 
@@ -292,8 +325,8 @@ Release Owner 批准的是指定 Artifact、目标 Environment、发布范围、
 ProductionDeploying
 → 触发一次性、范围化 Deployment
 → 查询外部状态并记录结果
-→ 执行目标版本、健康、核心路径和配置检查
-→ 成功：ReleaseVerified
+→ 执行实际发布制品、健康、核心路径和配置检查（不是核对规划目标版本名称）
+→ 成功：记录共享发布已验证事实，再核验各实际交付需求进入 ReleaseVerified
 → 失败：执行授权的 Recovery Strategy 或升级
 ```
 
@@ -303,7 +336,7 @@ ProductionDeploying
 
 Rollback、Roll-forward、Feature Disable、Traffic Shift、Data Restore 和 Manual Recovery 都是新的受控动作与 Event，不把历史倒回过去。
 
-- 恢复成功：记录 Recovery Evidence；由 Change Owner 决定修复后重发、结束交付或创建 Incident Change；
+- 恢复成功：记录本批 Recovery Evidence；Release Owner 统筹本批后续发布，受影响 Change Owner 各自决定修复、延期、结束未交付或关联事故处理；
 - 恢复超出授权：进入 AwaitingDecision；
 - 无法恢复：`flow_condition = Failed`，创建升级事项；
 - 已发生且不可逆的副作用只能补偿，不能声明从未发生。
@@ -312,7 +345,7 @@ Rollback、Roll-forward、Feature Disable、Traffic Shift、Data Restore 和 Man
 
 ### 10.1 ReleaseVerified 的含义
 
-发布已验证（ReleaseVerified）只表示生产部署与即时验证通过，不表示长期稳定，也不表示业务价值已经验证。
+发布流程的即时验证成功不表示长期稳定或业务价值已验证。需求侧只有实际纳入、必要验收满足且达到约定交付终点，才进入 ReleaseVerified 并可显示已完成；延期或仅完成开发的记录不能随整批部署置为完成。DeliveryClosed 是其后审计、知识和学习义务的闭环，不是把已拆分 / 已取消统计成交付成功。
 
 典型状态：
 
@@ -381,7 +414,7 @@ Human Decision 不能直接迁移状态。Decision 记录后，Kernel 必须基�
 5. 记录取消原因与 Decision；
 6. Kernel 执行终止迁移。
 
-已经 Cancelled 的 Change 不恢复原历史继续执行；如需重新开展，创建新 Change 并建立关系。
+终止历史不能改写；重新打开的业务入口及身份规则仍待统一。取消单条需求不自动撤销整批发布，已合入内容需核对并受控调整真实发布范围，不能只改需求状态。
 
 ### 12.3 取代
 
@@ -416,7 +449,7 @@ V1 至少保留三项明确人工决定：
 
 1. 意图负责人（Intent Owner）批准 Contract Version 与正式 Profile；
 2. 技术负责人（Technical Owner）批准 Plan Version 与验证策略；
-3. 发布负责人（Release Owner）批准具体 Artifact 的生产 Release。
+3. 发布负责人（Release Owner）批准包含实际纳入清单的具体共享 Artifact 生产 Release，而非逐条需求重复批准同一部署。
 
 高风险、不可逆、数据、安全或合规场景可以由 Policy 增加额外决定。普通 Task、测试部署和满足既有授权的自动修复不重复增加人工点击。
 
@@ -428,14 +461,15 @@ V1 至少保留三项明确人工决定：
 | IntentReady | 批准计划 | Plan Decision、覆盖、风险、验证策略 | Planned | IntentReady + Active/Paused/AwaitingDecision |
 | Planned | 开始执行 | Ready Task、权限、资源、版本 | Executing | Planned + Blocked/Paused |
 | Executing | 提交候选交付 | Task 完成、Artifact、Delivery Evidence | Evaluating | Executing + Active/Blocked |
-| Evaluating | 部署测试 | 独立评价、确定性验证、风险 | TestDeploying | Executing 或 Evaluating + AwaitingDecision |
-| TestDeploying | 开始测试验证 | Deployment 事实与 Artifact Digest | TestValidating | TestDeploying/Executing + Failed/Blocked |
-| TestValidating | 提交生产发布 | Test Evidence、恢复策略、Policy | ReleaseReady | Executing 或 TestValidating + AwaitingDecision |
-| ReleaseReady | 部署生产 | Release Decision、Artifact、Environment | ProductionDeploying | ReleaseReady + Paused/AwaitingDecision |
-| ProductionDeploying | 确认发布 | Deployment 与即时验证 Evidence | ReleaseVerified | ProductionDeploying + AwaitingDecision/Failed |
+| Evaluating | 纳入集成 | 独立评价、合入授权、依赖 | 待集成（协议名待定） | Executing 或 Evaluating + AwaitingDecision |
+| 待集成 | 参与测试验证 | 实际纳入、共享 Deployment、Artifact 与环境核对 | TestValidating | 待集成 + Blocked / AwaitingDecision |
+| TestValidating | 确认本需求在当前发布快照的验收 | Test Evidence、实际纳入、Policy 与必要知识义务 | ReleaseReady | 受影响修复或 TestValidating + AwaitingDecision |
+| ReleaseReady | 关联生产交付事实 | 共享发布授权、实际纳入、本需求验收、即时验证 | ReleaseVerified | ReleaseReady 或相关修复 / 延期路径 |
 | ReleaseVerified 或 Profile 终点 | 关闭 Change | 完整性、知识义务、已知问题、学习分类 | DeliveryClosed | 保持原生命周期 + Blocked |
 
 ## 17. Kernel 原子提交边界
+
+以下是单个 Change 状态迁移的提交边界；发布 / Deployment 先提交共享事实，随后通过可重试、幂等的关联求值分别迁移各需求，不假设所有 Change 必须跨聚合一次写完，更不能用一次部署触发四次相同外部动作。
 
 成功迁移必须在同一事务中提交：
 
@@ -460,21 +494,27 @@ V1 至少保留三项明确人工决定：
 8. Experiment 不进入生产而正常关闭；
 9. Change 被暂停、取消或另一个 Change 取代；
 10. 跨 Change 依赖只阻塞部分 Task。
+11. 一句话录入后细化或平级拆分，已拆分不计为交付；无目标版本也可进入实施。
+12. 四条需求逐批合入 feature，共用构建和测试部署；一条延期后在 release 剔除、重建与回归。
+13. release 占用测试环境时阻止旧 feature 部署覆盖；整批部署成功不误完成延期需求。
 
-## 19. 场景核对结果
+## 19. 场景语义核对（文档检查，非实现测试）
 
 | 场景 | 结果 | 关键路径或待补规则 |
 |---|---|---|
-| 普通 Feature 正常发布 | 通过 | Draft → IntentReady → Planned → Executing → Evaluating → TestDeploying → TestValidating → ReleaseReady → ProductionDeploying → ReleaseVerified → DeliveryClosed |
+| 普通需求共同发布 | 语义可表达 | Draft → IntentReady → Planned → Executing → Evaluating → 待集成 → TestValidating → ReleaseReady；共享发布达到终点后核验 → ReleaseVerified → DeliveryClosed |
 | Bugfix 在独立评价失败 | 通过 | Evaluating → Failure Evidence → Executing；创建 Repair Work Item，形成新 Artifact 后重新评价 |
-| 测试环境失败并重建制品 | 通过 | TestValidating → Executing → Evaluating → TestDeploying；旧 Artifact Evidence 不适用于新 Digest |
+| 测试环境失败并重建制品 | 语义可表达 | 受影响需求修复，共享快照重建与测试；旧 Artifact 通过结论不自动适用于新 Digest |
 | 等待发布决定期间 Artifact 变化 | 通过 | 原 Release Decision 过期；保留 ReleaseReady，创建新 Release 或重新审核 |
-| 生产 Deployment 结果未知 | 通过但需明确恢复细节 | 保持 ProductionDeploying，停止重复操作，打开 Blocker 并优先执行 Reconciliation |
+| 生产 Deployment 结果未知 | 语义可表达，恢复细节待定 | 共享发布保持部署待核对位置，各需求不误报完成；停止重复操作，先 Reconciliation |
 | 生产验证失败并恢复 | 通过但需明确恢复后的去向 | Recovery 成功后记录 Evidence，等待 Change Owner 决定修复重发、结束或创建 Incident |
 | Incident 应急恢复 | 通过 | 压缩各阶段停留时间和文档重量，但不跳过 Contract、Plan、Gate、Decision、Transition 与 Event 的语义 |
 | Experiment 不进入生产 | 通过 | 在 Contract 授权的 TestValidating/假设验证终点进入 N5，再关闭为 DeliveryClosed |
 | Pause、Cancel、Supersede | 通过 | 全部采用向前动作、核对和 Event，不回写或删除历史 |
 | 跨 Change 依赖只阻塞部分 Task | 通过 | 未满足依赖只影响相关 Task Ready 状态；无其他工作时才把 Change 标记 Blocked |
+| 一句话需求平级拆分 | 语义可表达，协议表示待定 | 保留来源；原记录已拆分，新记录独立；不级联关闭 |
+| 四需求同包，一条延期 | 语义可表达 | 本次范围核对后剔除、重建并回归；延期需求保留身份，不能计为本批已完成 |
+| 测试环境从 feature 切到 release | 语义可表达，调度实现待定 | 核对在途部署并禁止旧 feature 覆盖；冻结期间仍可开发合入 feature |
 
 ### 19.1 外部结果未知
 
@@ -490,7 +530,7 @@ V1 至少保留三项明确人工决定：
 
 ### 19.2 生产恢复后的断点
 
-生产恢复动作成功只说明系统回到已知安全状态，不自动表示 Change 已完成：
+共享生产恢复动作成功只说明系统回到已知安全状态，不自动表示任何 Change 已完成。由 Release Owner 统筹发布侧动作，各受影响需求分别关联处理结论：
 
 - 原 lifecycle state 和失败/恢复历史保留；
 - 当前停止新的生产动作并进入等待决定（AwaitingDecision）；
@@ -509,8 +549,9 @@ Draft
 → 最小应急 Plan 与一次性权限获得授权
 → Planned
 → Executing
-→ ProductionDeploying
-→ ReleaseVerified
+→ 关联获准的项目级应急发布 / 操作与一次性权限
+→ 共享部署 / 操作即时验证
+→ 核验本需求或事故约定终点后 ReleaseVerified
 ```
 
 各状态可以在同一操作会话内快速通过，不要求按普通 Feature 的文档重量和等待时长执行，但必须保留对应的 Transition、Gate Evaluation、Decision 和 Event。进入执行前至少明确：
@@ -530,3 +571,12 @@ Draft
 5. 将超出本次应急恢复范围的永久修复创建为独立 Bugfix 或 Change，并建立关系。
 
 因此，Incident 压缩的是活动与材料，不压缩授权、状态权威和审计语义；事后补录不能替代事前最小授权。
+
+## 20. 本次未冻结的细节
+
+- 新增待集成阶段、已拆分 / 延期的最终协议枚举与业务状态映射；
+- 部分拆分、合并、重新打开与既有历史迁移；
+- 发布版本的完整状态机、环境占用释放及失败 / 取消恢复；
+- release 修复回流、延期代码保留和生产基线同步。
+
+这些细节不得通过文档示意图被默认为已实现或已获授权的自动行为。

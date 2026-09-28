@@ -2,11 +2,14 @@
 
 > 状态：领域模型讨论确认稿  
 > 日期：2026-09-18  
+> 修订：2026-09-28，需求 / 缺陷统一身份与共享发布模型；保留文件名以维持现有引用。
 > 范围：定义 Cimi Change Protocol 的统一语言、核心对象、聚合边界、身份与版本关系、权威关系及 V1 最小对象目录；不包含字段级 Schema、数据库表、目录结构、传输格式和具体技术栈。
+
+本次修订依据 `docs/plans/2026-09-28-cimiloop-requirement-bug-unified-model-design.md`。已确认的是业务边界与流程约束，不表示现有协议 Schema 或代码已实现；发布版本的物理对象、完整状态枚举及迁移规则仍待设计。历史文章与决策账本中冲突的单 Change 发布描述，以本次修订及对应专项文档为准。
 
 ## 1. 文档定位
 
-本文回答“CimiLoop 用哪些稳定领域对象表达一次 Change，以及这些对象如何关联、演化和保持可审计”。
+本文回答“项目、目标版本、需求、缺陷和任务如何表达研发工作，以及多个需求如何共享一次可审计的集成发布”。
 
 本文承接：
 
@@ -19,7 +22,7 @@
 
 ## 2. 核心建模原则
 
-1. **Change 是生命周期状态权威**：Change 是独立交付、责任、验证和生命周期单元，只有 Kernel 可以迁移其状态；
+1. **一个业务身份，两条关联流程**：需求 / 缺陷就是内部 Change，从录入到交付保持同一身份；Draft 是待澄清的候选交付单元，Change 维护自身范围、责任和验收，项目级发布维护共享部署事实，只有 Kernel 可以提交状态变化；
 2. **聚合边界独立**：Project、Change、Contract、Plan、Work Item 等对象维护各自一致性，通过稳定引用协作；
 3. **历史不可改写**：Contract/Plan 旧版本、Run、Evidence、Decision、Evaluation、Transition、Deployment 和 Event 永久保留；
 4. **请求不等于事实**：Command 表达行动意图，Event 表达已经提交的事实；
@@ -35,8 +38,12 @@
 | 术语 | 中文解释 | 核心语义 |
 |---|---|---|
 | Project | 项目 | Change、Policy、Actor 和 Environment 的治理边界 |
-| Change | 变更 | 独立交付、责任、验证和生命周期单元 |
-| Change Room | 变更协作空间 | 与 Change 一一对应的交互与查询投影，不是事实聚合 |
+| Requirement / Bug | 需求 / 缺陷 | 日常录入与跟踪的两种业务类型，内部使用 Change，不是另建两套关联对象 |
+| Change | 需求 / 缺陷的内部协议名称 | 同一身份贯穿录入、澄清、实施、验收和交付，不独占一次构建或部署 |
+| Requirement Pool | 需求池 | 项目内全部需求和缺陷的统一查询台账，不仅是未挂版本列表 |
+| Target Version | 目标版本 | 可选的规划归属，不是实施前置条件 |
+| Publication Version | 发布版本 | 固定集成来源、制品和实际纳入范围的不可变发布快照，可关联多个 Change |
+| Change Room | 需求 / 缺陷详情 | 与 Change 一一对应的交互与查询投影，不是事实聚合 |
 | Change Contract | 变更契约 | 当前被授权的意图、范围、验收与约束 |
 | Plan | 执行计划 | 当前被授权的实施方式、Task DAG 与验证策略 |
 | Task | 任务 | Plan 中具有稳定身份的持久工作节点 |
@@ -52,7 +59,7 @@
 | Decision | 决策 | 具备资格的 Actor 以明确 acting role 作出的正式决定 |
 | Transition | 状态迁移 | Kernel 基于有效 Gate Evaluation 提交的生命周期变化 |
 | Event | 事件 | 已经提交、不可改写的领域事实 |
-| Release | 发布 | 将指定 Artifact 晋升到指定 Environment 的受控发布对象 |
+| Release | 部署授权 | Project 范围内将确定发布版本及 Artifact 部署到指定 Environment 的授权，可关联多个 Change |
 | Deployment | 部署 | 执行一个 Release 的一次外部尝试 |
 | Failure | 失败 | 一次已经发生的不可变失败事实 |
 | Blocker | 阻塞项 | 当前阻止推进且具有解除条件的领域对象 |
@@ -65,7 +72,7 @@
 
 表达当前有效的业务约束、身份、授权和状态，例如：
 
-- Project、Change；
+- Project、Change、目标版本的规划归属；
 - Change Profile、Policy、Environment；
 - Change Contract、Plan、Task、Risk Profile；
 - Actor、Role、Assignment；
@@ -78,7 +85,7 @@
 表达一次已经发生的行为、观察、判断或状态变化，例如：
 
 - Risk Assessment、Agent Run Record；
-- Artifact、Claim、Evidence；
+- Artifact、发布版本快照及纳入清单、Claim、Evidence；
 - Decision、Gate Evaluation、Transition Record；
 - Deployment、Failure、Feedback、Event、Learning Candidate。
 
@@ -88,7 +95,7 @@
 
 用于交互和查询，包括：
 
-- Change Room；
+- Change Room、需求池、目标版本视图和发布记录视图；
 - Timeline；
 - Attention Queue；
 - Decision Inbox；
@@ -101,6 +108,7 @@ Read Model 可以删除并从协议事实重建。它们不是状态、授权、
 ### 5.1 项目与治理基础对象
 
 - Project；
+- 目标版本及规划归属历史（字段与物理对象待设计）；
 - Change Profile；
 - Policy；
 - Environment；
@@ -126,6 +134,7 @@ Read Model 可以删除并从协议事实重建。它们不是状态、授权、
 - Agent Run Record；
 - Context Pack Manifest；
 - Artifact；
+- 发布版本快照及实际纳入清单（概念边界已确定，物理对象待设计）；
 - Release；
 - Deployment。
 
@@ -161,7 +170,11 @@ Approval 不单独建模。Intent Decision、Execution Plan Decision、Release D
 
 ```mermaid
 flowchart TD
-    Project --> Change
+    Project --> Change[需求或缺陷 / Change]
+    Project --> TargetVersion[目标版本 / 可选规划归属]
+    Change -.-> TargetVersion
+    Project --> Publication[发布版本 / 不可变集成快照]
+    Change -->|实际纳入与精确依据| Publication
     Project --> Profile[Change Profile]
     Project --> Policy
     Project --> Environment
@@ -182,6 +195,7 @@ flowchart TD
     PlanVersion --> Task
 
     Task --> WorkItem[Work Item]
+    Publication -->|项目级集成或构建授权| WorkItem
     WorkItem --> Run[Agent Run Record]
     Run --> Context[Context Pack Manifest]
     Run --> Artifact
@@ -189,6 +203,7 @@ flowchart TD
     Claim --> Evidence
 
     Change --> Gate
+    Publication -->|共享集成与发布条件| Gate
     Gate --> Requirements[Gate Requirement Set]
     Requirements --> Evaluation[Gate Evaluation]
     Evidence --> Evaluation
@@ -196,6 +211,9 @@ flowchart TD
     Evaluation --> Transition[Transition Record]
     Transition --> Event
 
+    Publication --> Artifact
+    Project --> Release[Release / 环境部署授权]
+    Publication --> Release
     Artifact --> Release
     Environment --> Release
     Decision --> Release
@@ -210,6 +228,8 @@ flowchart TD
 
 - Project 与 Change 分别是聚合根；
 - Change 必须归属一个 Project，但拥有独立生命周期和并发边界；
+- 需求或缺陷在录入时创建 Draft Change；确认要做是后续授权关口，不是创建第二个身份的时机；
+- 业务类型、处理进度和可选目标版本相互独立；类型不直接替代内部 Profile 或风险策略；
 - Project 管理项目级治理和跨 Change 关系，不承载单个 Change 的运行状态；
 - Change Room 与 Change 一一对应，但只是交互与查询投影；
 - Change Room 组合展示 Contract、Plan、Run、Evidence、Decision 和 Timeline，不拥有这些对象，也不能直接写 Store。
@@ -235,6 +255,7 @@ flowchart TD
 ### 7.4 Work Item 与 Agent Run
 
 - Work Item 是一次有边界执行授权，是独立调度聚合；
+- 需求实施授权关联具体 Change / Task；项目级集成、构建、部署与核对授权可关联确定发布范围及多个精确需求依据，不为共同发布伪造额外 Change；具体引用结构待字段设计；
 - Agent Run 是执行某个 Work Item 的一次独立尝试；
 - 同一授权边界下重试时保留 Work Item，创建新 Agent Run；
 - Contract/Plan Version、目标、范围、权限、验证策略、预算或停止条件变化时，必须创建新 Work Item；
@@ -251,19 +272,44 @@ flowchart TD
 ### 7.6 Release 与 Deployment
 
 - Environment 是 Project 级稳定目标定义；
-- Release 从属于 Change，绑定 Contract Version、Artifact ID 与 Digest、Environment、Release Package、Recovery Strategy 和 Release Decision；
+- Release 属于 Project 的共享发布范围，而不是单个 Change 的子对象；绑定确定的发布版本、Artifact ID / Digest、Environment、Release Package、Recovery Strategy 和 Decision；
+- 实际纳入清单关联一个或多个 Change，固定各自适用的 Contract/Plan Version、来源提交、风险和验收依据；规划归属不等于实际纳入；
+- 同一发布版本的测试与生产分别获得环境授权，不为每条需求复制一份部署或生产批准；
 - Release Owner 批准具体 Release，而不是通用生产权限；
 - Deployment 是执行某个 Release 的一次不可变外部尝试；
-- Artifact、Environment、发布范围或 Recovery Strategy 实质变化时，必须创建新 Release 或重新取得 Release Decision。
+- Artifact、Environment、实际纳入范围或 Recovery Strategy 实质变化时，必须创建新 Release 或重新取得 Release Decision；
+- 共享 Deployment 成功不自动将所有相关需求置为已完成；Kernel 按实际纳入、每条需求的验收与约定交付终点分别核验并记录迁移。
+
+### 7.7 需求池、澄清与平级拆分
+
+- 需求池是全部需求 / 缺陷的 Read Model，有无目标版本和是否待规划只是筛选条件；
+- 一句话录入后先澄清。细化沿用身份；拆分产生独立 Change，记录拆分来源，不采用子需求级联；
+- 原记录保留原文及澄清历史，业务结论为已拆分，不能计为已交付；其协议终态或处理标记仍待设计；
+- 独立业务结果拆成需求，技术分工拆成 Task；AI 的拆分建议须由人确认；
+- 已进入执行的部分拆分需要核对授权、在途任务和外部副作用，具体操作流程不在本次冻结。
+
+### 7.8 规划与实际交付
+
+- 目标版本是可选规划归属，修改归属保留原计划及变更历史，不自动改变 Contract 或执行权限；
+- 发布版本固定集成 Source Snapshot、Artifact 与实际纳入清单，后续合入、修复或剔除产生新快照，不能修改旧事实；
+- 问题先修复；无法在约定上线前修复并验证时，从本次实际发布来源剔除并安排后续版本，保留需求身份和进度；
+- 剔除须分析依赖、重新构建和必要回归，不能只改清单；尚未明确后续目标版本时仍允许为空；
+- 只有通过必要验收且达到约定交付终点才算已完成，通常是实际上线；开发完成、合入或测试通过均不能替代交付。
 
 ## 8. 身份、版本与引用
 
 ### 8.1 主要业务版本
 
-CimiLoop 面向用户的主要业务版本只有：
+CimiLoop 区分规划版本、实际发布快照与内容修订：
 
-- Contract Version：回答“当前被授权做什么”；
-- Plan Version：回答“当前被授权如何实施”。
+| 名称 | 含义 | 可否替代其他版本 |
+|---|---|---|
+| 目标版本 | 可选的需求 / 缺陷规划归属 | 不能证明代码已纳入或已上线 |
+| 发布版本 | 不可变集成快照、制品及实际纳入范围 | 不能以可变分支头或目标版本名称代替 |
+| Contract Version（需求基线修订） | 当前获准做什么 | 不是规划版本或发布批次 |
+| Plan Version（实施计划修订） | 当前获准如何实施 | 不是规划版本或发布批次 |
+
+日常页面分别使用目标版本、发布记录和基线 / 计划修订，避免将所有 Version 都称为版本。发布版本的编号与物理 Schema 尚待确定。
 
 Artifact 使用不可变 Artifact ID 与 Digest，不使用可原地修改的 Artifact Version。Decision、Evidence、Gate Evaluation、Work Item、Agent Run、Deployment 和 Event 每次发生都创建独立记录 ID，不增加用户可见业务版本号。
 
@@ -332,7 +378,7 @@ Common Metadata 中的 Source 使用结构化 Source Descriptor，并区分：
 - Event Sequence：用于确定事件顺序；
 - Digest：用于验证不可变内容是否一致。
 
-这些标识与 Contract/Plan 业务版本严格分离，不能混用，也不能用时间戳代替。
+这些标识与目标版本、发布版本及 Contract/Plan 修订严格分离，不能混用，也不能用时间戳代替。
 
 Digest 使用结构化表达，至少包含算法、摘要值和 Subject；需要规范化的内容同时声明 Canonicalization。只有算法与规范化方式一致的 Digest 才能直接比较。Git、Artifact Registry 等权威系统已有可信摘要时优先引用；无法取得原始内容时，CimiLoop 不得声称已重新验证。Digest 只证明内容一致性，不等同于数字签名、身份认证或来源真实性。
 
@@ -363,7 +409,7 @@ CimiLoop 内部对象引用统一使用 Typed Reference：至少包含 Object Ty
 
 ## 9. 版本变化与影响评估
 
-Contract 或 Plan 产生新版本后，不执行全量级联失效。Kernel 根据对象依赖、修改范围、目标版本和 Policy 对下游对象执行可审计的影响评估：
+Contract 或 Plan 产生新修订、发布快照因集成 / 修复 / 剔除发生变化后，不执行无差别的全量级联失效。Kernel 根据对象依赖、修改范围、发布快照和 Policy 对下游对象执行可审计的影响评估；单纯调整目标版本的规划归属不自动失效实现证据：
 
 - `Valid`：新版本没有影响，仍可用于当前流程；
 - `Stale`：历史事实保留，但不能继续作为当前 Gate 的依据；
@@ -460,10 +506,13 @@ Change 之间只有显式关系，不形成可级联控制的父子聚合。基�
 - `depends-on`；
 - `blocks`；
 - `spawned`；
+- 拆分溯源（如 `split-from`，具体协议标识待定）；
 - `supersedes`；
 - `related-to`。
 
 每个 Change 保持独立 Owner、Contract、Plan、生命周期和证据链。一个 Change 的关闭、归档或取消不能级联改变关联 Change。
+
+共同纳入一个发布版本是共享发布关联，不是父子关系，也不表示某条需求可以控制整批授权。某条需求延期时需评估依赖，但其他记录不因清单调整而自动取消或完成。
 
 ### 13.1 依赖与 Blocked
 
@@ -504,6 +553,7 @@ Learning Candidate 记录从失败、人工纠正、Policy Exception 和复盘�
 ## 15. 关闭、归档与清除
 
 - Close 表示业务流程结束并停止正常调度，历史仍然可查询；
+- 已拆分、取消、结束未交付与已完成分别统计；发布成功也须核验单条需求实际交付，不能把关闭统一当成交付成功；
 - Archive 表示从默认工作视图隐藏，不改变关闭状态；
 - Project 或 Change 的关闭与归档不得级联删除任何历史对象；
 - V1 不提供常规 Hard Delete；
@@ -582,5 +632,7 @@ Adapter 只能通过 Command、Query 和 Event 与 Kernel 协作，不能直接�
 5. Release、Deployment、Failure、Blocker 和 Feedback Schema；
 6. Schema Version 演进与兼容规则；
 7. Export/Import Manifest 及对象引用完整性。
+
+本次修订还需后续设计目标版本归属历史、发布版本及跨 Change 纳入清单、共享环境占用，以及已拆分 / 延期的协议表达。具体字段、聚合物理拆分与完整状态枚举尚未冻结，不能声称当前代码已经符合新模型。
 
 字段设计不得把 Read Model、Store 表结构或某个外部框架的格式反向固化为领域模型。
