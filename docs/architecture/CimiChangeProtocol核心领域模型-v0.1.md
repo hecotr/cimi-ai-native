@@ -15,8 +15,10 @@
 
 - `docs/architecture/CimiLoop整体能力架构-v0.1.md`；
 - `docs/plans/2026-09-18-cimiloop-capability-architecture-discussion-plan.md`；
-- `docs/plans/2026-09-17-cimiloop-ai-native研发操作模型-v0.1.md`；
-- `docs/articles/02-CimiLoop-AI-Native软件研发流程规范-v0.1.md`。
+- [AI Native 软件研发流程](AI-Native软件研发流程-v0.1.md)；
+- [需求 / 缺陷统一模型决策](../plans/2026-09-28-cimiloop-requirement-bug-unified-model-design.md)。
+
+2026-09-17 操作模型及早期流程规范仅作为历史设计输入，不再提供现行上位约束。
 
 本文不重新讨论已经确认的六个一级能力域。它在这些能力边界之内，进一步定义 Cimi Change Protocol 的领域语义。
 

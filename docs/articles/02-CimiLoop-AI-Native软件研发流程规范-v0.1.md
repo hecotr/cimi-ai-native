@@ -1,8 +1,23 @@
 # CimiLoop AI Native 软件研发流程规范 v0.1
 
-> 状态：流程规范初稿  
+> 状态：历史流程规范初稿，不再作为现行上位约束。
 > 日期：2026-09-17  
 > 适用范围：CimiLoop V1，面向单人或小团队、本地 Agent Runtime（首个实现从 Claude Code 或 OpenCode 中选择），并复用现有 CI/CD 与 DevOps 平台完成测试和生产部署。企业内部 cimicode 后续按相同 Runtime Adapter 契约接入。
+
+## 2026-09-28 阅读提示
+
+本文正文及配图保留为早期设计依据。现行流程请读 [AI Native 软件研发流程](../architecture/AI-Native软件研发流程-v0.1.md)，分享请读 [七段入门文章](01-AI-Native软件研发新范式.md)。CimiLoop 的承载设计以修订后的专项架构为准，不从本文旧状态表反推实现。
+
+以下旧表述已被新约定替代，不能继续作为规范执行：
+
+- Change 不再是用户额外维护的工作单元；日常使用需求、缺陷和任务。
+- 不强制人只反馈、不直接修改；人与 AI 的分工随任务变化，必要修改保留可追踪依据。
+- 单需求通过后不单独进入 TestDeploying / ProductionDeploying；多个需求共享 feature 集成、release 范围及实际部署。
+- 测试环境在 release 验证期间暂停 feature 覆盖，问题先修复，无法按时验证再安全剔除延期。
+- 完成逐需求判断，还包括必要知识义务；未完成交付不能统统转成“未来优化”绕过关闭条件。
+- Repo / Runtime 不是 CimiLoop 生命周期状态权威；后续架构已定义 Kernel、Store 及外部事实边界。
+
+上述提示不批准旧枚举、角色、重开规则或能力范围。本文不是当前代码已经实现这些能力的说明。
 
 ## 1. 文档目的
 
@@ -18,7 +33,7 @@
 - Feature、Bugfix、Incident、Migration 等不同 Change 如何走不同路径；
 - 测试环境验证、生产发布和复盘学习如何形成完整闭环。
 
-本文是 CimiLoop Harness 技术设计的上位流程规范，但不定义字段级 Schema、命令、目录结构、Policy DSL 或具体 Skill 实现。
+本文曾作为早期 CimiLoop Harness 设计输入，不再作为当前上位流程规范；字段级 Schema、命令与实现以现行专项文档及后续确认决定为准。
 
 ## 2. 规范用语与阅读方式
 

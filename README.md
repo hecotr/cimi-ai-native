@@ -17,14 +17,16 @@ CimiLoop 是一个面向 AI-Native 软件研发的 Runtime-neutral Harness（运
 
 ## 建议阅读顺序
 
-1. [CimiLoop 整体架构通俗解读](docs/architecture/CimiLoop整体架构通俗解读-v0.1.md)：适合第一次了解 CimiLoop。
-2. [CimiLoop 整体能力架构](docs/architecture/CimiLoop整体能力架构-v0.1.md)：正式架构总纲。
-3. [CimiLoop V1 产品范围与实施里程碑](docs/plans/2026-09-19-cimiloop-v1产品范围与实施里程碑-v0.1.md)：了解首个版本交付什么。
-4. [文档导航](docs/README.md)：查看完整架构、协议、角色与计划文档。
+1. [AI Native 软件研发新范式](docs/articles/01-AI-Native软件研发新范式.md)：先沿 SkillsHub 版本需求理解七段流程，不先讲 CimiLoop。
+2. [AI Native 软件研发流程基线](docs/architecture/AI-Native软件研发流程-v0.1.md)：已确认流程、协作边界与共同发布规则。
+3. [CimiLoop 整体架构通俗解读](docs/architecture/CimiLoop整体架构通俗解读-v0.1.md)：再了解工具如何承载流程。
+4. [CimiLoop 整体能力架构](docs/architecture/CimiLoop整体能力架构-v0.1.md)：正式架构总纲。
+5. [CimiLoop V1 产品范围与实施里程碑](docs/plans/2026-09-19-cimiloop-v1产品范围与实施里程碑-v0.1.md)：了解首个版本交付目标。
+6. [文档导航](docs/README.md)：查看完整架构、协议、角色与计划文档。
 
 ## 核心原则
 
-- Change-centered（以变更为中心）：研发活动统一归属于可追踪的 Change。
+- Change-centered（以变更为中心）：需求 / 缺陷在内部保持同一 Change 身份；项目级共同集成与发布关联实际纳入范围，不伪造额外需求承载部署。
 - Kernel-authoritative（内核权威）：只有 Kernel 可以推进生命周期状态和记录 Gate（关卡）结论。
 - Runtime-neutral（运行时中立）：Agent Runtime 可以替换，领域协议和治理语义保持稳定。
 - Evidence-based（基于证据）：声明完成不等于完成，Gate 必须基于可验证 Evidence（证据）作出判断。
@@ -80,17 +82,23 @@ npx pnpm@12.4.2 --filter @cimiloop/demo-web dev
 
 讲解入口、7 个场景和 Presenter 快捷键见 [apps/demo-web/README.md](apps/demo-web/README.md)。
 
+原型仍采用旧业务词汇与演示路径，尚未同步 2026-09-28 确认流程；不能把固定数据演示当成现行流程或能力已经实现。
+
 ## V1 北极星流程
 
+这是目标闭环，不代表下列能力已全部实现。先理解独立研发流程，再讨论 CimiLoop 如何承载。
+
 ```text
-创建 Change
-  → 澄清并批准 Contract（变更契约）
-  → 生成并批准 Plan（计划）
-  → 执行 Work Item（工作项）
-  → 产出 Artifact / Claim / Evidence（产物 / 声明 / 证据）
-  → 完成 Verification 与 Knowledge Closure（验证与知识闭环）
-  → Gate Evaluation（关卡评估）
-  → 关闭 Change，并保留完整事件与决策记录
+录入需求 / 缺陷，先澄清，必要时平级拆分
+  → 确认目标、范围、验收与实施计划
+  → 人与 AI 按授权任务协作实施、自检和独立评价
+  → 多需求合入 feature，共同构建与早期测试
+  → 切出 release，测试环境切换并暂停 feature 覆盖
+  → 修复优先，必要时安全剔除延期并验证最终软件包
+  → 批准整批发布，同一获批软件包晋升生产
+  → 生产验证或获准恢复
+  → 逐需求确认交付、完成必要知识更新，保留记录
+  → 观察效果、整理反馈，进入下一轮
 ```
 
 ## 下一阶段

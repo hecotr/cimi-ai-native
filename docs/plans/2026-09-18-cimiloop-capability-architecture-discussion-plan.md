@@ -3,7 +3,8 @@
 > 状态：整体能力架构已确认
 > 创建日期：2026-09-18
 > 类型：架构讨论路线图与决策账本
-> 上位约束：`docs/plans/2026-09-17-cimiloop-ai-native研发操作模型-v0.1.md`
+> 当前流程约束：[AI Native 软件研发流程](../architecture/AI-Native软件研发流程-v0.1.md)
+> 2026-09-28 补充：早期操作模型作为历史输入保留，不再作为现行上位约束。历史决策不改写，业务对象与共享发布以 [统一模型决策](2026-09-28-cimiloop-requirement-bug-unified-model-design.md) 及修订架构为准。
 
 ## 1. 目的
 

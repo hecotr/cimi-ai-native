@@ -9,11 +9,13 @@
 
 本文回答“CimiLoop 由哪些能力构成，以及这些能力如何共同运行”。
 
-它承接以下上位文档：
+它承接以下现行流程与业务约束：
 
-- `docs/articles/01-AI-Native软件研发新范式.md`：解释 AI Native 软件研发范式；
-- `docs/articles/02-CimiLoop-AI-Native软件研发流程规范-v0.1.md`：定义端到端流程、节点、Gate 和产物；
-- `docs/plans/2026-09-17-cimiloop-ai-native研发操作模型-v0.1.md`：定义 Change、角色、自治、证据和生产闭环。
+- [AI Native 软件研发流程](AI-Native软件研发流程-v0.1.md)：独立于工具的流程、协作及共享交付边界；
+- [需求 / 缺陷统一模型决策](../plans/2026-09-28-cimiloop-requirement-bug-unified-model-design.md)：业务身份、澄清拆分与版本关系；
+- [七段入门文章](../articles/01-AI-Native软件研发新范式.md)：面向分享解释上述流程，不替代正式协议。
+
+2026-09-17 操作模型与早期流程规范保留为历史输入，不再作为本文上位约束。流程先于工具讨论，不因架构引入内部名词而改变人和 AI 的协作原则。
 
 本文是后续 Cimi Change Protocol、Kernel、Workbench、Adapter 和 V1 实现设计的架构约束。
 

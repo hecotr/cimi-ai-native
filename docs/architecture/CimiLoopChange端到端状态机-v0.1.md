@@ -15,7 +15,9 @@
 
 - `docs/architecture/CimiLoop整体能力架构-v0.1.md`；
 - `docs/architecture/CimiChangeProtocol核心领域模型-v0.1.md`；
-- `docs/articles/02-CimiLoop-AI-Native软件研发流程规范-v0.1.md`。
+- [AI Native 软件研发流程](AI-Native软件研发流程-v0.1.md)。
+
+早期流程规范中的状态表仅作历史参考，不覆盖本文需求进度与共享发布双流程，也不因保留历史表而冻结协议枚举。
 
 本文把既有 N1–N5 价值流程组织为需求进度与共享发布两条关联的逻辑流程。N1–N5 用于理解和责任划分，不直接作为数据库状态；具体可执行状态枚举及 Schema 映射尚待设计。
 

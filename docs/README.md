@@ -1,17 +1,21 @@
 # CimiLoop 文档导航
 
-本页是 CimiLoop 架构、协议和实施规划的统一入口。第一次了解项目时，建议先读“快速理解”；准备参与设计或实现时，再按“正式架构”顺序阅读。
+本页是 AI Native 研发流程、CimiLoop 架构、协议和实施规划的统一入口。第一次了解时，先理解流程，再讨论工具如何承载；准备参与设计或实现时，再按“正式架构”阅读。
 
 ## 快速理解
 
-1. [从 AI Native 新范式到 CimiLoop：分享讲稿](articles/03-从AI-Native新范式到CimiLoop-分享讲稿-v0.1.md)
-2. [CimiLoop 整体架构通俗解读](architecture/CimiLoop整体架构通俗解读-v0.1.md)
-3. [CimiLoop AI-Native 软件研发流程规范](articles/02-CimiLoop-AI-Native软件研发流程规范-v0.1.md)
-4. [AI-Native 软件研发新范式](articles/01-AI-Native软件研发新范式.md)
+1. [AI Native 软件研发新范式：七段入门文章](articles/01-AI-Native软件研发新范式.md)：沿 SkillsHub 版本需求讲流程，不先引入 CimiLoop。
+2. [AI Native 软件研发流程基线](architecture/AI-Native软件研发流程-v0.1.md)：查看已确认的输入、输出、协作和发布边界。
+3. [分享讲稿入口](articles/03-从AI-Native新范式到CimiLoop-分享讲稿-v0.1.md)：先讲流程；CimiLoop 后半场待继续讨论，旧讲稿及图仅作历史参考。
+4. [CimiLoop 整体架构通俗解读](architecture/CimiLoop整体架构通俗解读-v0.1.md)：了解现有承载设计，不等于代码全部实现。
+
+先讨论流程，再讨论 CimiLoop。SkillsHub 示例中的具体产品规则和方案尚未获批，不能当作功能开发规格。
 
 ## 正式架构
 
 建议按以下顺序阅读：
+
+先读 [独立研发流程基线](architecture/AI-Native软件研发流程-v0.1.md)，再进入下列 CimiLoop 专项架构。流程与工具分层，不要求业务用户先掌握内部协议词汇。
 
 1. [整体能力架构](architecture/CimiLoop整体能力架构-v0.1.md)
 2. [Cimi Change Protocol 核心领域模型](architecture/CimiChangeProtocol核心领域模型-v0.1.md)
@@ -37,12 +41,14 @@
 - [M5：Product Closure、Portability 与 Release Hardening 实施计划](plans/2026-09-20-cimiloop-m5-product-portability-release-implementation-plan.md)
 - [Build / Adopt / Adapt 选型矩阵](plans/2026-09-19-cimiloop-build-adopt-adapt选型矩阵-v0.1.md)
 - [能力架构讨论计划与决策账本](plans/2026-09-18-cimiloop-capability-architecture-discussion-plan.md)
-- [AI-Native 研发操作模型](plans/2026-09-17-cimiloop-ai-native研发操作模型-v0.1.md)
+- [需求 / 缺陷统一模型与共享发布决策](plans/2026-09-28-cimiloop-requirement-bug-unified-model-design.md)
 
 ## 背景研究
 
 以下材料形成于正式架构之前，保留作为行业背景、方案来源和历史依据：
 
+- [早期研发操作模型](plans/2026-09-17-cimiloop-ai-native研发操作模型-v0.1.md)：旧讨论记录，现行约束以 2026-09-28 流程和架构为准。
+- [早期 CimiLoop 流程规范](articles/02-CimiLoop-AI-Native软件研发流程规范-v0.1.md)：旧正文及图片保留，不再作为现行上位规范。
 - [背景研究导航](research/README.md)
 - [AI-Native Harness 开源项目深度调研与选型建议](research/AI-Native-Harness开源项目深度调研与选型建议-2026.md)
 - [AI-Native 软件研发新范式行业深度调研](research/AI-Native软件研发新范式行业深度调研-2026.md)
