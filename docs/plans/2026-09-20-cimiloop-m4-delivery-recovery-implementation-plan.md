@@ -1,6 +1,7 @@
 # CimiLoop M4 Test、Production 与 Recovery Implementation Plan
 
-> **For development Agent:** REQUIRED SUB-SKILL: Use `executing-plans` after M3 gate passes.
+> 状态：待按新流程重对齐，暂不直接执行；校准日期：2026-09-29。
+> 原执行方式（仅历史参考）：M3 门禁通过后使用 `executing-plans`；目前不能仅凭旧门禁启动本计划。
 
 **Goal:** 使用同一 Artifact 完成测试部署、验证、生产授权、生产晋升、即时验证，并对未知结果和失败提供可审计 Recovery/Reconciliation。
 
@@ -11,6 +12,21 @@
 ---
 
 ## 1. Objects and invariants
+
+### 现行边界与待重对齐内容
+
+以 [流程基线](../architecture/AI-Native软件研发流程-v0.1.md) 和 [工程交付与 DevOps 模型](../architecture/CimiLoop工程交付与DevOps模型-v0.1.md) 为准。Release 属于项目共享发布范围，关联多个需求的实际纳入内容；共同构建、部署与整批发布授权不按需求重复。单需求 Artifact 获得 ALLOW 不足以证明共同集成的软件包可以发布。
+
+需补齐以下已确认场景，再重审下文 Protocol、Tasks 与验收：
+
+- feature 持续集成；上线前从确定快照切出 release，固定本次范围。
+- 共享测试环境切到 release；阻止新发起、排队及在途 feature 部署覆盖，但不停止 feature 开发、合入或构建。
+- 问题先修复；赶不上约定窗口时从实际发布实现安全剔除并核对依赖，重建、必要回归和重新核验授权。仅取消清单勾选不算剔除。
+- 生产晋升最终测试通过且获批的同一制品；发布成功不自动完成被延期或未验收需求。
+
+未知结果核对与受控恢复原则继续保留。环境占用释放、取消 / 失败后恢复、release 修复回流，以及相关字段、完整状态和迁移仍待设计，不能从本提示直接补造实现。
+
+### 原对象与不变量（待重审）
 
 新增：`Environment`、`Release`、`ReleasePackage`、`Deployment`、`DeploymentAttempt`、`VerificationResult`、`RecoveryStrategy`、`RecoveryExecution`、`Reconciliation`、`ExternalOperation`。
 

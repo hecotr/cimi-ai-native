@@ -5,11 +5,23 @@
 ## 快速理解
 
 1. [AI Native 软件研发新范式：七段入门文章](articles/01-AI-Native软件研发新范式.md)：沿 SkillsHub 版本需求讲流程，不先引入 CimiLoop。
-2. [AI Native 软件研发流程基线](architecture/AI-Native软件研发流程-v0.1.md)：查看已确认的输入、输出、协作和发布边界。
+2. [AI Native 软件研发流程基线](architecture/AI-Native软件研发流程-v0.1.md)：查看已确认边界及 N1–N5 映射；七段是讲解顺序，不是新生命周期。
 3. [分享讲稿入口](articles/03-从AI-Native新范式到CimiLoop-分享讲稿-v0.1.md)：先讲流程；CimiLoop 后半场待继续讨论，旧讲稿及图仅作历史参考。
 4. [CimiLoop 整体架构通俗解读](architecture/CimiLoop整体架构通俗解读-v0.1.md)：了解现有承载设计，不等于代码全部实现。
 
 先讨论流程，再讨论 CimiLoop。SkillsHub 示例中的具体产品规则和方案尚未获批，不能当作功能开发规格。
+
+## 当前适用状态（2026-09-29 校准）
+
+| 材料 | 当前用途 | 不应据此推断 |
+|---|---|---|
+| 独立研发流程基线、七段入门文章 | 已确认的整体流程和 N1–N5 映射 | 所有细则、系统状态或能力已经完成设计 / 实现 |
+| 原 `02` 流程规范 | 保留 N1–N5 框架与输入、活动、分工、输出、检查、异常、退出等细化结构 | 旧正文仍是现行上位规范 |
+| 修订后的 CimiLoop 专项架构、统一模型决策 | 流程的承载语义与已确认边界 | 字段、完整枚举、迁移或实际流水线已经冻结 |
+| V1 范围、总执行计划、M1–M5 计划、原型方案及提示词 | 待按新流程重对齐的旧范围与任务材料 | 可以直接交给开发 Agent 连续执行 |
+| M0 实施记录、背景研究、旧讲稿和配图 | 已有实现记录或历史参考，按各自声明阅读 | 历史材料会随新流程自动变成现行规格 |
+
+先校准文档，再沿 N1–N5 完善流程细则，随后重对齐 CimiLoop 实施计划与原型。旧决策的替代关系见 [决策账本](plans/2026-09-18-cimiloop-capability-architecture-discussion-plan.md)；新流程与修订架构优先于未同步的旧计划，计划中的执行指令当前不生效。本文不代替代码实现审查。
 
 ## 正式架构
 
@@ -30,10 +42,12 @@
 
 ## 产品范围与计划
 
+以下 V1 范围、总执行计划、M1–M5 和原型材料均已加上待重对齐提示，尚不是按新流程可直接执行的计划。选型矩阵的核心权威 / 适配原则继续参考，但其旧范围与里程碑映射也需复核。
+
 - [CimiLoop 交互式演示原型需求与实施计划](plans/2026-09-21-cimiloop-interactive-demo-prototype.md)
 - [CimiLoop 交互式演示原型开发 Agent 提示词](plans/2026-09-21-cimiloop-interactive-demo-agent-prompt.md)
 - [V1 产品范围与实施里程碑](plans/2026-09-19-cimiloop-v1产品范围与实施里程碑-v0.1.md)
-- [V1 完整执行计划（开发 Agent 总入口）](plans/2026-09-20-cimiloop-v1-complete-execution-plan.md)
+- [V1 完整执行计划（旧开发 Agent 入口，暂不直接执行）](plans/2026-09-20-cimiloop-v1-complete-execution-plan.md)
 - [M1：Intent、Plan 与 Human Decision 实施计划](plans/2026-09-20-cimiloop-m1-intent-plan-decision-implementation-plan.md)
 - [M2：Execution、Context 与 Immutable Artifact 实施计划](plans/2026-09-20-cimiloop-m2-execution-context-artifact-implementation-plan.md)
 - [M3：Claim–Evidence 与 Independent Evaluation 实施计划](plans/2026-09-20-cimiloop-m3-evidence-evaluation-implementation-plan.md)
@@ -48,7 +62,7 @@
 以下材料形成于正式架构之前，保留作为行业背景、方案来源和历史依据：
 
 - [早期研发操作模型](plans/2026-09-17-cimiloop-ai-native研发操作模型-v0.1.md)：旧讨论记录，现行约束以 2026-09-28 流程和架构为准。
-- [早期 CimiLoop 流程规范](articles/02-CimiLoop-AI-Native软件研发流程规范-v0.1.md)：旧正文及图片保留，不再作为现行上位规范。
+- [原 CimiLoop 流程规范](articles/02-CimiLoop-AI-Native软件研发流程规范-v0.1.md)：保留 N1–N5 框架与细化结构；旧正文及图片不作为现行上位规范，完整现行细则待逐项确认。
 - [背景研究导航](research/README.md)
 - [AI-Native Harness 开源项目深度调研与选型建议](research/AI-Native-Harness开源项目深度调研与选型建议-2026.md)
 - [AI-Native 软件研发新范式行业深度调研](research/AI-Native软件研发新范式行业深度调研-2026.md)

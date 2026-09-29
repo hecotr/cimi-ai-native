@@ -1,6 +1,7 @@
 # CimiLoop V1 Complete Execution Plan
 
-> **For development Agent:** REQUIRED SUB-SKILL: Use `executing-plans` and execute the linked milestone plans task-by-task.
+> 状态：待按新流程重对齐，暂不直接执行；校准日期：2026-09-29。
+> 原执行方式（仅历史参考）：使用 `executing-plans` 逐任务执行里程碑计划。当前不启动 M1–M5 连续开发。
 
 **Goal:** 从已冻结 M0 连续实现 M1–M5，交付 Embedded Solo Mode 的完整、可审计、可恢复 V1 Change 闭环。
 
@@ -12,7 +13,9 @@
 
 ## 1. 计划文档索引
 
-按顺序执行，不得跳跃：
+以下保留原计划顺序，当前不执行。先读 [流程基线及 N1–N5 映射](../architecture/AI-Native软件研发流程-v0.1.md) 和 [统一模型决策](2026-09-28-cimiloop-requirement-bug-unified-model-design.md)，完成流程细化与范围、任务、验收重对齐，再另行确认执行。只增加本提示或修正一条验收，不代表整份计划已恢复可执行状态。
+
+重对齐重点：M1 的业务录入、澄清及拆分；M2–M3 的项目级集成产物与跨需求验证依据；M4 的共享发布和环境占用；M5 的业务跟踪、逐需求关闭与可移植关系。既有 Kernel 权威、历史不可变、受控副作用和恢复原则继续保留。
 
 1. [M1：Intent、Plan 与 Human Decision](./2026-09-20-cimiloop-m1-intent-plan-decision-implementation-plan.md)
 2. [M2：Execution、Context 与 Immutable Artifact](./2026-09-20-cimiloop-m2-execution-context-artifact-implementation-plan.md)
@@ -20,9 +23,11 @@
 4. [M4：Test、Production 与 Recovery](./2026-09-20-cimiloop-m4-delivery-recovery-implementation-plan.md)
 5. [M5：Product Closure、Portability 与 Release Hardening](./2026-09-20-cimiloop-m5-product-portability-release-implementation-plan.md)
 
-上位范围基线：`docs/plans/2026-09-19-cimiloop-v1产品范围与实施里程碑-v0.1.md`。
+原范围基线：[V1 产品范围与实施里程碑](2026-09-19-cimiloop-v1产品范围与实施里程碑-v0.1.md)，同样待重对齐，不作为绕过现行流程的执行授权。
 
 ## 2. 开发分支与提交策略
+
+以下是当时开发 CimiLoop 本仓库的分支策略，不是 CimiLoop 所承载项目的 feature / release 发布模型，也不表示本轮会创建分支、提交、推送或 PR。
 
 1. 从最新 `origin/main` 创建单一分支 `codex/v1-complete`。
 2. M1–M5 全部在该分支连续完成，不把未审核代码合入 main。
@@ -84,13 +89,25 @@ M1 Contract vN + Plan vN + Human Decisions
 1. Feature：Draft→Contract approve→Plan approve→execute→evaluate→test→production→close。
 2. Evaluator refutes：返回 Executing，Repair Work Item，新 Artifact 重新评价。
 3. Artifact digest 改变：旧 Test/Evaluation Evidence 不再支撑新 Gate。
-4. Decision 过期：目标版本或范围变化后旧批准不能复用。
+4. Decision 适用性：仅调整目标版本的规划归属，不自动改变 Contract、执行权限或让实现 Evidence 全部失效；实际范围、制品、环境或授权条件变化时，按精确引用和影响评估判断旧批准是否仍适用，必要时重新取得授权。
 5. 外部部署结果未知：停止盲重试，进入 Blocker/Reconciliation。
 6. 生产验证失败：执行预授权 recovery，超范围进入 AwaitingDecision。
 7. Kernel 重启：恢复 Run/Lease/Outbox/Deployment，不重复副作用。
 8. 权限/Policy 撤销：停止新操作，历史保持不变。
 9. Export/Import：保留 ID/version/event/digest，拒绝分叉历史，导入后不激活运行时所有权。
 10. Knowledge closure：Mandatory Knowledge Task 未完成不能关闭。
+
+### 按新流程必须补齐的验收（待拆解、未实现）
+
+- 一句话录入进入待澄清；需求 / 缺陷共用台账；无目标版本仍可在满足授权后实施。
+- 细化保持身份；平级拆分保留来源；已拆分不算已交付，不级联关闭新记录。
+- 多条需求共同形成固定集成快照、制品和实际纳入清单，共享部署与整批授权不按需求重复执行。
+- 切出 release 后 feature 新合入不改变本次候选；共享测试环境拒绝新发起、排队及在途 feature 部署覆盖，但不停止 feature 开发或合入。
+- 问题先修复；确实赶不上约定窗口时安全剔除实际实现及核对依赖，重建、必要回归并重新核验授权；仅取消清单勾选不能通过。
+- 生产晋升最终测试通过且获批的同一制品；延期需求保留身份和进度，不随整批成功完成。
+- 逐需求核对实际交付、必要验收及知识义务；长期业务效果另行观察。
+
+此清单记录已确认的行为边界，不新增字段、状态或尚待讨论的环境释放 / 修复回流规则。前述旧验收路径与各里程碑脚本仍需重新拆解。
 
 ## 7. 开发 Agent 每次里程碑交接格式
 

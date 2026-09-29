@@ -1,6 +1,7 @@
 # CimiLoop M5 Product Closure、Portability 与 Release Hardening Implementation Plan
 
-> **For development Agent:** REQUIRED SUB-SKILL: Use `executing-plans` after M4 gate passes.
+> 状态：待按新流程重对齐，暂不直接执行；校准日期：2026-09-29。
+> 原执行方式（仅历史参考）：M4 门禁通过后使用 `executing-plans`；目前不能仅凭旧门禁启动本计划。
 
 **Goal:** 完成 Workbench/Change Room、关闭与知识闭环、Portable Export/Import、故障注入、安全审计和 V1 发布验收。
 
@@ -11,6 +12,16 @@
 ---
 
 ## 1. Objects and invariants
+
+### 现行边界与待重对齐内容
+
+以 [流程基线](../architecture/AI-Native软件研发流程-v0.1.md)、[工作台交互模型](../architecture/CimiLoop工作台与变更空间交互模型-v0.1.md) 和 [存储演进模型](../architecture/CimiLoop存储与Solo-Team演进模型-v0.1.md) 为准。需补齐熟悉的项目、版本、需求、缺陷、任务入口；统一需求池按类型区分，目标版本可选，拆分来源与共享发布记录关联同一业务事实。
+
+关闭按单条需求的实际纳入、必要验收、约定终点和知识义务判断，不随整批成功级联；已拆分不是已交付，延期保留身份和进度。长期业务效果另行观察。可移植数据需保留规划归属历史、拆分来源及跨需求共享发布关系，不改写历史或重复发布事实。
+
+既有知识闭环、不可变记录和导入不激活运行所有权原则继续保留。下文旧界面、终态枚举、导出结构、迁移与验收仍待重审，本提示不表示其已经实现；M5 工程里程碑不等同于 N5。
+
+### 原对象与不变量（待重审）
 
 新增：`LearningCandidate`、`KnowledgeUpdateEvidence`、`ClosureEvaluation`、`ExportManifest`、`ImportReport`、`PortableObjectEntry`、`AttentionItem`、`ArchiveRecord`、`CancellationRecord`、`SupersessionRecord`。
 

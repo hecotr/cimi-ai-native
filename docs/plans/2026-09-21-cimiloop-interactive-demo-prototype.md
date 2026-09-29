@@ -1,6 +1,7 @@
 # CimiLoop Interactive Demo Prototype Implementation Plan
 
-> **For implementation agent:** Implement this plan task-by-task. Do not stop after producing another plan.
+> 状态：旧原型方案，待按新流程重对齐，暂不直接执行；校准日期：2026-09-29。
+> 原执行方式仅历史参考：逐任务实施。本轮不启动原型开发，也不表示已有原型已经迁移。
 
 **Goal:** 构建一个面向研发主管、产品经理和开发工程师的 CimiLoop 纯前端可交互演示原型，在 5–7 分钟内稳定演示一次“订单导出能力”Change 如何从意图授权、Agent 执行、独立评价失败、修复补证据、生产发布决策走到关闭。
 
@@ -11,6 +12,14 @@
 ---
 
 ## 1. 产品定位与设计选择
+
+### 2026-09-29 重对齐前置条件
+
+现行依据是 [独立流程基线](../architecture/AI-Native软件研发流程-v0.1.md) 和 [统一模型 / 共享发布决策](2026-09-28-cimiloop-requirement-bug-unified-model-design.md)。以下订单案例、单 Change 路径、场景状态与任务列表保留历史，不可作为现行产品规格或直接开发指令。
+
+后续需将讲解案例换成 Cimi Marketplace SkillsHub 版本能力，并重排演示路径：一句话录入需求 / 缺陷、澄清细化或平级拆分、可选目标版本、人与 AI 协作、多个需求共同集成与发布、release 占用测试环境、修复或安全剔除延期、同制品晋升、逐需求交付与知识义务。SkillsHub 具体行为仍是讲解假设，不是功能开发授权。
+
+原型可继续采用纯前端固定数据、可重置和 Presenter Mode；必须明确模拟事实，不声称已连接真实 Kernel 或发布系统。完整流程细则、原型场景和状态映射确认后，再修订下文任务与对应提示词；本轮不新增页面、状态枚举或改代码。
 
 ### 1.1 推荐方案：叙事型可点击产品原型
 

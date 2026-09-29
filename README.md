@@ -15,13 +15,15 @@ CimiLoop 是一个面向 AI-Native 软件研发的 Runtime-neutral Harness（运
 
 项目已经进入正式实现阶段。M0 首个可恢复纵向切片已经可以运行：初始化 Project、创建 Draft Change、查询、暂停、恢复、幂等重放、Revision 冲突检查、Event/Outbox 原子提交及重启恢复。Contract、Plan、Gate 和 Agent Runtime Adapter 从后续里程碑逐步加入。
 
+2026-09-29 文档校准：以上保留原设计与 M0 实现记录。现行流程继续采用 N1–N5，七段文章只是讲解顺序；需求 / 缺陷统一身份、目标版本可选及项目级共享发布已进入修订架构，但完整字段、状态与迁移尚未冻结。V1 旧范围及 M1–M5 / 原型计划待重对齐，暂不直接执行，不能据文档更新声称代码已迁移。详见 [文档适用状态](docs/README.md)。
+
 ## 建议阅读顺序
 
 1. [AI Native 软件研发新范式](docs/articles/01-AI-Native软件研发新范式.md)：先沿 SkillsHub 版本需求理解七段流程，不先讲 CimiLoop。
 2. [AI Native 软件研发流程基线](docs/architecture/AI-Native软件研发流程-v0.1.md)：已确认流程、协作边界与共同发布规则。
 3. [CimiLoop 整体架构通俗解读](docs/architecture/CimiLoop整体架构通俗解读-v0.1.md)：再了解工具如何承载流程。
 4. [CimiLoop 整体能力架构](docs/architecture/CimiLoop整体能力架构-v0.1.md)：正式架构总纲。
-5. [CimiLoop V1 产品范围与实施里程碑](docs/plans/2026-09-19-cimiloop-v1产品范围与实施里程碑-v0.1.md)：了解首个版本交付目标。
+5. [CimiLoop V1 产品范围与实施里程碑](docs/plans/2026-09-19-cimiloop-v1产品范围与实施里程碑-v0.1.md)：旧范围参考，待按新流程重对齐，不直接执行。
 6. [文档导航](docs/README.md)：查看完整架构、协议、角色与计划文档。
 
 ## 核心原则
@@ -103,4 +105,6 @@ npx pnpm@12.4.2 --filter @cimiloop/demo-web dev
 
 ## 下一阶段
 
-M0 已补齐 CLI 机器输出 Schema、JSON Schema 制品同步与全量注册、共享 Store Port 契约，以及事务回滚、幂等重放、双客户端 Revision 竞争、响应丢失恢复、数据库重开与 Outbox Lease 恢复测试，并已在 Node.js 24.15.0 + pnpm 12.4.2 基线上完成复验。M0 现已冻结，下一步进入 M1：真实 Contract、Risk、Profile、Decision、Gate、Plan 与 Knowledge Impact Assessment。实施边界见 [M0 实施架构](docs/implementation/2026-09-19-cimiloop-m0实施架构-v0.1.md)。
+下一步先沿 N1–N5 完善现行流程细则，再重对齐 V1 范围与 M1–M5 的任务和验收，另行确认后进入 M1。下述 M0 冻结记录继续保留，本轮未复验代码。
+
+M0 已补齐 CLI 机器输出 Schema、JSON Schema 制品同步与全量注册、共享 Store Port 契约，以及事务回滚、幂等重放、双客户端 Revision 竞争、响应丢失恢复、数据库重开与 Outbox Lease 恢复测试，并已在 Node.js 24.15.0 + pnpm 12.4.2 基线上完成复验。M0 现已冻结；原计划中的 M1 包括真实 Contract、Risk、Profile、Decision、Gate、Plan 与 Knowledge Impact Assessment，仍需按新流程重对齐后再实施。实施边界见 [M0 实施架构](docs/implementation/2026-09-19-cimiloop-m0实施架构-v0.1.md)。

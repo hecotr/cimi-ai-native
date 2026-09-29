@@ -1,10 +1,24 @@
 # CimiLoop 整体能力架构讨论计划
 
-> 状态：整体能力架构已确认
+> 状态：整体能力架构已确认；后续修订见决策适用性标记，旧范围与执行计划待重对齐。
 > 创建日期：2026-09-18
 > 类型：架构讨论路线图与决策账本
 > 当前流程约束：[AI Native 软件研发流程](../architecture/AI-Native软件研发流程-v0.1.md)
 > 2026-09-28 补充：早期操作模型作为历史输入保留，不再作为现行上位约束。历史决策不改写，业务对象与共享发布以 [统一模型决策](2026-09-28-cimiloop-requirement-bug-unified-model-design.md) 及修订架构为准。
+
+## 2026-09-29 决策适用性校准
+
+旧结论保留用于追溯，状态栏注明被替代或补充的部分，不能把“当时已确认”理解为永久有效。D-143–D-146 汇总此前已确认的新规则，不新增物理字段、状态或技术选型。
+
+| 旧决策 | 当前适用性 | 现行依据 |
+|---|---|---|
+| D-015、D-126：Change 中心的工作台 | 注意事项与详情投影继续保留；业务入口补充为项目、版本、需求、缺陷、任务及统一需求池 | D-143、修订后的工作台模型 |
+| D-066：版本模型 | Contract / Plan 修订继续保留；另行区分可选目标版本、实际发布版本与产品内容版本 | D-145、核心领域模型第 8.1 节 |
+| D-085：Change 级 Release | 发布归属已替代，改为 Project 级共享发布范围 | D-144、核心领域模型及 DevOps 模型 |
+| D-125：工程交付 | 隔离实施、同制品晋升与恢复原则继续保留；补充跨需求集成、release 验证及环境占用 | D-144、修订后的 DevOps 模型 |
+| D-128：V1 范围与里程碑 | 原确认记录保留，范围与验收计划待按新流程重对齐，暂不直接执行 | V1 范围及 M1–M5 计划顶部提示 |
+
+现行规则以 [独立流程基线](../architecture/AI-Native软件研发流程-v0.1.md)、[统一模型决策](2026-09-28-cimiloop-requirement-bug-unified-model-design.md) 及其修订架构为准。完整流程细则仍待沿 N1–N5 讨论；本文后面的原阶段进度不是当前实现完成度证明。
 
 ## 1. 目的
 
@@ -644,6 +658,8 @@ Project Policy 与 Policy Snapshot：
 
 Environment、Release 与 Deployment：
 
+> 此处保留原讨论结论；其中“Release 从属于 Change”已被 D-144 替代。现行 Release 属于 Project 级共享发布范围，按实际纳入的多个需求及确定制品授权，不为每条需求复制部署。其余不可变尝试、未知状态核对与受控恢复原则继续参考。
+
 - Environment 是 Project 级稳定目标定义，例如测试环境或生产环境，并通过外部引用关联真实平台环境；
 - Release 是从属于 Change 的受控发布对象，绑定精确 Contract Version、Artifact ID 与 Digest、目标 Environment、Release Package、Recovery Strategy 和 Release Decision；
 - Release Owner 批准的是具体 Release，即指定 Artifact 在规定时间、范围和环境中的一次发布授权，不是通用生产权限；
@@ -1015,7 +1031,7 @@ Incident 采用“压缩流程、不跳过语义”：可以快速通过 IntentR
 | D-012 | V1 协作信息 | 已确认 | V1 不建设聊天系统；保存结构化 Feedback、Decision、Artifact、Evidence 及必要对话摘要和引用。 |
 | D-013 | 双模式部署 | 已确认 | 同一协议和内核支持 Embedded Solo Mode 与 Shared Team Mode；本地执行不等于协作数据必须只保存在本地。 |
 | D-014 | 发布顺序 | 已确认 | V1 先完整交付 Solo Mode，同时预留 Store 替换、稳定 ID、事件协议和项目导入导出；Team Mode 后续实现。 |
-| D-015 | Project Workbench | 已确认 | 采用 Attention-first 与 Change 生命周期看板；项目卡片是 Change，N1–N5 不直接作为看板列。 |
+| D-015 | Project Workbench | 已确认（业务入口由 D-143 补充） | 采用 Attention-first 与 Change 生命周期看板；项目卡片是 Change，N1–N5 不直接作为看板列。 |
 | D-016 | 统一交互接口 | 已确认 | 所有入口统一使用 Query/Command；只有 Kernel 可以接受 Command 并执行状态修改。 |
 | D-017 | 通知模型 | 已确认 | 通知是 Event 的派生投影，已读不等于 Decision；V1 提供 Workbench 内和可选桌面通知。 |
 | D-018 | 交互与协作能力域 | 已确认 | Change Room、Workbench、Actor、Feedback/Decision、Query/Command、通知及 Solo/Team 演进边界已完成一级能力确认。 |
@@ -1066,7 +1082,7 @@ Incident 采用“压缩流程、不跳过语义”：可以快速通过 IntentR
 | D-063 | Artifact、Claim、Evidence 与 Gate Evaluation | 已确认 | Artifact 是不可变工件，Claim 是待证明命题，Evidence 是不可变观察；Gate Evaluation 基于版本化要求和证据形成快照，Kernel 仍是迁移权威。 |
 | D-064 | Actor、Role、Assignment 与 Decision | 已确认 | Actor、Role 与作用域化 Assignment 分离；Decision 记录实际 Actor、行权角色、目标版本及当时授权依据，权限由 Policy 动态求值。 |
 | D-065 | 跨聚合引用 | 已确认 | 跨聚合统一使用稳定 ID 与精确业务版本引用；Change 保存当前生效版本指针，历史对象保留原始版本引用且不自动追随最新版。 |
-| D-066 | Change 内版本模型 | 已确认 | 主要业务版本仅为 Contract Version 与 Plan Version；Artifact 使用不可变 ID 和 Digest，运行事实使用独立记录 ID；Revision、Schema Version 与 Event Sequence 作为分离的内部技术标识。 |
+| D-066 | Change 内版本模型 | 已确认（版本维度由 D-145 补充） | 主要业务版本仅为 Contract Version 与 Plan Version；Artifact 使用不可变 ID 和 Digest，运行事实使用独立记录 ID；Revision、Schema Version 与 Event Sequence 作为分离的内部技术标识。 |
 | D-067 | Contract Amendment 与版本生成 | 已确认 | Amendment 是独立修订提案；批准后才基于父版本生成并启用新的不可变 Contract Version，未批准提案保留审计记录但不占正式版本号。 |
 | D-068 | Plan Version 与 Task 身份 | 已确认 | Plan 修订产生新版本；任务含义与边界不变时沿用稳定 Task ID，拆分、合并或目标变化时创建新 ID 并保留谱系关系。 |
 | D-069 | 版本变化与精确影响评估 | 已确认 | Contract/Plan 新版本不触发全量级联失效；Kernel 将下游对象判定为 Valid、Stale 或 Superseded，并保存影响范围与判断依据。 |
@@ -1085,7 +1101,7 @@ Incident 采用“压缩流程、不跳过语义”：可以快速通过 IntentR
 | D-082 | Risk Profile 与 Risk Assessment | 已确认 | Risk Profile 是 Change 下独立权威对象；每次评估形成不可变记录，Change 指向当前结果，风险变化不强迫 Contract 升版。 |
 | D-083 | Change Profile 身份与版本 | 已确认 | Change Profile 是 Project Policy 管理的版本化规则定义；Change 引用精确 Profile ID 与版本，新版本必须经显式影响评估才能作用于运行中的 Change。 |
 | D-084 | Project Policy 与求值快照 | 已确认 | Project Policy 使用版本化定义；关键授权与 Gate 保存实际 Policy Snapshot，新规则不得改写历史，强制红线阻止后续动作时必须留下影响记录。 |
-| D-085 | Environment、Release 与 Deployment | 已确认 | Environment 是 Project 级目标定义，Release 是绑定 Artifact、环境、恢复策略和授权的 Change 级发布对象，Deployment 是一次不可变执行尝试。 |
+| D-085 | Environment、Release 与 Deployment | 原已确认（Release 归属由 D-144 替代） | Environment 是 Project 级目标定义，Release 是绑定 Artifact、环境、恢复策略和授权的 Change 级发布对象，Deployment 是一次不可变执行尝试。 |
 | D-086 | Core、Runtime 与 Adapter Protocol 边界 | 已确认 | Cimi Change Protocol 定义可移植业务事实；Lease、Lock、Outbox 等属于 Kernel Runtime Protocol，外部调用契约属于 Adapter Protocol。 |
 | D-087 | Agent Run 协议边界 | 已确认 | 核心协议保存可移植 Run Record；完整 Transcript、工具调用和命令输出留在 Runtime，以 External Reference 和 Digest 关联，关键结论提升为业务事实。 |
 | D-088 | Context Pack 协议边界 | 已确认 | 核心协议保存不可变 Context Pack Manifest；大内容留在原始权威来源，以引用、权威级别和 Digest 描述，来源丢失时明确标记不可用。 |
@@ -1125,10 +1141,10 @@ Incident 采用“压缩流程、不跳过语义”：可以快速通过 IntentR
 | D-122 | Context & Knowledge 模型 | 已确认 | Agent Run 绑定不可变、可追溯且按角色最小化的 Context Pack；Run/Change/Project Memory 分层，权威按事实类型确定，来源变化精确传播，冲突复用 Claim/Evidence/Blocker/Decision Request，Run Observation 只有经过 Learning Candidate、评价和 Owner Decision 才能晋升项目知识。 |
 | D-123 | Capability Assembly 模型 | 已确认 | 流程声明语义化 Capability Requirement，Resolver 按 Policy、权限、兼容性、可信与健康确定 Provider，并为每个 Run/操作生成不可变 Binding；运行中不静默替换实现，外部结果未知先 Reconciliation，关键结果提升为协议事实。 |
 | D-124 | Verification & Evidence 模型 | 已确认 | 从 Contract/Policy/Risk 推导 Claim，Evidence 只记录支持、反驳或无法判定的不可变观察；Gate 按 Requirement Set、适用性、覆盖和独立性求值，未取得 Evidence 是缺口而非证据，反驳不能以数量投票覆盖，Human Decision 不能伪造事实。 |
-| D-125 | Engineering Delivery & DevOps 模型 | 已确认 | Change 在隔离 Workspace 中形成不可变 Source Snapshot 与 Artifact；测试和生产晋升同一 Digest，Release 管授权、Deployment 管尝试，未知外部状态先 Reconciliation，Recovery/Compensation 作为新的受控动作保留完整历史。 |
-| D-126 | Workbench & Change Room 交互模型 | 已确认 | Project Workbench 采用跨 Change 的 Attention-first 视图，Change Room 负责单 Change 闭环并以 Current Focus 驱动下一动作；Decision 结构化、Evidence 按 Claim 呈现，生命周期事件与 Run 技术日志使用双层时间线。 |
+| D-125 | Engineering Delivery & DevOps 模型 | 已确认（共享集成与发布由 D-144 补充） | Change 在隔离 Workspace 中形成不可变 Source Snapshot 与 Artifact；测试和生产晋升同一 Digest，Release 管授权、Deployment 管尝试，未知外部状态先 Reconciliation，Recovery/Compensation 作为新的受控动作保留完整历史。 |
+| D-126 | Workbench & Change Room 交互模型 | 已确认（业务入口由 D-143 补充） | Project Workbench 采用跨 Change 的 Attention-first 视图，Change Room 负责单 Change 闭环并以 Current Focus 驱动下一动作；Decision 结构化、Evidence 按 Claim 呈现，生命周期事件与 Run 技术日志使用双层时间线。 |
 | D-127 | Storage & Solo-to-Team Evolution 模型 | 已确认 | Solo/Team 使用同一 Protocol 与 Kernel；Command 的状态、Event、Outbox 和幂等结果原子提交，Portable Import 先暂存校验且不自动合并分叉历史，Solo→Team 通过暂停、排空、核对、导入、激活和原实例只读封存避免双写。 |
-| D-128 | V1 产品范围与实施里程碑 | 已确认 | V1 采用 Embedded Solo Mode 的窄范围完整闭环，以真实 Feature 主场景、八类异常路径、Feature/Bugfix/Incident 关键 Profile、M0–M5 纵向里程碑和可恢复/可审计/可移植 Definition of Done 作为范围基线。 |
+| D-128 | V1 产品范围与实施里程碑 | 原已确认（范围与计划待重对齐） | V1 采用 Embedded Solo Mode 的窄范围完整闭环，以真实 Feature 主场景、八类异常路径、Feature/Bugfix/Incident 关键 Profile、M0–M5 纵向里程碑和可恢复/可审计/可移植 Definition of Done 作为范围基线。 |
 | D-129 | Build / Adopt / Adapt 选型 | 已确认 | CimiLoop 核心 Build；SQLite、Git、Agent Skills 格式 Adopt；Runtime、DevOps 和外部能力经 Adapter 接入；Matt Skills 选择性适配；OpenSpec 降为可选 Spec Provider；CodeGraph、Multica 等延后。 |
 | D-130 | V1 Agent Runtime | 已确认 | V1 首个 Runtime 从 Claude Code 或 OpenCode 中通过 spike 与契约测试选择一个；优先验证 OpenCode 以降低未来企业内部 cimicode 接入成本，若关键能力不满足则选择 Claude Code；cimicode 不再是 V1 前置依赖。 |
 | D-131 | Change 知识闭环 | 已确认 | 每个 Change 执行 Knowledge Impact Assessment；受影响知识通过既有 Plan/Task/Work Item 分配给 Agent、开发者、业务或运维人员，以版本化 External Reference 和 Evidence 证明更新；Policy 决定阻塞 Release 或 Closure Gate，V1 使用 Human Work Item，不以前置飞书 Adapter 为条件。 |
@@ -1143,8 +1159,14 @@ Incident 采用“压缩流程、不跳过语义”：可以快速通过 IntentR
 | D-140 | Solo Human Actor 初始化 | 已确认 | `cimiloop init` 读取 Git 用户名和邮箱作为建议，经用户确认或显式参数后创建稳定 Human Actor 与 Project Owner Assignment；Git 邮箱不作为内部主键，Agent 不得借用该身份执行人类批准。 |
 | D-141 | M0 工程执行模型 | 已确认 | M0 使用封装在 Store Adapter 内的 Node.js `node:sqlite`、UUIDv7、纯 Kernel 领域函数和原子 Unit of Work；Project/Change Current State、不可变记录、Event、Outbox 与幂等回执保持事务一致。 |
 | D-142 | M0 首个可恢复纵向切片 | 已实现 | 已实现 `cimiloop` 初始化及 Change 创建、查询、暂停、恢复和健康检查；自动化测试覆盖 Protocol 严格校验、幂等重放、Command ID 复用、Revision 冲突、事务回滚、重启恢复和 Outbox Lease 恢复。 |
+| D-143 | 需求 / 缺陷统一业务身份与澄清 | 已确认（2026-09-28，2026-09-29 补记） | 两种类型共用需求池，业务记录就是内部 Change；一句话先澄清，目标版本可选，必要时平级拆分并保留来源，已拆分不算交付、不级联关闭。业务入口使用熟悉词汇，不建立第二份 Change。 |
+| D-144 | 项目级共享集成与发布 | 已确认（2026-09-28，2026-09-29 补记） | Release 属于 Project 共享发布范围，替代 D-085 的单 Change 归属；feature 持续集成，上线前切 release，测试环境切换并暂停 feature 覆盖（含排队 / 在途部署），修复优先、必要时安全剔除延期；验证最终制品并同制品晋升，完成逐需求判断。具体回流与环境释放细则待定。 |
+| D-145 | 版本维度与授权 / 证据适用性 | 已确认（2026-09-28，2026-09-29 补记） | 目标版本是可选规划归属，与实际发布版本、产品内容版本及 Contract / Plan 修订分开；仅调整规划归属不自动改变契约、权限或使实现证据全部失效，实际范围、制品、环境或授权条件变化时按影响评估核验适用性。 |
+| D-146 | N1–N5 与讲解 / 实施层次 | 已确认框架（2026-09-29 校准） | 保留 N1 意图契约、N2 计划—执行—评价、N3 风险授权、N4 环境验证与生产交付、N5 复盘与学习；N3 贯穿关键动作，不是固定第三阶段。七段是讲解顺序，M0–M5 是工程里程碑，都不替代 N1–N5 或直接成为系统状态；完整细则待讨论。 |
 
-## 10. 当前进度
+## 10. 原阶段进度与当前校准边界
+
+以下列表保留原架构讨论阶段的进度快照，其中“已完成”不代表 2026-09-28 修订后的字段、完整状态机、迁移与发布实现已完成。M0 的既有实现记录继续保留；当前先沿 N1–N5 细化现行流程，再重对齐 V1 范围、M1–M5 和原型计划，不执行下面历史“下一步”指令。
 
 - 阶段 A 产品边界与架构原则：已完成；
 - 阶段 B 整体能力架构：已完成；

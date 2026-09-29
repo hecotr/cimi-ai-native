@@ -1,6 +1,7 @@
 # CimiLoop M2 Execution、Context 与 Immutable Artifact Implementation Plan
 
-> **For development Agent:** REQUIRED SUB-SKILL: Use `executing-plans` task-by-task after M1 gate passes.
+> 状态：待按新流程重对齐，暂不直接执行；校准日期：2026-09-29。
+> 原执行方式（仅历史参考）：M1 门禁通过后使用 `executing-plans`；目前不能仅凭旧门禁启动本计划。
 
 **Goal:** 让 Planned Change 产生有边界 Work Item，在隔离 worktree 中通过首个 Runtime Adapter 执行，并形成可追溯的 Run、Context/Capability Binding、Source Snapshot 与不可变 Artifact。
 
@@ -11,6 +12,14 @@
 ---
 
 ## 1. M2 边界与对象
+
+### 现行边界与待重对齐内容
+
+以 [流程基线](../architecture/AI-Native软件研发流程-v0.1.md) 和 [核心领域模型](../architecture/CimiChangeProtocol核心领域模型-v0.1.md) 为准。需求实施仍可使用隔离 Workspace、任务授权与独立 Run；人也可直接实施，不要求 AI 是唯一或主要执行者。
+
+后续需区分需求任务产物与项目级共同集成的 Source Snapshot / Artifact。共享集成的授权和产物引用不能伪造为某一条需求的 Task，也不能只携带该需求上下文；实际纳入范围和共同约束必须可追溯。下文“固定 Contract/Plan/Task”的旧不变量不能无条件套到所有项目级操作，具体命令、字段与迁移仍待设计，本文不提前冻结它们。
+
+### 原对象与不变量（待重审）
 
 新增 Protocol：`WorkItem`、`AgentRunRecord`、`ContextPackManifest`、`ContextSource`、`CapabilityRequirement`、`ProviderDescriptor`、`CapabilityBinding`、`SourceSnapshot`、`Artifact`、`ResourceLock`、`Lease`、`Failure`、`Blocker`。
 

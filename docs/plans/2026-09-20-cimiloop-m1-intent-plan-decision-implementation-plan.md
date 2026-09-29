@@ -1,6 +1,7 @@
 # CimiLoop M1 Intent、Plan 与 Human Decision 实施计划
 
-> **For development Agent:** REQUIRED SUB-SKILL: Use `executing-plans` to implement this plan task-by-task.
+> 状态：待按新流程重对齐，暂不直接执行；校准日期：2026-09-29。
+> 原执行方式（仅历史参考）：使用 `executing-plans` 逐任务实施；本轮不启动开发。
 
 **Goal:** 在已冻结的 M0 可恢复 Kernel 上交付 M1，使一个 Draft Change 能形成并批准 Contract v1、形成并批准 Plan v1，最终可靠进入 `Planned`，并完整记录角色授权、风险、知识影响、Decision、Feedback、Gate、Transition、Event 与查询视图。
 
@@ -11,6 +12,12 @@
 ---
 
 ## 1. 范围与不变量
+
+### 现行边界与待重对齐内容
+
+以 [流程基线及 N1–N5 映射](../architecture/AI-Native软件研发流程-v0.1.md) 和 [统一模型决策](2026-09-28-cimiloop-requirement-bug-unified-model-design.md) 为准。需补齐同一需求 / 缺陷身份、一句话录入、统一需求池、可选目标版本、澄清细化或平级拆分及来源记录；原记录已拆分不算交付，不级联关闭新记录。
+
+业务类型不等于 Profile；指定目标版本不等于实施授权。仅变更规划归属不自动改变 Contract / 权限或使实现证据全部过期。以下旧 Command、状态路径和任务列表仍待结合流程细则重审，具体字段、枚举及迁移未冻结；M1 是工程里程碑，不等同于 N1。
 
 ### 必须交付
 

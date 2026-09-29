@@ -1,6 +1,7 @@
 # CimiLoop M3 Claim–Evidence 与 Independent Evaluation Implementation Plan
 
-> **For development Agent:** REQUIRED SUB-SKILL: Use `executing-plans` after M2 gate passes.
+> 状态：待按新流程重对齐，暂不直接执行；校准日期：2026-09-29。
+> 原执行方式（仅历史参考）：M2 门禁通过后使用 `executing-plans`；目前不能仅凭旧门禁启动本计划。
 
 **Goal:** 让 Artifact 的可交付性由 Claim、Evidence、Requirement Set 和独立 Evaluation 证明，并在失败时形成可审计 Repair Loop。
 
@@ -11,6 +12,14 @@
 ---
 
 ## 1. Objects and invariants
+
+### 现行边界与待重对齐内容
+
+以 [流程基线](../architecture/AI-Native软件研发流程-v0.1.md) 和 [验证与证据模型](../architecture/CimiLoop验证与证据模型-v0.1.md) 为准。保留独立评价、精确证据引用和修复回路；需补齐跨需求共同制品的实际纳入范围、共同验证要求与受影响回归。单需求实现检查通过不能替代整包集成 / 环境验收。
+
+仅调整目标版本规划归属，不自动让实现证据全部失效；集成、修复或剔除改变实际候选时，按影响评估核验旧结论适用性并补做必要验证，不自动将旧制品的通过结论转移到新制品。下文旧任务与验收仍待重对齐，本提示不表示脚本或 Schema 已更新。
+
+### 原对象与不变量（待重审）
 
 新增：`Claim`、`Evidence`、`ExternalReference`、`GateRequirementSet`、`ClaimAssessment`、`GateEvaluation` 扩展、`EvidencePackageManifest`、`ImpactAssessment`、`RepairWorkItemLink`。
 
