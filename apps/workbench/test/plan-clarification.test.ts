@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
-import { createRequire } from "node:module";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createInternalId } from "@cimiloop/protocol/v2";
 import { openLocalProject, writeInstance, LocalPrePlanClarification } from "@cimiloop/local-app";
@@ -109,45 +108,4 @@ describe("Human clarification creates the original Plan candidate before tasks",
     const cli = spawnSync(process.execPath, ["apps/cli/dist/bin.js", "--json", "--project-dir", root, "clarification", "begin", change.id, "--file", file], { encoding: "utf8" });
     expect(cli.status).toBe(0); expect(JSON.parse(cli.stdout)).toEqual(started); expect(readFileSync(file, "utf8")).toBe(JSON.stringify(request));
   });
-  it("submits the original plan candidate from the actual browser after Human answers and recovers its lost response", async () => {
-    const change = f.create(); f.prepareContract(change.id);const originals=new Map<string,any>();let methodCalls=0,review:any;
-    server = await startWorkbench({ projectDir: root, planningClarification: { matt: { verifyOriginal() {} } },prePlanMatt:{
-      async invoke(input,guard){guard();methodCalls++;review=structuredClone(input.request.review_plan);originals.set(input.invocation_key,{format:'cimiloop/pre-plan-matt-original/2.0.0',qualification:'unqualified_method_execution',invocation_key:input.invocation_key,input_digest:input.input_digest,method_name:'grill-me',source_digest:{algorithm:'sha256',value:'a'.repeat(64)},origin:'public_fixture',original_ref:{provider:'PUBLIC_fixture',resource_type:'method_original',locator:input.invocation_key,digest:{algorithm:'sha256',value:'b'.repeat(64)}},output:{purpose:'clarification',questions:[],unresolved:[]}});},
-      async readOriginal(input){return originals.get(input.invocation_key)??null;},verifyOriginal(input,original){expect(original).toEqual(originals.get(input.invocation_key));}
-    } });
-    const { JSDOM } = createRequire(import.meta.url)("jsdom"), dom = new JSDOM(readFileSync(new URL("../public/index.html", import.meta.url), "utf8"), { url: server.bootstrapUrl, runScripts: "outside-only", pretendToBeVisual: true });
-    let lost = false, lose = true,pendingFetches=0;
-    dom.window.fetch = async (path: string, init: RequestInit = {}) => {
-      pendingFetches++;
-      try{
-      const url = new URL(path, server!.origin).href, headers = new Headers(init.headers); headers.set("Cookie", dom.cookieJar.getCookieStringSync(url)); headers.set("Connection", "close"); if (init.method === "POST") headers.set("Origin", server!.origin);
-      const response = await fetch(url, { ...init, headers }), cookie = response.headers.get("set-cookie"); if (cookie) dom.cookieJar.setCookieSync(cookie, url, { http: true });
-      if (lose && response.ok && typeof init.body === "string" && JSON.parse(init.body).kind === "plan_candidate") { lose = false; lost = true;await response.arrayBuffer();throw TypeError("Constructed plan response loss"); }
-      const json=response.json.bind(response);Reflect.set(response,'json',async()=>{try{return await json();}finally{pendingFetches--;}});return response;
-      }catch(error){pendingFetches--;throw error;}
-    };
-    const until = async (check: () => boolean) => { const end = Date.now() + 10000; while (!check()) { if (Date.now() > end) throw Error("Browser plan state unavailable"); await new Promise(done => setTimeout(done, 10)); } };
-    const fill = (name: string, value: string) => { const field = dom.window.document.querySelector('[name="' + name + '"]'); field.value = value; return field.closest("form"); };
-    try {
-      dom.window.eval('(async()=>{\n' + readFileSync(new URL("../public/app.js", import.meta.url), "utf8") + '\n})();');
-      await until(() => dom.window.document.querySelector("#operator")?.textContent.includes("Owner")); dom.window.location.hash = "change/" + change.id;
-      await until(() => Boolean(dom.window.document.querySelector('[name="requirement"]')));
-      const beginForm = fill("requirement", "Plan and task definitions"); fill("background", "Actual confirmed contract"); beginForm.querySelector('button[type="submit"]').click();
-      await until(() => Boolean(dom.window.document.querySelector('[name="question"]'))); fill("question", "How to verify A1?").querySelector('button[type="submit"]').click();
-      await until(() => Boolean(dom.window.document.querySelector('[name="answer"]'))); fill("answer", "Independent task evidence").querySelector('button[type="submit"]').click();
-      await until(() => Boolean(dom.window.document.querySelector('[name="plan_approach"]')));
-      for (const [key, value] of Object.entries({ plan_approach: "Implement then independently verify", implementation_goal: "Implement A1", verification_goal: "Verify A1", implementation_outputs: "Query patch", verification_outputs: "Original test evidence", allowed_changes: "src/query.ts", verification_method: "Independent check", verification_evidence: "Original results" })) fill(key, value);
-      const sequence = f.store.asOfEventSequence(); fill("plan_approach", "Implement then independently verify").querySelector('button[type="submit"]').click();
-      await until(()=>lost||methodCalls>0);expect(methodCalls).toBe(1);expect(lost).toBe(false);
-      const reviewed=()=>[...dom.window.document.querySelectorAll('button')].find((button:any)=>button.textContent==='提交已复查的计划候选');
-      await until(()=>!!reviewed());expect(review.contract).toEqual(f.store.getIntentRecord('contract_version',f.store.getChange(change.id)!.contract_ref!.id));reviewed().click();
-      await until(() => lost && dom.window.document.querySelector("#notice")?.textContent.includes("Constructed plan response loss"));
-      const key = "cimiloop.pending." + f.project.id, pending = JSON.parse(dom.window.sessionStorage.getItem(key)); expect(pending.request.kind).toBe("plan_candidate");
-      [...dom.window.document.querySelectorAll("#notice button")].find((button: any) => button.textContent === "按原请求核对").click();
-      await until(() => dom.window.sessionStorage.getItem(key) === null && dom.window.document.querySelector("#content")?.textContent.includes("原候选已处理"));
-      expect(f.store.listIntentRecords("plan_proposal", change.id)).toHaveLength(1); expect(f.store.listIntentRecords("plan_proposal", change.id)[0]!.body).toEqual(pending.request.body);
-      expect(pending.request.body).toEqual(review.body);expect(methodCalls).toBe(1);
-      expect(f.store.asOfEventSequence()).toBe(sequence + 1); expect(f.store.listExecutionObjects("task", change.id)).toHaveLength(0);
-    } finally { await until(()=>pendingFetches===0);dom.window.close(); }
-  }, 60000);
 });

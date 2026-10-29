@@ -1,12 +1,14 @@
 import {LocalHumanRuntimeContract,LocalHumanSkillMethodProbe,LocalHumanNamedSkillCapture,LocalHumanSkillInvocationControl,type HumanSkillRuntimeFactory,LocalHumanSkillInvocationReconciliation,type HumanSkillReconciliationFactory} from '@cimiloop/local-app';
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { extname, join, relative, sep } from "node:path";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { fileURLToPath } from "node:url";
 import { executeLocalCommand, LocalPrePlanClarification, LocalHumanAgentRunFamilyControl, LocalAgentRuntimeControl, LocalAgentRuntimeObservation, LocalHumanAgentRunCostObservation, LocalHumanAgentRuntimeStart, LocalHumanAgentAccountBilling, type HumanAgentRuntimeFactory, type HumanAgentAccountFactory, LocalProjectError, openLocalProject, type LocalProject,type LocalPlanningClarificationOptions,type LocalAgentParentSkillResultPort } from "@cimiloop/local-app";
 import type { DomainError } from "@cimiloop/protocol/v2";
 import { productionAgentRuntime, productionAgentAccount, productionAgentCosts, hasReadableProductionAgentCosts, hasProductionAgentBillAccount, openInstalledCodexMatt, inspectCodexAgentRuntimeInstallation, LocalAgentRuntimeAdmission, type InstalledCodexMatt, type MattClarificationHost } from "@cimiloop/local-app";
 import {hasInstalledDedicatedAgentRuntime,inspectDedicatedAgentRuntimeInstallation,inspectDedicatedRuntimeStorage} from '@cimiloop/local-app';
+import { LocalLiteWorkbench, type LiteEvent } from '@cimiloop/local-app';
 
 const MAX_BODY_BYTES = 128 * 1024;
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
@@ -51,15 +53,16 @@ export interface WorkbenchServer { origin: string; bootstrapUrl: string; close()
 
 export const startWorkbench = async (options: WorkbenchOptions): Promise<WorkbenchServer> => {
   if (options.port !== undefined && (!Number.isInteger(options.port) || options.port < 0 || options.port > 65535)) throw new Error("Invalid loopback port");
-  const context = openLocalProject({ projectDir: options.projectDir,...(options.prePlanMatt?{prePlanMatt:options.prePlanMatt}:{}),...(options.planningClarification?{planningClarification:options.planningClarification}:{}),...(options.agentParentSkillResults?{agentParentSkillResults:options.agentParentSkillResults}:{}) });
+  const context = openLocalProject({ projectDir: options.projectDir,...(options.prePlanMatt?{prePlanMatt:options.prePlanMatt}:{}),...(options.planningClarification?{planningClarification:options.planningClarification}:{legacyManualPlanning:true}),...(options.agentParentSkillResults?{agentParentSkillResults:options.agentParentSkillResults}:{}) });
   let installedMatt: InstalledCodexMatt | undefined, matt = options.prePlanMatt;
   let admission:LocalAgentRuntimeAdmission|undefined;
   let cleaned=false;
   const cleanup=()=>{if(cleaned)return;cleaned=true;try{installedMatt?.release();}finally{try{admission?.release();}finally{context.store.close();}}};
   try {
+  const lite = new LocalLiteWorkbench(context);
   try{if(options.runtimeAdmission){admission=await options.runtimeAdmission(context);if(!(admission instanceof LocalAgentRuntimeAdmission)||LocalAgentRuntimeAdmission.current(context)!==admission)throw new LocalProjectError('工作台未取得同一项目的完整准入租约','CAPABILITY_UNAVAILABLE','conflict');admission.guard();}}catch(error){cleanup();throw error;}
   let mattState: "installed" | "missing" | "unavailable" = matt ? "installed" : "missing";
-  if (!matt) {
+  if (!matt && !lite.provider) {
     try { installedMatt = await openInstalledCodexMatt(context); matt = installedMatt?.host; if (matt) mattState = "installed"; }
     catch (error) { if (!(error instanceof LocalProjectError)) { cleanup(); throw error; } mattState = "unavailable"; }
   }
@@ -74,13 +77,9 @@ export const startWorkbench = async (options: WorkbenchOptions): Promise<Workben
   const accountForRun = options.agentAccountForRun ?? productionAgentAccount;
   const agentBilling = new LocalHumanAgentAccountBilling(context,options.agentAccountForRun??productionAgentCosts);
   const agentCostObservation = new LocalHumanAgentRunCostObservation(context,accountForRun);
-  const assets = new Map<string, { type: string; body: Buffer }>();
-  try {
-    for (const [route, file, type] of [["/", "index.html", "text/html; charset=utf-8"], ["/app.js", "app.js", "text/javascript; charset=utf-8"],
-      ["/style.css", "style.css", "text/css; charset=utf-8"]]) {
-      assets.set(route!, { type: type!, body: readFileSync(fileURLToPath(new URL(`../public/${file}`, import.meta.url))) });
-    }
-  } catch (error) { cleanup(); throw error; }
+  let assets: Map<string, { type: string; body: Buffer }>;
+  try { assets = loadWebAssets(); } catch (error) { cleanup(); throw error; }
+  const shell = assets.get("/")!;
   let origin = "", bootstrap: string | undefined = token(), session: string | undefined, csrf: string | undefined, expires = 0;
   let closing = false, failedLogins = 0, cookieName = "";
   const pending = new Set<Promise<void>>();
@@ -105,14 +104,16 @@ export const startWorkbench = async (options: WorkbenchOptions): Promise<Workben
   const handle = async (request: IncomingMessage, response: ServerResponse) => {
     response.setHeader("Cache-Control", "no-store"); response.setHeader("Referrer-Policy", "no-referrer");
     response.setHeader("X-Content-Type-Options", "nosniff"); response.setHeader("Cross-Origin-Resource-Policy", "same-origin");
-    response.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+    // The React shell's component library injects runtime styles, so styles may be inline; scripts stay same-origin only.
+    response.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
     try {
       if (closing) throw new HttpFailure(503, "WORKBENCH_CLOSING");
       requireSource(request, request.method !== "GET");
       if (!request.url?.startsWith("/") || request.url.startsWith("//")) throw new HttpFailure(400, "INVALID_ROUTE");
       const url = new URL(request.url, origin);
       if (url.search || url.hash) throw new HttpFailure(400, "INVALID_ROUTE");
-      const asset = assets.get(url.pathname);
+      // Client-side routes resolve to the SPA shell; unknown /api paths still fall through to ROUTE_NOT_FOUND.
+      const asset = assets.get(url.pathname) ?? (url.pathname.startsWith("/api/") || /\.[a-z0-9]+$/i.test(url.pathname) ? undefined : shell);
       if (asset && request.method === "GET") {
         response.writeHead(200, { "Content-Type": asset.type, "Content-Length": asset.body.length }); response.end(asset.body); return;
       }
@@ -130,11 +131,17 @@ export const startWorkbench = async (options: WorkbenchOptions): Promise<Workben
       }
       requireSession(request, request.method !== "GET");
       if (url.pathname === "/api/context" && request.method === "GET") {
+        if (lite.provider) {
+          send(response, 200, { ok: true, project_id: context.instance.project_id, actor_id: context.instance.actor_id,
+            matt_host_available: !!options.prePlanMatt, matt_installation_state: mattState, selected_runtime: 'lite',
+            agent_start_available: true, agent_costs_available: false, agent_cost_settlement_available: false,
+            runtime: lite.runtime(), csrf, expires_at: new Date(expires).toISOString() }); return;
+        }
         const dedicatedInstallation=await inspectDedicatedAgentRuntimeInstallation(context);
         const dedicatedStorage=dedicatedInstallation.state==='installed'?await inspectDedicatedRuntimeStorage(context):undefined;
         const codexInstallation=await inspectCodexAgentRuntimeInstallation(context);
         if(closing)throw new HttpFailure(503,'WORKBENCH_CLOSING');requireSession(request,false);
-        send(response, 200, { ok: true, project_id: context.instance.project_id, actor_id: context.instance.actor_id, matt_host_available: !!matt&&(!!options.prePlanMatt||!hasInstalledDedicatedAgentRuntime(context)), matt_installation_state: mattState, codex_runtime_installation:codexInstallation,local_provider_runtime_installation:dedicatedInstallation,local_provider_runtime_storage:dedicatedStorage,selected_runtime:hasInstalledDedicatedAgentRuntime(context)?'local OpenAI-compatible':'Codex login', agent_start_available: typeof runtimeForRun === "function", agent_costs_available: typeof options.agentAccountForRun === "function" || hasReadableProductionAgentCosts(context), agent_cost_settlement_available:typeof options.agentAccountForRun==='function'||hasProductionAgentBillAccount(context), csrf, expires_at: new Date(expires).toISOString() }); return;
+        send(response, 200, { ok: true, project_id: context.instance.project_id, actor_id: context.instance.actor_id, matt_host_available: !!matt&&(!!options.prePlanMatt||!hasInstalledDedicatedAgentRuntime(context)), matt_installation_state: mattState, codex_runtime_installation:codexInstallation,local_provider_runtime_installation:dedicatedInstallation,local_provider_runtime_storage:dedicatedStorage,selected_runtime:hasInstalledDedicatedAgentRuntime(context)?'local OpenAI-compatible':'Codex login', agent_start_available: typeof runtimeForRun === "function", agent_costs_available: typeof options.agentAccountForRun === "function" || hasReadableProductionAgentCosts(context), agent_cost_settlement_available:typeof options.agentAccountForRun==='function'||hasProductionAgentBillAccount(context), runtime: lite.runtime(), csrf, expires_at: new Date(expires).toISOString() }); return;
       }
       if (url.pathname === "/api/dashboard" && request.method === "GET") {
         send(response, 200, dashboard(context)); return;
@@ -181,6 +188,48 @@ export const startWorkbench = async (options: WorkbenchOptions): Promise<Workben
         const result = await awaitCurrentSession(async () => clarificationMatch[2] ? clarification.advanceAsync(changeId, decodeURIComponent(clarificationMatch[2]), body, guard) : clarification.begin(changeId, body), guard);
         const commandResult = "command_result" in result ? result.command_result as ReturnType<typeof executeLocalCommand> | undefined : undefined;
         send(response, commandResult && "code" in commandResult ? statusFor(commandResult) : 200, result); return;
+      }
+      const liteTaskMatch = /^\/api\/tasks\/([^/]{1,200})\/(agent-runs|evaluations|satisfy)$/.exec(url.pathname);
+      const liteReadyMatch = /^\/api\/changes\/([^/]{1,200})\/ready-for-delivery$/.exec(url.pathname);
+      const liteAdviceMatch = /^\/api\/(changes|agent-runs)\/([^/]{1,200})\/ai\/(clarify|review)$/.exec(url.pathname);
+      if ((liteTaskMatch || liteReadyMatch || liteAdviceMatch) && request.method === 'POST') {
+        const body = await readBody(request);
+        const guard = () => { if (closing) throw new HttpFailure(503, 'WORKBENCH_CLOSING'); requireSession(request, true); };
+        guard();
+        let result: unknown;
+        if (liteTaskMatch) {
+          const taskId = decodeURIComponent(liteTaskMatch[1]!);
+          result = liteTaskMatch[2] === 'agent-runs' ? lite.start(taskId, body) : liteTaskMatch[2] === 'evaluations' ? lite.evaluate(taskId, body) : lite.satisfy(taskId, body);
+        } else if (liteReadyMatch) result = lite.ready(decodeURIComponent(liteReadyMatch[1]!), body);
+        else {
+          if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length ||
+            (liteAdviceMatch![1] === 'changes') !== (liteAdviceMatch![3] === 'clarify')) throw new HttpFailure(400, 'INVALID_COMMAND');
+          result = await awaitCurrentSession(() => lite.advice(liteAdviceMatch![3] as 'clarify' | 'review', decodeURIComponent(liteAdviceMatch![2]!)), guard);
+        }
+        guard(); send(response, 200, result); return;
+      }
+      const liteReadMatch = /^\/api\/agent-runs\/([^/]{1,200})\/(events|result)$/.exec(url.pathname);
+      if (liteReadMatch && request.method === 'GET') {
+        if (header(request, 'transfer-encoding') || header(request, 'content-length') && header(request, 'content-length') !== '0') throw new HttpFailure(400, 'BODY_NOT_ALLOWED');
+        const runId = decodeURIComponent(liteReadMatch[1]!);
+        if (liteReadMatch[2] === 'result') { send(response, 200, lite.result(runId)); return; }
+        const last = header(request, 'last-event-id');
+        if (last !== undefined && !/^\d+$/.test(last)) throw new HttpFailure(400, 'INVALID_EVENT_ID');
+        const events = lite.events(runId, Number(last ?? 0));
+        // requestTimeout limits receipt of the request body, not response time.
+        // GET is fully received here; also disable the socket response timeout.
+        request.setTimeout(0); response.setTimeout(0);
+        response.writeHead(200, { 'Content-Type': 'text/event-stream', Connection: 'keep-alive' }); response.flushHeaders();
+        const write = (event: LiteEvent) => {
+          if (response.destroyed || response.writableEnded) return;
+          response.write(`id: ${event.seq}\ndata: ${JSON.stringify(event)}\n\n`);
+          if (event.type === 'done') response.end();
+        };
+        for (const event of events) write(event);
+        if (response.writableEnded) return;
+        if (lite.result(runId).status !== 'Running') { response.end(); return; }
+        const unsubscribe = lite.subscribe(runId, write);
+        response.once('close', unsubscribe); return;
       }
       const runtimeContractMatch=/^\/api\/runtime-contracts(?:\/([^/]{1,200})(?:\/(start|continue|cancel|recover|capture|usage))?)?$/.exec(url.pathname);
       if(runtimeContractMatch){
@@ -256,6 +305,8 @@ export const startWorkbench = async (options: WorkbenchOptions): Promise<Workben
       }
       const agentMatch = /^\/api\/agent-runs\/([^/]{1,200})(?:\/(collect|stop|cancel|recover|observe|start))?$/.exec(url.pathname);
       if (agentMatch && request.method === "GET" && !agentMatch[2]) {
+        const runId = decodeURIComponent(agentMatch[1]!);
+        if (lite.has(runId)) { send(response, 200, lite.query(runId)); return; }
         const guard=()=>{if(closing)throw new HttpFailure(503,"WORKBENCH_CLOSING");requireSession(request,false);};
         const result=await awaitCurrentSession(()=>agentRuntime.query(decodeURIComponent(agentMatch[1]!),guard),guard);
         send(response,200,result);return;
@@ -268,6 +319,7 @@ export const startWorkbench = async (options: WorkbenchOptions): Promise<Workben
         if (action === "stop" || action === "observe") {
           if (!body || typeof body !== "object" || Array.isArray(body) || !("target" in body) || !body.target || typeof body.target !== "object" ||
             !("id" in body.target) || body.target.id !== runId) throw new HttpFailure(400, "INVALID_COMMAND");
+          if (action === 'stop' && lite.has(runId)) { send(response, 200, lite.stop(runId, body)); return; }
           const guard=()=>{if(closing)throw new HttpFailure(503,"WORKBENCH_CLOSING");requireSession(request,true);};
           const result=await awaitCurrentSession(()=>action === "observe" ? agentObservation.record(body,guard) : agentRuntime.stop(body,guard),guard);
           send(response, "code" in result ? statusFor(result) : 200, result); return;
@@ -308,10 +360,35 @@ export const startWorkbench = async (options: WorkbenchOptions): Promise<Workben
     return closePromise ??= (async () => {
       closing = true; bootstrap = session = csrf = undefined;
       const closed = new Promise<void>((done, reject) => server.close(error => error ? reject(error) : done()));
-      server.closeAllConnections(); await closed; await Promise.allSettled([...pending]); cleanup();
+      server.closeAllConnections(); await closed; await Promise.allSettled([...pending]); await lite.close(); cleanup();
     })();
   } };
   }catch(error){cleanup();throw error;}
+};
+
+const WEB_TYPES: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon",
+  ".woff2": "font/woff2", ".woff": "font/woff", ".json": "application/json; charset=utf-8" };
+// The workbench-web build (apps/workbench-web) is emitted into dist/web and preloaded once at startup.
+// Resolved from both src (tests) and dist (runtime). Without a build the API still serves behind a placeholder page.
+const loadWebAssets = () => {
+  const root = fileURLToPath(new URL("../dist/web/", import.meta.url));
+  const assets = new Map<string, { type: string; body: Buffer }>();
+  if (!existsSync(join(root, "index.html"))) {
+    assets.set("/", { type: WEB_TYPES[".html"]!, body: Buffer.from('<!doctype html><meta charset="utf-8"><title>CimiLoop</title><p>工作台前端尚未构建：pnpm --filter @cimiloop/workbench-web build</p>') });
+    return assets;
+  }
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) { walk(path); continue; }
+      const type = WEB_TYPES[extname(entry.name).toLowerCase()];
+      if (type) assets.set(`/${relative(root, path).split(sep).join("/")}`, { type, body: readFileSync(path) });
+    }
+  };
+  walk(root);
+  assets.set("/", assets.get("/index.html")!);
+  return assets;
 };
 
 const dashboard = (context: LocalProject) => ({ ok: true, project: checked(context.kernel.getProject()),

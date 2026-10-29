@@ -208,7 +208,9 @@ export const executeExecution = (tx: StoreTransaction, command: ExecutionCommand
   if (definition!.body.purpose === "release_operation") fail(command, "CAPABILITY_UNAVAILABLE", "发布任务须等待环境与发布授权接通");
   if (input.allowed_actions.includes("edit_files") && (definition!.body.purpose === "verification" || input.allowed_resources.some(path => !definition!.body.allowed_changes.some(bound => resourceContains(bound, path))))) fail(command, "CAPABILITY_PERMISSION_DENIED", "修改资源超出任务定义或验证任务只读边界", "forbidden");
   const independent = definition!.body.purpose === "verification" && definition!.body.verification.mode === "independent";
-  if (tx.listExecutionObjects("work_item", current.change_id).some(item => item.executor_ref.id === input.executor_ref.id && (independent ? tx.getExecutionRecord("task_definition", item.definition_ref.id)?.body.purpose === "implementation" : definition!.body.purpose === "implementation" && item.independence_required))) fail(command, "INDEPENDENCE_REQUIRED", "实施与独立验证不能授权给同一执行身份", "forbidden");
+  // Solo mode only exempts the sole project Human from the identity conflict.
+  const solo = executor!.actor_type === "human" && tx.listActors().filter(actor => actor.project_id === current.project_id && actor.actor_type === "human").length === 1;
+  if (!solo && tx.listExecutionObjects("work_item", current.change_id).some(item => item.executor_ref.id === input.executor_ref.id && (independent ? tx.getExecutionRecord("task_definition", item.definition_ref.id)?.body.purpose === "implementation" : definition!.body.purpose === "implementation" && item.independence_required))) fail(command, "INDEPENDENCE_REQUIRED", "实施与独立验证不能授权给同一执行身份", "forbidden");
   const remainingProblem = budgetProblem(current, input.budget, context.now); if (remainingProblem) fail(command, current.usage.pending_reconciliation || !current.usage.cost_known ? "EXTERNAL_RESULT_UNKNOWN" : "BUDGET_EXCEEDED", remainingProblem);
   const digest = usageDigest(tx, current);
   if (input.acknowledged_usage_digest && !equal(input.acknowledged_usage_digest, digest)) fail(command, "INPUT_CHANGED", "累计用量与既有授权已变化");

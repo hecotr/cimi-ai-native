@@ -11,12 +11,14 @@ export type ContentReference = RawReference | RunObservation["raw_result_ref"] |
 const digest = (bytes: Buffer): Digest => ({ algorithm: "sha256", value: createHash("sha256").update(bytes).digest("hex") });
 const safeOid = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const limit = 64 * 1024 * 1024;
+// A whole-tree `cat-file --batch` exceeds the per-object limit on ordinary repositories.
+const outputLimit = 1024 * 1024 * 1024;
 export class LocalEvidenceVerifier implements EvidenceVerifierPort {
   readonly #admittedSources = new Map<string, { tree: Buffer; identities: { type: string; oid: string }[]; expected: Digest }>();
   constructor(readonly repositoryPath: string, readonly dataDirectory: string) {}
   #git(args: string[], input?: Buffer): Buffer {
     const env = { ...process.env }; for (const key of Object.keys(env)) if (key.startsWith("GIT_")) delete env[key];
-    return execFileSync("git", ["--no-replace-objects", "-C", this.repositoryPath, ...args], { encoding: "buffer", input, env, windowsHide: true, maxBuffer: limit, timeout: 30_000, stdio: ["pipe", "pipe", "pipe"] });
+    return execFileSync("git", ["--no-replace-objects", "-C", this.repositoryPath, ...args], { encoding: "buffer", input, env, windowsHide: true, maxBuffer: outputLimit, timeout: 30_000, stdio: ["pipe", "pipe", "pipe"] });
   }
   #project(project: Project): void {
     if (resolve(project.repository_path) !== resolve(this.repositoryPath) || project.repository_kind !== "git") throw new Error("Evidence requires the bound Git repository");

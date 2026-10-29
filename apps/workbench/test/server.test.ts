@@ -72,7 +72,7 @@ describe("local Workbench uses native project authority", () => {
     expect((await request("/api/dashboard", undefined, { "Sec-Fetch-Site": "cross-site" })).status).toBe(403);
   });
   it("never lets a root page or static asset disclose the login capability", async () => {
-    for (const path of ["/", "/app.js", "/style.css"]) {
+    for (const path of ["/", "/changes/any"]) {
       const response = await fetch(`${workbench.origin}${path}`), text = await response.text();
       expect(response.status).toBe(200); expect(text).not.toContain(new URL(workbench.bootstrapUrl).hash.slice(1));
       expect(response.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");

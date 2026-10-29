@@ -15,7 +15,9 @@
     "test": "pnpm check && vitest run",
     "test:watch": "vitest",
     "cimiloop": "node apps/cli/dist/bin.js",
-    "workbench": "node apps/workbench/dist/bin.js"
+    "workbench": "node apps/workbench/dist/bin.js",
+    "web:build": "pnpm --filter @cimiloop/workbench-web build",
+    "web:watch": "pnpm --filter @cimiloop/workbench-web watch"
   },
   "devDependencies": {
     "@types/node": "24.13.6",

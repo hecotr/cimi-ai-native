@@ -17,7 +17,7 @@ export interface EvidenceVerifierPort {
   sourceIsCurrent(project: Project, snapshot: SourceSnapshot): boolean;
 }
 type Command = Extract<AnyCommand, { command_type: "CaptureSourceSnapshot" | "RecordEvidence" | "PrepareTaskEvaluation" | "EvaluateTask" | "SatisfyTask" | "EvaluateIntegration" | "MarkReadyForIntegration" }>;
-type Reader = Pick<ProjectReader, "getActor" | "listAssignments" | "getChange" | "listChanges" | "getIntentRecord" | "listIntentRecords" | "getExecutionObject" | "listExecutionObjects" | "getExecutionRecord" | "listExecutionRecords" | "getVerificationRecord" | "listVerificationRecords">;
+type Reader = Pick<ProjectReader, "getActor" | "listActors" | "listAssignments" | "getChange" | "listChanges" | "getIntentRecord" | "listIntentRecords" | "getExecutionObject" | "listExecutionObjects" | "getExecutionRecord" | "listExecutionRecords" | "getVerificationRecord" | "listVerificationRecords">;
 interface Mutation { event_type: string; aggregate: CommandSuccess["aggregate"]; revision: number; data: CommandSuccess["data"]; payload: Record<string, unknown> }
 const equal = (a: unknown, b: unknown) => contentDigest(a ?? null).value === contentDigest(b ?? null).value;
 const validInstant = (value: string) => Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === (value.length === 20 ? value.replace("Z", ".000Z") : value);
@@ -73,7 +73,9 @@ const requirementsFor = (reader: Reader, command: Command, change: Change, task:
       ...(change.kind === "bug" ? [{ key: "bug_reproduction", description: "缺陷原始复现条件与预期行为已记录" }, { key: "bug_regression", description: "固定源码上的缺陷回归与相关兼容场景已核对" }] : [])] : [])];
 };
 const independentProblem = (reader: Reader, task: Task, item: WorkItem): boolean => !item.independence_required || item.allowed_actions.includes("edit_files") ||
-  reader.getActor(item.executor_ref.id)?.actor_type !== "human" || reader.listExecutionObjects("work_item", task.change_id).some(other => other.executor_ref.id === item.executor_ref.id && reader.getExecutionRecord("task_definition", other.definition_ref.id)?.body.purpose === "implementation");
+  reader.getActor(item.executor_ref.id)?.actor_type !== "human" ||
+  (reader.listActors().filter(actor => actor.project_id === task.project_id && actor.actor_type === "human").length !== 1 &&
+    reader.listExecutionObjects("work_item", task.change_id).some(other => other.executor_ref.id === item.executor_ref.id && reader.getExecutionRecord("task_definition", other.definition_ref.id)?.body.purpose === "implementation"));
 const computeTaskEvaluation = (reader: Reader, command: Command, change: Change, task: Task, item: WorkItem, source: SourceSnapshot,
   requirements: RequirementSetRecord, context: IntentContext, port: EvidenceVerifierPort, contextRecord?: EvaluationContext): TaskEvaluation => {
   const definition = definitionFor(reader, command, change, task), independent = definition.body.verification.mode === "independent";

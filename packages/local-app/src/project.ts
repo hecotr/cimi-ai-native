@@ -74,6 +74,7 @@ export const openLocalProject = (options: { projectDir?: string; prePlanMatt?:Ma
 };
 
 export const LOCAL_COMMAND_TYPES = [
+  "AssignResponsibility", "TransferChangeResponsibility", "UpdateProjectSettings",
   "CreateChange", "PauseChange", "ResumeChange", "ChangePlanning", "CreateTargetVersion", "CloseTargetVersion",
   "SubmitContractProposal", "SubmitPlanProposal", "RecordRiskAssessment", "RequestDecision", "RecordDecision",
   "ConfirmContract", "ConfirmPlan", "StartChange", "InitializePlanTasks", "CreateWorkItem", "RevokeWorkItem",

@@ -1,6 +1,5 @@
 import {spawnSync} from 'node:child_process';
-import {mkdtempSync,readFileSync} from 'node:fs';
-import {createRequire} from 'node:module';
+import {mkdtempSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,dirname,resolve} from 'node:path';
 import {afterAll,beforeAll,expect,it} from 'vitest';
@@ -11,8 +10,6 @@ import {createSkillInvocationProject} from '../../../tests/fixtures/skill-invoca
 import {flowTime} from '../../../tests/fixtures/flow-project.js';
 import {createInternalId} from '@cimiloop/protocol/v2';
 import {startWorkbench,type WorkbenchServer} from '../src/server.js';
-const {JSDOM}=createRequire(import.meta.url)('jsdom');
-const script=readFileSync(new URL('../public/app.js',import.meta.url),'utf8'),html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
 const until=async(condition:()=>boolean)=>{const deadline=Date.now()+15000;while(!condition()){if(Date.now()>deadline)throw Error('PUBLIC family UI timed out');await new Promise(done=>setTimeout(done,10));}};
 // Actual CLI/HTTP/Kernel/SQLite/Host1 and original custody. No Native/model
 // execution or real Skill qualification: unavailable resources stay Unknown.
@@ -63,21 +60,6 @@ it('exposes the same complete original child set from the compiled default CLI',
  }
  expect(f.store.asOfEventSequence()).toBe(sequence);expect(f.store.listRuns(f.change.id)).toHaveLength(1);
 },120000);
-it.each([false,true])('shows complete-family resource status in the browser when parent alone looks stopped: disposed=%s',async disposed=>{
- const dom=new JSDOM(html,{url:`${server.origin}/#change/${f.change.id}`,runScripts:'outside-only'});
- try{
-  dom.window.fetch=async(path:string,init:RequestInit={})=>{
-   if(path===`/api/agent-runs/${f.currentRun().id}`)return new Response(JSON.stringify({ok:true,run_id:f.currentRun().id,operation:{outcome:'observed',result:{status:'Stopped',resources_disposed:true}},family:{children:[{invocation_id:invocationId}],resources_disposed:disposed,completion_proven:false,costs_reconciled:false}}),{headers:{'Content-Type':'application/json'}});
-   const headers=new Headers(init.headers);headers.set('Cookie',cookie);headers.set('Connection','close');if(init.method==='POST')headers.set('Origin',server.origin);
-   return fetch(new URL(path,server.origin),{...init,headers});
-  };
-  dom.window.eval(`(async()=>{\n${script}\n})();`);
-  await until(()=>[...dom.window.document.querySelectorAll('button')].some((button:any)=>button.textContent==='查询原运行'));
-  [...dom.window.document.querySelectorAll('button')].find((button:any)=>button.textContent==='查询原运行').click();
-  await until(()=>dom.window.document.querySelector('#content')?.textContent.includes(disposed?'父运行及 1 个子 Skill 的资源已核对处置':'父运行及 1 个子 Skill 的资源尚未全部核对处置'));
-  expect(dom.window.document.querySelector('#content')?.textContent).toContain(disposed?'任务结果与费用仍待核对':'原运行与预算继续保留');
- }finally{dom.window.close();}
-},30000);
 it('uses the same parent-family cancellation from the selected Skill HTTP endpoint and replays one receipt',async()=>{
  const command={command_id:createInternalId(),requested_at:flowTime,acting_role:'technical_owner',command_type:'CancelRun',target:{object_type:'run',id:f.currentRun().id},expected_revision:f.currentRun().revision,payload:{reason:'PUBLIC selected Skill stop'}},before=f.store.asOfEventSequence(),calls=leases;
  const send=async()=>{const response=await fetch(`${server.origin}/api/skill-invocations/${invocationId}/stop`,{method:'POST',headers:{Cookie:cookie,Connection:'close',Origin:server.origin,'Content-Type':'application/json','X-CimiLoop-CSRF':csrf},body:JSON.stringify(command)});return{status:response.status,body:await response.json() as Record<string,any>};};

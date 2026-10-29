@@ -1,4 +1,6 @@
 export { openLocalProject, executeLocalCommand, LOCAL_COMMAND_TYPES } from "./project.js";
+export { LocalLiteWorkbench } from './lite-local.js';
+export type { LiteEvent, LiteResult } from './lite-runner.js';
 export { executeHumanAgentRunCommand,executeHumanAgentRunCommandAsync } from './agent-runtime-admission-local.js';
 export {openInstalledCodexProductionHost} from './agent-production-host-local.js';
 export { agentPreparationWorkItem } from './agent-human-preparation-local.js';
